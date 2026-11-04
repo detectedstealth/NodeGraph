@@ -57,7 +57,7 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
 - [x] `GraphCommand` set, `GraphEditor` (apply, invert, coalesce, batch), change stream
 - [x] Undo/redo manager on top of commands (`GraphHistory`). The bridge to the platform `UndoManager` is in Phase 4 (UI).
 - [x] Groups: membership by containment, move with contents, resize
-- [ ] `GraphDocument` native JSON v1: schema version, deterministic output, migration chain, unknown-node placeholders
+- [x] `GraphDocument` native JSON v1: schema version, deterministic output, migration chain, unknown-node placeholders
 - [ ] Tests for every rule above (Swift Testing); snapshot tests for the JSON format
 - [ ] Delete legacy `Core` models once ported
 
