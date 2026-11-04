@@ -11,3 +11,7 @@ Record architectural decisions here. Newest last. Format: date, decision, why.
 5. **Command-based mutation, no whole-graph snapshots.** Why: undo, redo, and server change log share one mechanism.
 6. **Open, registry-based port types; ports addressed by stable id, not array index.** Why: domain agnosticism and robust links when ports change.
 7. **UUID-backed IDs.** Why: safe for offline creation and server merging.
+
+## 2026-11-04 (Phase 1)
+
+8. **Deployment targets are macOS 27 and iOS 27 (iPadOS 27), Swift 6.4 tools.** Why: new app with no legacy users; lets us use current APIs (Mutex, new SwiftUI, Document APIs) without availability checks. Revisit if we ever need to ship to older OS versions.

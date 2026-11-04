@@ -42,8 +42,8 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
 
 - [x] `git init` (branch `main`, no commits yet), `.gitignore`
 - [x] `CLAUDE.md`, `docs/PLAN.md`, `docs/ARCHITECTURE.md`, `docs/DECISIONS.md`
-- [x] Create `Packages/NodeGraphCore`, `NodeGraphNodes`, `NodeGraphUI`, `NodeGraphSync` (macOS 14, iOS 17, Swift 6 tools) and `NodeGraph.xcworkspace`. Core depends on swift-collections and swift-log.
-- [x] Xcode app target at `App/NodeGraphApp` (multiplatform, Swift 6, macOS 14.6 / iOS 17.6, links all four packages). Builds on macOS and iOS. Empty editor view still to come in Phase 4.
+- [x] Create `Packages/NodeGraphCore`, `NodeGraphNodes`, `NodeGraphUI`, `NodeGraphSync` (macOS 27, iOS 27, Swift 6.4 tools) and `NodeGraph.xcworkspace`. Core depends on swift-collections and swift-log.
+- [x] Xcode app target at `App/NodeGraphApp` (multiplatform, Swift 6, macOS 27 / iOS 27, links all four packages). Builds on macOS and iOS. Empty editor view still to come in Phase 4.
 - [x] `scripts/ci.sh` tests every package; `--ios` builds each for the iOS simulator. Verified passing. App target not included until it exists.
 - [x] Move the legacy prototype to `Legacy/` (own Package.swift). Delete after Phase 1.
 - [x] Rewrite README to match reality
