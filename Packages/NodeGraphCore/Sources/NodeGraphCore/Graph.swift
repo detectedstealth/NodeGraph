@@ -31,17 +31,33 @@ public struct Graph: Hashable, Sendable {
 
     // MARK: Primitive mutation
 
+
     /// Adds a node, or replaces the existing node with the same id in place.
-    mutating func insert(_ node: Node) {
-        nodes[node.id] = node
+    /// A new node goes at `index`, or at the end when nil. `index` must be in `0...nodes.count`.
+    mutating func insert(_ node: Node, at index: Int? = nil) {
+        if let index, nodes[node.id] == nil {
+            nodes.updateValue(node, forKey: node.id, insertingAt: index)
+        } else {
+            nodes[node.id] = node
+        }
     }
 
-    mutating func insert(_ link: Link) {
-        links[link.id] = link
+    /// Same placement rules as inserting a node.
+    mutating func insert(_ link: Link, at index: Int? = nil) {
+        if let index, links[link.id] == nil {
+            links.updateValue(link, forKey: link.id, insertingAt: index)
+        } else {
+            links[link.id] = link
+        }
     }
 
-    mutating func insert(_ group: NodeGroup) {
-        groups[group.id] = group
+    /// Same placement rules as inserting a node.
+    mutating func insert(_ group: NodeGroup, at index: Int? = nil) {
+        if let index, groups[group.id] == nil {
+            groups.updateValue(group, forKey: group.id, insertingAt: index)
+        } else {
+            groups[group.id] = group
+        }
     }
 
     /// Removes a node only. Attached links are the caller's responsibility.

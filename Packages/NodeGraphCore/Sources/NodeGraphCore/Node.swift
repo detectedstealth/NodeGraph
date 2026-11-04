@@ -10,7 +10,7 @@ public enum NodeMode: String, Hashable, Sendable, Codable, CaseIterable {
 }
 
 /// A node instance. Holds placement and settings only; never runtime state.
-public struct Node: Hashable, Sendable, Codable {
+public struct Node: Hashable, Sendable {
     public var id: NodeID
     public var typeID: NodeTypeID
     public var position: GraphPoint
@@ -62,5 +62,50 @@ public struct Node: Hashable, Sendable, Codable {
     /// The stored value for a property, or the definition's default when unset.
     public func value(of property: PropertyID, in definition: NodeDefinition) -> GraphValue? {
         properties[property] ?? definition.property(property)?.defaultValue
+    }
+}
+
+// MARK: - Codable
+
+/// Properties encode as a JSON object keyed by property id. A dictionary keyed by a
+/// string-backed type would otherwise encode as a flat key/value array in unspecified order.
+extension Node: Codable {
+    private enum CodingKeys: String, CodingKey {
+        case id, typeID, position, size, title, color, mode, isCollapsed, isPinned, properties
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            id: try container.decode(NodeID.self, forKey: .id),
+            typeID: try container.decode(NodeTypeID.self, forKey: .typeID),
+            position: try container.decode(GraphPoint.self, forKey: .position),
+            size: try container.decodeIfPresent(GraphSize.self, forKey: .size),
+            title: try container.decodeIfPresent(String.self, forKey: .title),
+            color: try container.decodeIfPresent(RGBAColor.self, forKey: .color),
+            mode: try container.decodeIfPresent(NodeMode.self, forKey: .mode) ?? .always,
+            isCollapsed: try container.decodeIfPresent(Bool.self, forKey: .isCollapsed) ?? false,
+            isPinned: try container.decodeIfPresent(Bool.self, forKey: .isPinned) ?? false,
+            properties: Dictionary(
+                uniqueKeysWithValues: (try container.decodeIfPresent(
+                    [String: GraphValue].self, forKey: .properties) ?? [:])
+                    .map { (PropertyID($0.key), $0.value) })
+        )
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(typeID, forKey: .typeID)
+        try container.encode(position, forKey: .position)
+        try container.encodeIfPresent(size, forKey: .size)
+        try container.encodeIfPresent(title, forKey: .title)
+        try container.encodeIfPresent(color, forKey: .color)
+        try container.encode(mode, forKey: .mode)
+        try container.encode(isCollapsed, forKey: .isCollapsed)
+        try container.encode(isPinned, forKey: .isPinned)
+        try container.encode(
+            Dictionary(uniqueKeysWithValues: properties.map { ($0.key.rawValue, $0.value) }),
+            forKey: .properties)
     }
 }

@@ -54,7 +54,7 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
 - [x] `GraphValue` and `Property` schema types, with tests for exact numeric round-trip
 - [x] `NodeDefinition`, `NodeRegistry`, `Node`, `Link`, `NodeGroup`, `Graph` (ordered storage). Comments deferred: a note node in Phase 2 covers them.
 - [x] `ConnectionValidator` (direction, type, cycles, self-link, single input, multi-output), pluggable per domain, plus `GraphValidator` for whole graphs
-- [ ] `GraphCommand` set, `GraphEditor` (apply, invert, coalesce, batch), change stream
+- [x] `GraphCommand` set, `GraphEditor` (apply, invert, coalesce, batch), change stream
 - [ ] Undo/redo manager on top of commands; integrates with SwiftUI `UndoManager`
 - [ ] Groups: membership by containment, move with contents, resize
 - [ ] `GraphDocument` native JSON v1: schema version, deterministic output, migration chain, unknown-node placeholders
