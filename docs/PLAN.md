@@ -51,7 +51,7 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
 ## Phase 1: Core model
 
 - [x] IDs, `PortID`, `PortType`, `TypeRegistry` (compatibility and conversion rules). Value conversion functions attach once `GraphValue` exists.
-- [ ] `GraphValue` and `Property` schema types, with tests for exact numeric round-trip
+- [x] `GraphValue` and `Property` schema types, with tests for exact numeric round-trip
 - [ ] `NodeDefinition`, `NodeRegistry`, `Node`, `Link`, `Group`, `Graph` (ordered storage)
 - [ ] `ConnectionValidator` (direction, type, cycles, self-link, single input, multi-output)
 - [ ] `GraphCommand` set, `GraphEditor` (apply, invert, coalesce, batch), change stream
