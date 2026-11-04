@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import NodeGraphCore
 
@@ -204,4 +205,22 @@ private func move(_ history: GraphHistory, _ id: NodeID, to x: Double) throws {
     #expect(history.editor.graph.links.count == 1)
     try history.undo()
     #expect(history.editor.graph == before)
+}
+
+@Test func redoThatCannotApplyClearsHistory() throws {
+    let history = makeHistory()
+    let id = try addNode(history)
+    try history.undo()
+    // Someone else adds a node with the same id, so redoing the original add must fail.
+    try history.editor.apply(.addNode(node: Node(id: id, typeID: "pass")))
+    #expect(throws: GraphEditError.self) { try history.redo() }
+    #expect(!history.canUndo && !history.canRedo)
+}
+
+@Test func historyEntriesRoundTripThroughJSON() throws {
+    let history = makeHistory()
+    _ = try addNode(history, name: "Add Node")
+    let entry = try #require(history.undoStack.first)
+    let data = try JSONEncoder().encode(entry)
+    #expect(try JSONDecoder().decode(HistoryEntry.self, from: data) == entry)
 }

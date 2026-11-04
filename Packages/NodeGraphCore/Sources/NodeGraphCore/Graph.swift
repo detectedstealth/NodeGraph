@@ -98,13 +98,6 @@ public struct Graph: Hashable, Sendable {
         change(&nodes[id]!)
         return true
     }
-
-    @discardableResult
-    mutating func updateGroup(_ id: GroupID, _ change: (inout NodeGroup) -> Void) -> Bool {
-        guard groups[id] != nil else { return false }
-        change(&groups[id]!)
-        return true
-    }
 }
 
 // MARK: - Codable

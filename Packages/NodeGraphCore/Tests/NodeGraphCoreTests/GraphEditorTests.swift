@@ -290,3 +290,72 @@ private func connection(_ a: NodeID, _ b: NodeID) -> ConnectionProposal {
     #expect(json.contains(#""properties":{"a":{"type":"int","value":2},"b":{"type":"int","value":1},"c":{"type":"int","value":3}}"#))
     #expect(try JSONDecoder().decode(Node.self, from: Data(json.utf8)) == node)
 }
+
+@Test func moveOfAMissingNodeIsRejectedAndChangesNothing() throws {
+    let editor = makeEditor()
+    let id = try add(editor)
+    let before = editor.graph
+    #expect(throws: GraphEditError.self) {
+        try editor.apply(.setNodePositions(placements: [
+            NodePlacement(node: id, position: GraphPoint(x: 9, y: 9)),
+            NodePlacement(node: NodeID(), position: .zero),
+        ]))
+    }
+    #expect(editor.graph == before)
+}
+
+@Test func addedNodesHaveTheirPropertiesChecked() throws {
+    let editor = makeEditor()
+    #expect(throws: GraphEditError.invalidProperty("gain", .outOfRange)) {
+        try editor.apply(.addNode(node: Node(typeID: "pass", properties: ["gain": 99.0])))
+    }
+    #expect(throws: GraphEditError.unknownProperty("nope")) {
+        try editor.apply(.addNode(node: Node(typeID: "pass", properties: ["nope": 1])))
+    }
+    #expect(editor.graph.nodes.isEmpty)
+}
+
+@Test func propertyEditsOnUnregisteredTypesFailInFullButNotStructuralMode() throws {
+    let editor = makeEditor()
+    let ghost = Node(typeID: "ghost")
+    try editor.apply(.addNode(node: ghost), validation: .structural)
+    #expect(throws: GraphEditError.unknownNodeType("ghost")) {
+        try editor.apply(.setNodeProperty(node: ghost.id, property: "x", value: 1))
+    }
+    try editor.apply(.setNodeProperty(node: ghost.id, property: "x", value: 1), validation: .structural)
+    #expect(editor.graph.nodes[ghost.id]?.properties["x"] == 1)
+}
+
+@Test func missingTargetsAreRejectedForEveryCommand() throws {
+    let editor = makeEditor()
+    let missing = NodeID()
+    #expect(throws: GraphEditError.nodeNotFound(missing)) {
+        try editor.apply(.setNodeAttribute(node: missing, attribute: .isPinned(value: true)))
+    }
+    #expect(throws: GraphEditError.nodeNotFound(missing)) {
+        try editor.apply(.setNodeProperty(node: missing, property: "gain", value: 1.0))
+    }
+    let link = LinkID(), group = GroupID()
+    #expect(throws: GraphEditError.linkNotFound(link)) { try editor.apply(.removeLink(id: link)) }
+    #expect(throws: GraphEditError.groupNotFound(group)) { try editor.apply(.removeGroup(id: group)) }
+    let ghostGroup = NodeGroup(id: group, title: "g", bounds: GraphRect(x: 0, y: 0, width: 1, height: 1))
+    #expect(throws: GraphEditError.groupNotFound(group)) { try editor.apply(.updateGroup(group: ghostGroup)) }
+}
+
+@Test func duplicateLinkAndGroupIDsAreRejected() throws {
+    let editor = makeEditor()
+    let a = try add(editor), b = try add(editor)
+    let link = Link(sourceNode: a, sourcePort: "out", targetNode: b, targetPort: "in")
+    try editor.apply(.addLink(link: link))
+    #expect(throws: GraphEditError.duplicateID(link.id.description)) { try editor.apply(.addLink(link: link)) }
+    let group = NodeGroup(title: "g", bounds: GraphRect(x: 0, y: 0, width: 1, height: 1))
+    try editor.apply(.addGroup(group: group))
+    #expect(throws: GraphEditError.duplicateID(group.id.description)) { try editor.apply(.addGroup(group: group)) }
+    #expect(throws: GraphEditError.indexOutOfRange(-1)) { try editor.apply(.addGroup(group: NodeGroup(title: "x", bounds: group.bounds), index: -1)) }
+}
+
+@Test func everyEditedRevisionIsRecordedInTheChange() throws {
+    let editor = makeEditor(), id = try add(editor)
+    let change = try editor.apply(.setNodeAttribute(node: id, attribute: .color(value: RGBAColor(red: 1, green: 0, blue: 0))))
+    #expect(change.revision == editor.revision && editor.revision == 2)
+}

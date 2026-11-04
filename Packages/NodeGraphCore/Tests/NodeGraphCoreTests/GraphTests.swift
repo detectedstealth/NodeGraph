@@ -160,3 +160,60 @@ private func makeGraph() -> (Graph, Node, Node, Link) {
     let data = try JSONEncoder().encode(addDefinition)
     #expect(try JSONDecoder().decode(NodeDefinition.self, from: data) == addDefinition)
 }
+
+@Test func graphInsertsAtAnIndexForEveryKind() {
+    var graph = Graph()
+    let nodes = (0..<3).map { _ in Node(typeID: "t") }
+    nodes.forEach { graph.insert($0) }
+    let early = Node(typeID: "t")
+    graph.insert(early, at: 1)
+    #expect(Array(graph.nodes.keys) == [nodes[0].id, early.id, nodes[1].id, nodes[2].id])
+
+    let links = (0..<2).map { _ in Link(sourceNode: nodes[0].id, sourcePort: "o", targetNode: nodes[1].id, targetPort: "i") }
+    links.forEach { graph.insert($0) }
+    let firstLink = Link(sourceNode: nodes[0].id, sourcePort: "o", targetNode: nodes[2].id, targetPort: "i")
+    graph.insert(firstLink, at: 0)
+    #expect(Array(graph.links.keys) == [firstLink.id, links[0].id, links[1].id])
+
+    let bounds = GraphRect(x: 0, y: 0, width: 1, height: 1)
+    let groups = (0..<2).map { _ in NodeGroup(title: "g", bounds: bounds) }
+    groups.forEach { graph.insert($0) }
+    let firstGroup = NodeGroup(title: "first", bounds: bounds)
+    graph.insert(firstGroup, at: 0)
+    #expect(Array(graph.groups.keys) == [firstGroup.id, groups[0].id, groups[1].id])
+    #expect(graph.removeGroup(firstGroup.id) == firstGroup)
+}
+
+@Test func graphDecodingRejectsDuplicateLinkAndGroupIDs() throws {
+    let link = Link(sourceNode: NodeID(), sourcePort: "o", targetNode: NodeID(), targetPort: "i")
+    let group = NodeGroup(title: "g", bounds: GraphRect(x: 0, y: 0, width: 1, height: 1))
+    let linkJSON = String(decoding: try JSONEncoder().encode(link), as: UTF8.self)
+    let groupJSON = String(decoding: try JSONEncoder().encode(group), as: UTF8.self)
+    for json in [#"{"nodes":[],"links":[\#(linkJSON),\#(linkJSON)]}"#,
+                 #"{"nodes":[],"links":[],"groups":[\#(groupJSON),\#(groupJSON)]}"#] {
+        #expect(throws: DecodingError.self) { try JSONDecoder().decode(Graph.self, from: Data(json.utf8)) }
+    }
+}
+
+@Test func graphDecodingAllowsMissingGroups() throws {
+    let graph = try JSONDecoder().decode(Graph.self, from: Data(#"{"nodes":[],"links":[]}"#.utf8))
+    #expect(graph.groups.isEmpty)
+}
+
+@Test func nodeDecodingFillsDefaultsForOptionalFields() throws {
+    let json = """
+    {"id":"00000000-0000-0000-0000-000000000001","typeID":"t","position":{"x":1,"y":2}}
+    """
+    let node = try JSONDecoder().decode(Node.self, from: Data(json.utf8))
+    #expect(node.mode == .always && !node.isCollapsed && !node.isPinned)
+    #expect(node.properties.isEmpty && node.size == nil && node.title == nil && node.color == nil)
+}
+
+@Test func nodeWithEveryOptionalFieldRoundTrips() throws {
+    let node = Node(
+        typeID: "t", position: GraphPoint(x: 1, y: 2), size: GraphSize(width: 3, height: 4),
+        title: "T", color: RGBAColor(red: 0.1, green: 0.2, blue: 0.3, alpha: 0.4),
+        mode: .bypassed, isCollapsed: true, isPinned: true, properties: ["a": true])
+    let data = try JSONEncoder().encode(node)
+    #expect(try JSONDecoder().decode(Node.self, from: data) == node)
+}
