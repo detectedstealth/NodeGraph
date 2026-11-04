@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Workspace
+   version = "1.0">
+   <FileRef
+      location = "group:Packages/NodeGraphCore">
+   </FileRef>
+   <FileRef
+      location = "group:Packages/NodeGraphNodes">
+   </FileRef>
+   <FileRef
+      location = "group:Packages/NodeGraphUI">
+   </FileRef>
+   <FileRef
+      location = "group:Packages/NodeGraphSync">
+   </FileRef>
+   <FileRef
+      location = "group:docs">
+   </FileRef>
+   <FileRef
+      location = "group:CLAUDE.md">
+   </FileRef>
+   <FileRef
+      location = "group:README.md">
+   </FileRef>
+   <FileRef
+      location = "group:App/NodeGraphApp/NodeGraphApp.xcodeproj">
+   </FileRef>
+</Workspace>
