@@ -16,7 +16,7 @@ App (macOS + iPadOS) ──> UI, Nodes, Sync
 | Concept | Description |
 |---|---|
 | `GraphDocument` | Serializable root: schema version, root `Graph`, subgraph definitions, metadata. |
-| `Graph` | Nodes, links, groups, comments. Value type, `Codable`, `Sendable`. |
+| `Graph` | Nodes, links, groups (`NodeGroup`). Value type, `Codable`, `Sendable`. |
 | `NodeID`, `LinkID`, `GroupID` | Opaque `UUID`-backed IDs. Stable across save/load and safe for a distributed server. |
 | `NodeDefinition` | Class-level description registered by a pack: type id (`"math.add"`), ports, properties schema, default size, category, execute function. |
 | `Node` | Instance: id, definition id, position, size, mode, property values, per-instance port overrides. No runtime state. |
