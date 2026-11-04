@@ -94,10 +94,22 @@ extension GraphCommand {
             n1 == n2 && p1 == p2 ? next : nil
         case (.updateGroup(let a), .updateGroup(let b)):
             a.id == b.id ? next : nil
+        case (.batch(let a), .batch(let b)):
+            // Same shape, every pair mergeable: a repeated group move, for example.
+            a.count == b.count && !a.isEmpty ? merge(a, b) : nil
         default:
             nil
         }
     }
+}
+
+private func merge(_ a: [GraphCommand], _ b: [GraphCommand]) -> GraphCommand? {
+    var merged: [GraphCommand] = []
+    for (first, second) in zip(a, b) {
+        guard let command = first.coalesced(with: second) else { return nil }
+        merged.append(command)
+    }
+    return .batch(commands: merged)
 }
 
 /// A command that was applied, with what is needed to undo it.
@@ -134,5 +146,7 @@ public enum GraphEditError: Error, Hashable, Sendable {
     case unknownProperty(PropertyID)
     case invalidProperty(PropertyID, PropertyValidationError)
     case nonFiniteValue
+    /// A group's bounds are not finite or have no positive width and height.
+    case invalidGeometry
     case invalidConnection([GraphDiagnostic])
 }

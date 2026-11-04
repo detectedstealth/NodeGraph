@@ -19,4 +19,11 @@ public struct NodeRegistry: Hashable, Sendable {
     public func definition(for typeID: NodeTypeID) -> NodeDefinition? {
         definitions[typeID]
     }
+
+    /// A node's frame in graph space: its own size, else its definition's default size, else
+    /// zero-sized when the type is unregistered.
+    public func frame(of node: Node) -> GraphRect {
+        let size = node.size ?? definition(for: node.typeID)?.defaultSize ?? GraphSize(width: 0, height: 0)
+        return GraphRect(origin: node.position, size: size)
+    }
 }

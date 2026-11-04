@@ -29,6 +29,21 @@ public struct Graph: Hashable, Sendable {
         links.values.filter { $0.target == target }
     }
 
+    /// Nodes whose frame lies entirely inside the group's bounds, in storage order.
+    ///
+    /// Membership is derived, never stored, so it follows nodes and groups as they move.
+    public func members(of group: NodeGroup, frame: (Node) -> GraphRect) -> [NodeID] {
+        nodes.values.filter { group.bounds.contains(frame($0)) }.map(\.id)
+    }
+
+    /// Other groups lying entirely inside the group's bounds, in storage order. A group with
+    /// identical bounds is not nested, so two coincident groups never move each other.
+    public func nestedGroups(in group: NodeGroup) -> [GroupID] {
+        groups.values
+            .filter { $0.id != group.id && $0.bounds != group.bounds && group.bounds.contains($0.bounds) }
+            .map(\.id)
+    }
+
     // MARK: Primitive mutation
 
 

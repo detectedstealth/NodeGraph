@@ -167,6 +167,7 @@ public final class GraphEditor {
         case .addGroup(let group, let index):
             guard graph.groups[group.id] == nil else { throw GraphEditError.duplicateID(group.id.description) }
             try checkIndex(index, count: graph.groups.count)
+            if validation == .full { try validate(group.bounds) }
             graph.insert(group, at: index)
             return .removeGroup(id: group.id)
 
@@ -178,6 +179,7 @@ public final class GraphEditor {
 
         case .updateGroup(let group):
             guard let previous = graph.groups[group.id] else { throw GraphEditError.groupNotFound(group.id) }
+            if validation == .full { try validate(group.bounds) }
             graph.insert(group)
             return .updateGroup(group: previous)
 
@@ -192,6 +194,13 @@ public final class GraphEditor {
 
     private func checkIndex(_ index: Int?, count: Int) throws {
         if let index, !(0...count).contains(index) { throw GraphEditError.indexOutOfRange(index) }
+    }
+
+    private func validate(_ bounds: GraphRect) throws {
+        let values = [bounds.origin.x, bounds.origin.y, bounds.size.width, bounds.size.height]
+        guard values.allSatisfy(\.isFinite), bounds.size.width > 0, bounds.size.height > 0 else {
+            throw GraphEditError.invalidGeometry
+        }
     }
 
     private func validate(_ node: Node) throws {
