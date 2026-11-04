@@ -53,7 +53,7 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
 - [x] IDs, `PortID`, `PortType`, `TypeRegistry` (compatibility and conversion rules). Value conversion functions attach once `GraphValue` exists.
 - [x] `GraphValue` and `Property` schema types, with tests for exact numeric round-trip
 - [x] `NodeDefinition`, `NodeRegistry`, `Node`, `Link`, `NodeGroup`, `Graph` (ordered storage). Comments deferred: a note node in Phase 2 covers them.
-- [ ] `ConnectionValidator` (direction, type, cycles, self-link, single input, multi-output)
+- [x] `ConnectionValidator` (direction, type, cycles, self-link, single input, multi-output), pluggable per domain, plus `GraphValidator` for whole graphs
 - [ ] `GraphCommand` set, `GraphEditor` (apply, invert, coalesce, batch), change stream
 - [ ] Undo/redo manager on top of commands; integrates with SwiftUI `UndoManager`
 - [ ] Groups: membership by containment, move with contents, resize
