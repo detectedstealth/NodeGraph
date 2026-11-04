@@ -69,6 +69,12 @@ public final class GraphEditor {
     /// The proposal is oriented first, so it may start on either end.
     @discardableResult
     public func connect(_ proposal: ConnectionProposal) throws -> GraphChange {
+        try apply(connectCommand(for: proposal))
+    }
+
+    /// The command that ``connect(_:)`` would apply, without applying it. Lets ``GraphHistory``
+    /// record a connection. Throws `invalidConnection` if the rules reject the proposal.
+    public func connectCommand(for proposal: ConnectionProposal) throws -> GraphCommand {
         let proposal = proposal.oriented()
         let check = connectionValidator.check(proposal, in: validationContext)
         guard check.isAllowed else { throw GraphEditError.invalidConnection(check.diagnostics) }
@@ -77,7 +83,7 @@ public final class GraphEditor {
             targetNode: proposal.target.node, targetPort: proposal.target.port)
         let commands = check.replacedLinks.map { GraphCommand.removeLink(id: $0) }
             + [.addLink(link: link)]
-        return try apply(commands.count == 1 ? commands[0] : .batch(commands: commands))
+        return commands.count == 1 ? commands[0] : .batch(commands: commands)
     }
 
     /// A new stream of every change applied from now on. Each call returns an independent stream.

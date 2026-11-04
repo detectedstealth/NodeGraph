@@ -55,7 +55,7 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
 - [x] `NodeDefinition`, `NodeRegistry`, `Node`, `Link`, `NodeGroup`, `Graph` (ordered storage). Comments deferred: a note node in Phase 2 covers them.
 - [x] `ConnectionValidator` (direction, type, cycles, self-link, single input, multi-output), pluggable per domain, plus `GraphValidator` for whole graphs
 - [x] `GraphCommand` set, `GraphEditor` (apply, invert, coalesce, batch), change stream
-- [ ] Undo/redo manager on top of commands; integrates with SwiftUI `UndoManager`
+- [x] Undo/redo manager on top of commands (`GraphHistory`). The bridge to the platform `UndoManager` is in Phase 4 (UI).
 - [ ] Groups: membership by containment, move with contents, resize
 - [ ] `GraphDocument` native JSON v1: schema version, deterministic output, migration chain, unknown-node placeholders
 - [ ] Tests for every rule above (Swift Testing); snapshot tests for the JSON format
@@ -88,6 +88,7 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
 - [ ] `GraphEditorModel` (`@Observable`), `GraphTheme`, `NodeLayout` (single source for geometry)
 - [ ] Canvas rendering: grid, nodes, ports, links (spline, linear, straight), groups, comments, selection, viewport culling, level of detail
 - [ ] Spatial index for hit testing
+- [ ] Bridge `GraphHistory` to the platform `UndoManager` (Core stays UI-free)
 - [ ] Interaction state machine: pan, zoom (anchored, non-compounding), move, resize, marquee, connect, reconnect, shift-drag link move, snap to grid
 - [ ] macOS input: scroll/trackpad, right-click menus, keyboard shortcuts, hover
 - [ ] iPadOS input: touch, pinch, two-finger pan, long-press menus, Pencil, hardware keyboard, pointer
