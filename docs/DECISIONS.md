@@ -15,3 +15,5 @@ Record architectural decisions here. Newest last. Format: date, decision, why.
 ## 2026-11-04 (Phase 1)
 
 8. **Deployment targets are macOS 27 and iOS 27 (iPadOS 27), Swift 6.4 tools.** Why: new app with no legacy users; lets us use current APIs (Mutex, new SwiftUI, Document APIs) without availability checks. Revisit if we ever need to ship to older OS versions.
+9. **`TypeRegistry` is a `Sendable` value type, mutated with `register` during setup**, so packs take it `inout` (`register(in: NodeRegistry, types: inout TypeRegistry)`). Why: provably `Sendable` with no locks (a locked class would also work now that `Synchronization.Mutex` is available, but a value type is simpler), and cheap to copy per document.
+10. **`PortType.any` is the only type Core defines**; it is a structural wildcard, not domain knowledge. Compatibility is `identical` / `accepted` (type-level `acceptsFrom`) / `converted` (registered pair) / `incompatible`, all directional.

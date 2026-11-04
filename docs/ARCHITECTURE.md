@@ -31,7 +31,7 @@ Distinct data flow and trigger flow: ports have a `kind` (`.data` or `.trigger`)
 
 ## Registry
 
-`NodeRegistry` maps type id to `NodeDefinition`. Packs expose `static func register(in: NodeRegistry, types: TypeRegistry)`. The registry is injected, never global, so tests and multiple documents stay isolated.
+`NodeRegistry` maps type id to `NodeDefinition`. Packs expose `static func register(in: NodeRegistry, types: inout TypeRegistry)`. The registry is injected, never global, so tests and multiple documents stay isolated.
 
 ## Commands (single mutation path)
 
