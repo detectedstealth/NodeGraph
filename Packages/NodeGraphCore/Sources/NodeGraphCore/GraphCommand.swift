@@ -84,6 +84,10 @@ public indirect enum GraphCommand: Hashable, Sendable, Codable {
     /// Replaces a definition's name, ports and promoted properties. Links and property values on
     /// instances that the new interface no longer supports are removed in the same step.
     case setSubgraphInterface(id: SubgraphID, interface: SubgraphInterface)
+    /// Replaces a whole definition (interface, inner graph and origin), matched by id, for example
+    /// to take a newer version from a library. Instances are cleaned up as for
+    /// ``setSubgraphInterface(id:interface:)``.
+    case updateSubgraph(definition: SubgraphDefinition)
     /// Applies `command` to a subgraph's inner graph. The inner graph is edited with the same
     /// commands as the root graph.
     case inSubgraph(id: SubgraphID, command: GraphCommand)

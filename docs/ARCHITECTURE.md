@@ -65,6 +65,10 @@ Native JSON, `schemaVersion` integer at the root, with migrators registered per 
 - Theme is a data type (`GraphTheme`), cross-platform; no AppKit/UIKit colors.
 - Metal is deferred. Revisit only if benchmarks at 5k nodes miss frame budget (see PLAN.md Phase 4).
 
+## Subgraph libraries
+
+A `SubgraphLibrary` is a versioned file of reusable `SubgraphDefinition`s. Documents never refer to one at run time: importing **copies** a definition (and the definitions it contains instances of, dependencies first) into the document and records a `SubgraphOrigin` (library id, revision, content digest). The origin lets the editor report `libraryStatus` (up to date, update available, locally modified, or both) and build an `updateCommand`. Publishing goes the other way, through `SubgraphLibrary.publish`, which numbers revisions and refuses incomplete or recursive sets.
+
 ## Sync and server (later)
 
 `GraphStore` protocol: `list`, `load`, `save(revision:)`, `delete`, `changes(since:)`. First implementations: in-memory and local file. A server implementation consumes the same `GraphCommand` log with revision numbers and conflict detection. Core types already satisfy the wire requirements (`Codable`, `Sendable`).

@@ -133,11 +133,18 @@ public struct SubgraphDefinition: Hashable, Sendable, Codable {
     public var interface: SubgraphInterface
     /// The inner graph. Exposed ports and promoted properties point into it by node id.
     public var graph: Graph
+    /// Where this definition was taken from, if it came from a ``SubgraphLibrary``. Omitted from
+    /// the file when nil.
+    public var origin: SubgraphOrigin?
 
-    public init(id: SubgraphID = SubgraphID(), interface: SubgraphInterface, graph: Graph = Graph()) {
+    public init(
+        id: SubgraphID = SubgraphID(), interface: SubgraphInterface, graph: Graph = Graph(),
+        origin: SubgraphOrigin? = nil
+    ) {
         self.id = id
         self.interface = interface
         self.graph = graph
+        self.origin = origin
     }
 
     /// The node type of this subgraph's instances.

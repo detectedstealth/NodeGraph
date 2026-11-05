@@ -247,7 +247,15 @@ public final class GraphEditor {
 
         case .setSubgraphInterface(let id, let interface):
             guard scope == nil else { throw GraphEditError.invalidScope }
-            return try setInterface(of: id, to: interface, rootGraph: &graph, validation: validation)
+            guard var updated = subgraphs[id] else { throw GraphEditError.subgraphNotFound(id) }
+            updated.interface = interface
+            let result = try replaceDefinition(updated, rootGraph: &graph, validation: validation)
+            return .batch(commands: [.setSubgraphInterface(id: id, interface: result.old.interface)] + result.undo)
+
+        case .updateSubgraph(let definition):
+            guard scope == nil else { throw GraphEditError.invalidScope }
+            let result = try replaceDefinition(definition, rootGraph: &graph, validation: validation)
+            return .batch(commands: [.updateSubgraph(definition: result.old)] + result.undo)
 
         case .inSubgraph(let id, let inner):
             guard scope == nil else { throw GraphEditError.invalidScope }
@@ -282,16 +290,15 @@ public final class GraphEditor {
         guard problems.isEmpty else { throw GraphEditError.invalidSubgraph(problems) }
     }
 
-    /// Replaces a subgraph's interface and removes what instances can no longer have: links to
-    /// ports that are gone or changed kind, and values of properties that are gone. Returns the
-    /// command that undoes all of it.
-    private func setInterface(
-        of id: SubgraphID, to interface: SubgraphInterface, rootGraph: inout Graph, validation: EditValidation
-    ) throws -> GraphCommand {
-        guard let at = subgraphs.index(forKey: id) else { throw GraphEditError.subgraphNotFound(id) }
+    /// Replaces a subgraph definition (interface, inner graph and origin) and removes what
+    /// instances can no longer have: links to ports that are gone or changed kind, and values of
+    /// properties that are gone. Returns the definition it replaced and the commands that put the
+    /// removed links and values back.
+    private func replaceDefinition(
+        _ updated: SubgraphDefinition, rootGraph: inout Graph, validation: EditValidation
+    ) throws -> (old: SubgraphDefinition, undo: [GraphCommand]) {
+        guard let at = subgraphs.index(forKey: updated.id) else { throw GraphEditError.subgraphNotFound(updated.id) }
         let old = subgraphs.values[at]
-        var updated = old
-        updated.interface = interface
         if validation == .full { try validate(updated) }
 
         let typeID = old.typeID, newDefinition = updated.nodeDefinition, oldDefinition = old.nodeDefinition
@@ -335,7 +342,7 @@ public final class GraphEditor {
 
         subgraphs.values[at] = updated
         registerType(of: updated)
-        return .batch(commands: [.setSubgraphInterface(id: id, interface: old.interface)] + undo)
+        return (old, undo)
     }
 
     private func checkIndex(_ index: Int?, count: Int) throws {
