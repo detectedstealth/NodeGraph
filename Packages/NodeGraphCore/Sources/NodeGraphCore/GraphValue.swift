@@ -45,6 +45,36 @@ public enum GraphValue: Hashable, Sendable {
     case handle(HandleID)
 }
 
+// MARK: - Typed access
+
+extension GraphValue {
+    public var boolValue: Bool? {
+        if case .bool(let v) = self { v } else { nil }
+    }
+
+    public var intValue: Int64? {
+        if case .int(let v) = self { v } else { nil }
+    }
+
+    /// The value of a `.double` only. See ``numberValue`` to accept integers too.
+    public var doubleValue: Double? {
+        if case .double(let v) = self { v } else { nil }
+    }
+
+    /// The value of a `.double` or `.int` as a `Double`. Integers beyond 2^53 lose precision.
+    public var numberValue: Double? {
+        switch self {
+        case .double(let v): v
+        case .int(let v): Double(v)
+        default: nil
+        }
+    }
+
+    public var stringValue: String? {
+        if case .string(let v) = self { v } else { nil }
+    }
+}
+
 // MARK: - Codable
 
 extension GraphValue: Codable {

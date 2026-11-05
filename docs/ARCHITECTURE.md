@@ -44,7 +44,7 @@ Connection rules live in one `ConnectionValidator`: rejects self-links and cycle
 ## Execution
 
 - `GraphRunner` is an actor. It evaluates a `Graph` against a `NodeRegistry` using a compiled `ExecutionPlan` (topological order, with SCC detection for cycles; cycles are an error unless a node is marked as a feedback/delay node).
-- `NodeDefinition.execute` is `async throws`, receives a `NodeContext` (inputs, properties, time, cancellation, logger, services) and returns outputs.
+- A node's executor (`NodeExecutor`, `async throws`) is registered beside its `NodeDefinition` in `NodeRegistry`, not stored in the definition, so definitions stay plain `Codable` data. It receives a `NodeContext` (inputs, properties, time, services, logger, progress, cancellation) and returns `NodeOutputs`.
 - Modes: `once`, `continuous(interval)`, `step`, `eventDriven`, `deterministic(fixedDelta)` for robotics and tests.
 - Dirty tracking: property or link changes mark downstream nodes dirty; only dirty nodes re-run. Per-node results are cached keyed by input hash.
 - Node modes: `always`, `never`, `muted`, `bypassed`, `onTrigger`.
