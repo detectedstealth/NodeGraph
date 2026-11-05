@@ -11,11 +11,19 @@ public struct NodeFailure: Hashable, Sendable, Codable {
 
 /// The result of running one node.
 public struct NodeRunResult: Hashable, Sendable {
+    /// Why a node was not run.
+    public enum SkipReason: Hashable, Sendable {
+        /// A node feeding it failed, was skipped, or was cancelled.
+        case upstreamFailed
+    }
+
     public enum Outcome: Hashable, Sendable {
         case success(NodeOutputs)
         case failure(NodeFailure)
         /// The task was cancelled before or during execution.
         case cancelled
+        /// The node was deliberately not run.
+        case skipped(SkipReason)
     }
 
     public var node: NodeID

@@ -47,7 +47,8 @@ public struct ExecutionTime: Hashable, Sendable {
     public var tick: Int
     /// Time since the run started.
     public var elapsed: Duration
-    /// Time since the previous evaluation. Zero on the first.
+    /// Time since the previous evaluation. Zero on the first evaluation of a real-time run;
+    /// always the fixed step in a deterministic run.
     public var delta: Duration
 
     public init(tick: Int = 0, elapsed: Duration = .zero, delta: Duration = .zero) {

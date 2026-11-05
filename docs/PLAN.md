@@ -65,7 +65,7 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
 
 - [x] `ExecutionPlan` compiler: topological order, cycle detection, feedback node support
 - [x] `NodeContext`, async `execute`, cancellation, error capture, timing, progress (single-node level; the graph-level loop is `GraphRunner`)
-- [ ] `GraphRunner` actor with modes: once, continuous, step, event-driven, deterministic
+- [x] `GraphRunner` actor with modes: once, continuous, step, event-driven, deterministic
 - [ ] Trigger (event) ports and flow, separate from data
 - [ ] Node modes: always, never, muted, bypassed, onTrigger
 - [ ] Dirty tracking and result cache
