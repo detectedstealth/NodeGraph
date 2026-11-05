@@ -46,7 +46,7 @@ Connection rules live in one `ConnectionValidator`: rejects self-links and cycle
 - `GraphRunner` is an actor. It evaluates a `Graph` against a `NodeRegistry` using a compiled `ExecutionPlan` (topological order, with SCC detection for cycles; cycles are an error unless a node is marked as a feedback/delay node).
 - A node's executor (`NodeExecutor`, `async throws`) is registered beside its `NodeDefinition` in `NodeRegistry`, not stored in the definition, so definitions stay plain `Codable` data. It receives a `NodeContext` (inputs, properties, time, services, logger, progress, cancellation) and returns `NodeOutputs`.
 - Modes: `once`, `continuous(interval)`, `step`, `eventDriven`, `deterministic(fixedDelta)` for robotics and tests.
-- Dirty tracking: property or link changes mark downstream nodes dirty; only dirty nodes re-run. Per-node results are cached keyed by input hash.
+- Caching: a node that declares `isPure` is skipped when its resolved inputs, fired triggers and properties are exactly what produced its cached outputs. Changes propagate downstream because a re-run node whose output changed changes its consumers' inputs; one whose output is unchanged stops the chain.
 - Node modes: `always`, `never`, `muted`, `bypassed`, `onTrigger`.
 - Runtime state (`running`, `error`, duration, progress) is published by the runner as `ExecutionEvent`s and is never serialized.
 - A headless CLI (`ng-run`, using swift-argument-parser) runs a graph file for automation and server use (later).

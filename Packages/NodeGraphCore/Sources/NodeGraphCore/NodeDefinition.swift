@@ -48,6 +48,10 @@ public struct NodeDefinition: Hashable, Sendable, Codable {
     /// Marks a delay or memory node whose outputs carry the value from the previous evaluation.
     /// Links leaving it do not order execution, so they may close a loop without being a cycle.
     public var isFeedback: Bool
+    /// Declares that the node's outputs depend only on its inputs and properties: no clock, no
+    /// randomness, no outside state. The runner may then reuse the previous outputs instead of
+    /// running the node again when none of those changed. Defaults to false, which always runs.
+    public var isPure: Bool
 
     public init(
         typeID: NodeTypeID,
@@ -56,7 +60,8 @@ public struct NodeDefinition: Hashable, Sendable, Codable {
         ports: [PortDefinition] = [],
         properties: [PropertyDefinition] = [],
         defaultSize: GraphSize = GraphSize(width: 160, height: 80),
-        isFeedback: Bool = false
+        isFeedback: Bool = false,
+        isPure: Bool = false
     ) {
         self.typeID = typeID
         self.displayName = displayName
@@ -65,6 +70,7 @@ public struct NodeDefinition: Hashable, Sendable, Codable {
         self.properties = properties
         self.defaultSize = defaultSize
         self.isFeedback = isFeedback
+        self.isPure = isPure
     }
 
     /// Inputs in declaration order.

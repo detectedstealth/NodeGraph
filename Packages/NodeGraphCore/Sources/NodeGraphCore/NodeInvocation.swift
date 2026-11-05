@@ -35,6 +35,8 @@ public struct NodeRunResult: Hashable, Sendable {
         case skipped(SkipReason)
         /// The node's mode is `bypassed`: its inputs were passed through to matching outputs.
         case bypassed(NodeOutputs)
+        /// A pure node whose inputs and properties were unchanged; these are its previous outputs.
+        case cached(NodeOutputs)
     }
 
     public var node: NodeID
@@ -48,10 +50,10 @@ public struct NodeRunResult: Hashable, Sendable {
         self.duration = duration
     }
 
-    /// The outputs if the node ran or was bypassed.
+    /// The outputs if the node ran, was bypassed, or was served from the cache.
     public var outputs: NodeOutputs? {
         switch outcome {
-        case .success(let outputs), .bypassed(let outputs): outputs
+        case .success(let outputs), .bypassed(let outputs), .cached(let outputs): outputs
         default: nil
         }
     }

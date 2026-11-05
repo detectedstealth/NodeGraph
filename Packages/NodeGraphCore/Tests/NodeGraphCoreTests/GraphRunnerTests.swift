@@ -693,3 +693,245 @@ private func latchPack() -> Pack {
     let document = try GraphDocument.decode(from: GraphDocument(graph: p.graph).encoded())
     #expect(document.graph.nodes.values.map(\.mode) == [.bypassed, .onTrigger])
 }
+
+// MARK: Caching
+
+private final class Counter: Sendable {
+    private let counts = Mutex<[String: Int]>([:])
+    func hit(_ name: String) { counts.withLock { $0[name, default: 0] += 1 } }
+    subscript(_ name: String) -> Int { counts.withLock { $0[name] ?? 0 } }
+}
+
+private struct CachePack {
+    var pack = Pack()
+    let counter = Counter()
+
+    init(failFirstDouble: Bool = false) {
+        let counter = counter
+        let failures = Mutex(failFirstDouble ? 1 : 0)
+        pack.registry.register(NodeDefinition(
+            typeID: "src", displayName: "Src",
+            ports: [PortDefinition(id: "out", direction: .output)],
+            properties: [PropertyDefinition(id: "value", displayName: "V", kind: .double(), defaultValue: 0.0)],
+            isPure: true)
+        ) { ctx in counter.hit("src"); return ["out": try ctx.property("value")] }
+
+        pack.registry.register(NodeDefinition(
+            typeID: "double", displayName: "Double",
+            ports: [PortDefinition(id: "in", direction: .input, defaultValue: 0.0), PortDefinition(id: "out", direction: .output)],
+            isPure: true)
+        ) { ctx in
+            counter.hit("double")
+            if failures.withLock({ let f = $0 > 0; if f { $0 -= 1 }; return f }) { throw NodeExecutionError.failed("once") }
+            return ["out": .double(try ctx.number("in") * 2)]
+        }
+
+        pack.registry.register(NodeDefinition(
+            typeID: "clamp", displayName: "Clamp",
+            ports: [PortDefinition(id: "in", direction: .input, defaultValue: 0.0), PortDefinition(id: "out", direction: .output)],
+            isPure: true)
+        ) { ctx in counter.hit("clamp"); return ["out": .double(min(try ctx.number("in"), 10))] }
+
+        // Impure: depends on the tick, so it must run every pass.
+        pack.registry.register(NodeDefinition(
+            typeID: "ticker", displayName: "Ticker", ports: [PortDefinition(id: "out", direction: .output)])
+        ) { ctx in counter.hit("ticker"); return ["out": .double(Double(ctx.time.tick))] }
+
+        // Impure, but constant output.
+        pack.registry.register(NodeDefinition(
+            typeID: "steady", displayName: "Steady", ports: [PortDefinition(id: "out", direction: .output)])
+        ) { _ in counter.hit("steady"); return ["out": 1.0] }
+
+        pack.registry.register(NodeDefinition(
+            typeID: "pulser", displayName: "Pulser",
+            ports: [PortDefinition(id: "out", direction: .output), PortDefinition(id: "fire", direction: .output, kind: .trigger)],
+            isPure: true)
+        ) { _ in counter.hit("pulser"); return NodeOutputs(["out": 1.0], triggers: ["fire"]) }
+    }
+
+    @discardableResult
+    mutating func node(_ type: NodeTypeID, _ properties: [PropertyID: GraphValue] = [:]) -> NodeID {
+        pack.node(type, properties)
+    }
+
+    mutating func link(_ a: NodeID, _ b: NodeID, _ input: PortID = "in") { pack.link(a, "out", b, input) }
+
+    func runner(caching: Bool = true) throws -> GraphRunner {
+        try GraphRunner(graph: pack.graph, registry: pack.registry, caching: caching)
+    }
+}
+
+@Test func pureNodesRunOnceThenComeFromTheCache() async throws {
+    var c = CachePack()
+    let src = c.node("src", ["value": 4.0]), twice = c.node("double")
+    c.link(src, twice)
+    let runner = try c.runner()
+    let first = await runner.step()
+    #expect(first.outputs(of: twice) == ["out": 8.0] && first.cachedNodes.isEmpty)
+    for _ in 0..<3 {
+        let again = await runner.step()
+        #expect(again.outputs(of: twice) == ["out": 8.0])
+        #expect(Set(again.cachedNodes) == [src, twice] && again.succeeded)
+    }
+    #expect(c.counter["src"] == 1 && c.counter["double"] == 1)
+}
+
+@Test func impureNodesAlwaysRun() async throws {
+    var c = CachePack()
+    let ticker = c.node("ticker"), twice = c.node("double")
+    c.link(ticker, twice)
+    let runner = try c.runner()
+    var seen: [GraphValue?] = []
+    for _ in 0..<3 { seen.append(await runner.step().outputs(of: twice)?["out"]) }
+    #expect(seen == [0.0, 2.0, 4.0])
+    #expect(c.counter["ticker"] == 3 && c.counter["double"] == 3)
+}
+
+@Test func anImpureNodeWithAnUnchangedOutputLetsPureNodesAfterItCache() async throws {
+    var c = CachePack()
+    let steady = c.node("steady"), twice = c.node("double")
+    c.link(steady, twice)
+    let runner = try c.runner()
+    for _ in 0..<3 { _ = await runner.step() }
+    #expect(c.counter["steady"] == 3 && c.counter["double"] == 1)
+}
+
+@Test func changingAPropertyReRunsOnlyWhatDependsOnIt() async throws {
+    var c = CachePack()
+    let a = c.node("src", ["value": 1.0]), b = c.node("src", ["value": 2.0])
+    let doubleA = c.node("double"), doubleB = c.node("double")
+    c.link(a, doubleA); c.link(b, doubleB)
+    let runner = try c.runner()
+    _ = await runner.step()
+
+    var edited = c
+    edited.pack.graph.insert(Node(id: a, typeID: "src", properties: ["value": 5.0]))
+    try await runner.update(graph: edited.pack.graph, registry: edited.pack.registry)
+    let tick = await runner.step()
+    #expect(tick.outputs(of: doubleA) == ["out": 10.0] && tick.outputs(of: doubleB) == ["out": 4.0])
+    #expect(Set(tick.cachedNodes) == [b, doubleB])
+    #expect(c.counter["src"] == 3 && c.counter["double"] == 3)   // 2 + 1 re-run each
+}
+
+@Test func unchangedOutputsStopTheChainEarly() async throws {
+    var c = CachePack()
+    let src = c.node("src", ["value": 20.0]), clamp = c.node("clamp"), twice = c.node("double")
+    c.link(src, clamp); c.link(clamp, twice)
+    let runner = try c.runner()
+    _ = await runner.step()
+
+    var edited = c
+    edited.pack.graph.insert(Node(id: src, typeID: "src", properties: ["value": 30.0]))   // still clamps to 10
+    try await runner.update(graph: edited.pack.graph, registry: edited.pack.registry)
+    let tick = await runner.step()
+    #expect(tick.outputs(of: twice) == ["out": 20.0])
+    #expect(tick.cachedNodes == [twice], "clamp re-ran, but its output was the same")
+    #expect(c.counter["clamp"] == 2 && c.counter["double"] == 1)
+}
+
+@Test func addingOrRemovingALinkReRunsTheTarget() async throws {
+    var c = CachePack()
+    let src = c.node("src", ["value": 3.0]), twice = c.node("double")
+    let runner = try c.runner()
+    #expect(await runner.step().outputs(of: twice) == ["out": 0.0])
+
+    var linked = c
+    linked.link(src, twice)
+    try await runner.update(graph: linked.pack.graph, registry: linked.pack.registry)
+    #expect(await runner.step().outputs(of: twice) == ["out": 6.0])
+
+    try await runner.update(graph: c.pack.graph, registry: c.pack.registry)
+    #expect(await runner.step().outputs(of: twice) == ["out": 0.0])
+    #expect(c.counter["double"] == 3)
+}
+
+@Test func cachingCanBeSwitchedOff() async throws {
+    var c = CachePack()
+    c.node("src", ["value": 1.0])
+    let runner = try c.runner(caching: false)
+    for _ in 0..<3 { #expect(await runner.step().cachedNodes.isEmpty) }
+    #expect(c.counter["src"] == 3)
+}
+
+@Test func invalidationForcesARerun() async throws {
+    var c = CachePack()
+    let a = c.node("src", ["value": 1.0]), b = c.node("src", ["value": 2.0])
+    let runner = try c.runner()
+    _ = await runner.step()
+    await runner.invalidate([a])
+    let partial = await runner.step()
+    #expect(partial.cachedNodes == [b] && c.counter["src"] == 3)
+    await runner.invalidateAll()
+    #expect(await runner.step().cachedNodes.isEmpty && c.counter["src"] == 5)
+    _ = await runner.step()
+    await runner.reset()
+    #expect(await runner.step().cachedNodes.isEmpty, "reset clears the cache")
+}
+
+@Test func changingANodeDefinitionDropsItsCachedOutputs() async throws {
+    var c = CachePack()
+    let src = c.node("src", ["value": 1.0]), other = c.node("steady")
+    let runner = try c.runner()
+    _ = await runner.step()
+
+    var changed = c
+    var definition = try #require(changed.pack.registry.definition(for: "src"))
+    definition.displayName = "Src v2"
+    let counter = c.counter
+    changed.pack.registry.register(definition) { ctx in counter.hit("src"); return ["out": try ctx.property("value")] }
+    try await runner.update(graph: changed.pack.graph, registry: changed.pack.registry)
+    let tick = await runner.step()
+    #expect(!tick.cachedNodes.contains(src))
+    #expect(c.counter["src"] == 2)
+    _ = other
+}
+
+@Test func changingANodesTypeDropsItsCachedOutputs() async throws {
+    var c = CachePack()
+    let id = c.node("src", ["value": 1.0])
+    let runner = try c.runner()
+    _ = await runner.step()
+    var swapped = c
+    swapped.pack.graph.insert(Node(id: id, typeID: "pulser"))
+    try await runner.update(graph: swapped.pack.graph, registry: swapped.pack.registry)
+    let tick = await runner.step()
+    #expect(tick.cachedNodes.isEmpty && tick.outputs(of: id)?["out"] == 1.0)
+}
+
+@Test func failuresAreNeverCached() async throws {
+    var c = CachePack(failFirstDouble: true)
+    let twice = c.node("double")
+    let runner = try c.runner()
+    #expect(await runner.step().failedNodes == [twice])
+    let second = await runner.step()
+    #expect(second.outputs(of: twice) == ["out": 0.0] && second.cachedNodes.isEmpty)
+    #expect(await runner.step().cachedNodes == [twice])
+    #expect(c.counter["double"] == 2)
+}
+
+@Test func cachedTriggersFireAgainLikeARealRunWould() async throws {
+    var c = CachePack()
+    c.pack.registry.register(NodeDefinition(
+        typeID: "counter", displayName: "C", ports: [PortDefinition(id: "go", direction: .input, kind: .trigger), PortDefinition(id: "out", direction: .output)])
+    ) { ctx in ["out": .bool(ctx.didTrigger("go"))] }
+    let pulser = c.node("pulser"), listener = c.node("counter")
+    c.pack.graph.insert(Link(sourceNode: pulser, sourcePort: "fire", targetNode: listener, targetPort: "go"))
+    let runner = try c.runner()
+    for _ in 0..<3 {
+        let tick = await runner.step()
+        #expect(tick.outputs(of: listener) == ["out": true])
+    }
+    #expect(c.counter["pulser"] == 1)
+}
+
+@Test func deterministicRunsGiveTheSameResultsWithAndWithoutTheCache() async throws {
+    var c = CachePack()
+    let src = c.node("src", ["value": 2.0]), ticker = c.node("ticker"), twice = c.node("double"), clamp = c.node("clamp")
+    c.link(src, twice); c.link(twice, clamp)
+    _ = ticker
+    func outcomes(caching: Bool) async throws -> [[NodeID: GraphValue?]] {
+        let ticks = await collect(try c.runner(caching: caching).run(.deterministic(fixedDelta: .milliseconds(1), ticks: 4)), count: 99)
+        return ticks.map { t in Dictionary(uniqueKeysWithValues: t.results.map { ($0.key, $0.value.outputs?["out"]) }) }
+    }
+    #expect(try await outcomes(caching: true) == outcomes(caching: false))
+}

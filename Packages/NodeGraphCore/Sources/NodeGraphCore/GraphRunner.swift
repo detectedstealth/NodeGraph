@@ -39,9 +39,19 @@ public struct TickResult: Hashable, Sendable {
         results.values.compactMap { if case .failure = $0.outcome { $0.node } else { nil } }
     }
 
-    /// Whether every node succeeded.
+    /// Nodes served from the cache instead of running.
+    public var cachedNodes: [NodeID] {
+        results.values.compactMap { if case .cached = $0.outcome { $0.node } else { nil } }
+    }
+
+    /// Whether every node ran successfully (or was served from the cache).
     public var succeeded: Bool {
-        results.values.allSatisfy { if case .success = $0.outcome { true } else { false } }
+        results.values.allSatisfy {
+            switch $0.outcome {
+            case .success, .cached: true
+            default: false
+            }
+        }
     }
 }
 
@@ -86,6 +96,20 @@ public actor GraphRunner {
     private var tickCount = 0
     /// Outputs of feedback nodes from the last pass that produced them.
     private var feedbackOutputs: [NodeID: NodeOutputs] = [:]
+    private struct CacheKey: Hashable, Sendable {
+        var inputs: [PortID: GraphValue]
+        var triggered: Set<PortID>
+        var properties: [PropertyID: GraphValue]
+    }
+
+    private struct CacheEntry: Sendable {
+        var key: CacheKey
+        var outputs: NodeOutputs
+    }
+
+    private let cachingEnabled: Bool
+    /// Outputs of pure nodes with the exact inputs that produced them.
+    private var cache: [NodeID: CacheEntry] = [:]
     /// Last data outputs of `onTrigger` nodes, published again on passes where they don't run.
     private var heldOutputs: [NodeID: NodeOutputs] = [:]
     private var lastTickStart: ContinuousClock.Instant?
@@ -101,8 +125,10 @@ public actor GraphRunner {
         registry: NodeRegistry,
         services: ServiceContainer = ServiceContainer(),
         logger: Logger = Logger(label: "NodeGraph.runner"),
+        caching: Bool = true,
         onProgress: @escaping @Sendable (NodeProgress) -> Void = { _ in }
     ) throws {
+        cachingEnabled = caching
         snapshot = try Self.makeSnapshot(graph: graph, registry: registry)
         self.services = services
         self.logger = logger
@@ -118,9 +144,28 @@ public actor GraphRunner {
     ///
     /// - Throws: ``ExecutionPlanError``; the runner keeps its previous graph in that case.
     public func update(graph: Graph, registry: NodeRegistry) throws {
+        let previous = snapshot
         snapshot = try Self.makeSnapshot(graph: graph, registry: registry)
+        // Cached outputs stay valid only for nodes whose type definition is unchanged. Executors
+        // are code and cannot be compared; after swapping one, call `invalidateAll()`.
+        cache = cache.filter { id, _ in
+            guard let node = graph.nodes[id], let old = previous.graph.nodes[id], node.typeID == old.typeID
+            else { return false }
+            return registry.definition(for: node.typeID) == previous.registry.definition(for: node.typeID)
+        }
         feedbackOutputs = feedbackOutputs.filter { snapshot.feedbackSources.contains($0.key) }
         heldOutputs = heldOutputs.filter { snapshot.graph.nodes[$0.key]?.mode == .onTrigger }
+    }
+
+    /// Forces the given nodes to run on the next pass, even if their inputs are unchanged. Use it
+    /// when something a "pure" node reads has changed outside the graph.
+    public func invalidate(_ nodes: Set<NodeID>) {
+        for node in nodes { cache[node] = nil }
+    }
+
+    /// Forces every node to run on the next pass.
+    public func invalidateAll() {
+        cache = [:]
     }
 
     /// Forgets the tick count, feedback values and run clock, as if freshly created.
@@ -128,6 +173,7 @@ public actor GraphRunner {
         tickCount = 0
         feedbackOutputs = [:]
         heldOutputs = [:]
+        cache = [:]
         lastTickStart = nil
         runStart = nil
     }
@@ -223,10 +269,11 @@ public actor GraphRunner {
         let snapshot = snapshot
         let pass = await runNodes(
             snapshot, time: time, sequential: fixedDelta != nil,
-            feedback: feedbackOutputs, held: heldOutputs)
+            feedback: feedbackOutputs, held: heldOutputs, cache: cache)
         let results = pass.results
         let wasCancelled = pass.wasCancelled
         heldOutputs = pass.held
+        cache = pass.cache
 
         for source in snapshot.feedbackSources {
             if let outputs = results[source]?.outputs { feedbackOutputs[source] = outputs }
@@ -241,6 +288,7 @@ public actor GraphRunner {
         var results: OrderedDictionary<NodeID, NodeRunResult>
         var wasCancelled: Bool
         var held: [NodeID: NodeOutputs]
+        var cache: [NodeID: CacheEntry]
     }
 
     /// Why a node's outputs are unavailable to the nodes after it.
@@ -251,12 +299,13 @@ public actor GraphRunner {
 
     private func runNodes(
         _ snapshot: Snapshot, time: ExecutionTime, sequential: Bool,
-        feedback: [NodeID: NodeOutputs], held: [NodeID: NodeOutputs]
+        feedback: [NodeID: NodeOutputs], held: [NodeID: NodeOutputs], cache: [NodeID: CacheEntry]
     ) async -> PassOutput {
         var results = OrderedDictionary<NodeID, NodeRunResult>()
         var outputs: [NodeID: NodeOutputs] = [:]
         var unusable: [NodeID: Unusable] = [:]
         var held = held
+        var cache = cache
         var wasCancelled = false
 
         func skipped(_ id: NodeID, _ reason: NodeRunResult.SkipReason) -> NodeRunResult {
@@ -271,7 +320,7 @@ public actor GraphRunner {
             }
 
             // Decide what each node does and build its context before any suspension.
-            var jobs: [(index: Int, executor: NodeExecutor, context: NodeContext)] = []
+            var jobs: [(index: Int, executor: NodeExecutor, context: NodeContext, key: CacheKey?)] = []
             var levelResults = [NodeRunResult?](repeating: nil, count: level.count)
             for (index, id) in level.enumerated() {
                 guard let node = snapshot.graph.nodes[id] else { continue }
@@ -319,7 +368,17 @@ public actor GraphRunner {
                         duration: .zero)
                     continue
                 }
-                jobs.append((index, executor, context))
+                var key: CacheKey?
+                if cachingEnabled, definition.isPure {
+                    let candidate = CacheKey(
+                        inputs: context.inputs, triggered: context.triggered, properties: context.properties)
+                    if let entry = cache[id], entry.key == candidate {
+                        levelResults[index] = NodeRunResult(node: id, outcome: .cached(entry.outputs), duration: .zero)
+                        continue
+                    }
+                    key = candidate
+                }
+                jobs.append((index, executor, context, key))
             }
 
             if sequential || jobs.count < 2 {
@@ -335,11 +394,21 @@ public actor GraphRunner {
                 }
             }
 
+            let keyByIndex = Dictionary(jobs.compactMap { job in job.key.map { (job.index, $0) } },
+                                        uniquingKeysWith: { first, _ in first })
             for (index, id) in level.enumerated() {
                 guard let result = levelResults[index] else { continue }
                 results[id] = result
                 switch result.outcome {
                 case .success(let produced):
+                    if let key = keyByIndex[index] { cache[id] = CacheEntry(key: key, outputs: produced) }
+                case .failure, .cancelled:
+                    cache[id] = nil
+                default:
+                    break
+                }
+                switch result.outcome {
+                case .success(let produced), .cached(let produced):
                     outputs[id] = produced
                     if snapshot.graph.nodes[id]?.mode == .onTrigger {
                         held[id] = NodeOutputs(produced.values)
@@ -360,7 +429,7 @@ public actor GraphRunner {
                 }
             }
         }
-        return PassOutput(results: results, wasCancelled: wasCancelled, held: held)
+        return PassOutput(results: results, wasCancelled: wasCancelled, held: held, cache: cache)
     }
 
     /// Values and fired triggers for a node's inputs: from this pass's outputs, or last pass's for
