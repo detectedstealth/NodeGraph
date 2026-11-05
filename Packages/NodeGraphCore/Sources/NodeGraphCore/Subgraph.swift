@@ -87,8 +87,9 @@ public struct PromotedProperty: Hashable, Sendable, Codable {
     public var displayName: String
     public var kind: PropertyKind
     public var defaultValue: GraphValue
-    /// Inner properties that take the instance's value. The instance's value, when set,
-    /// replaces whatever the inner node has.
+    /// Inner properties that are set to this property's value on every run: the instance's own
+    /// value, or ``defaultValue`` if it has none. It replaces whatever the inner node holds, so
+    /// the default should match the inner node's value when the property is promoted.
     public var targets: [PropertyTarget]
 
     public init(
@@ -196,7 +197,12 @@ public struct SubgraphDefinition: Hashable, Sendable, Codable {
         }
         for input in interface.inputs {
             if input.targets.isEmpty { problems.append("Input \"\(input.id)\" feeds nothing") }
-            for target in input.targets { check(target, direction: .input, kind: input.kind, as: "Input \"\(input.id)\"") }
+            for target in input.targets {
+                check(target, direction: .input, kind: input.kind, as: "Input \"\(input.id)\"")
+                if !graph.links(into: target).isEmpty {
+                    problems.append("Input \"\(input.id)\" feeds a port that is also linked inside the subgraph")
+                }
+            }
         }
         for output in interface.outputs {
             guard let source = output.source else { problems.append("Output \"\(output.id)\" has no source"); continue }

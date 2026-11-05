@@ -1,3 +1,4 @@
+import Foundation
 import Logging
 
 /// The code that runs a node: reads its context, returns its outputs.
@@ -50,7 +51,17 @@ public enum NodeExecutionError: Error, Hashable, Sendable {
     case undeclaredOutput(PortID)
     /// The executor wrote a value to a trigger port, or fired a data port.
     case wrongPortKind(PortID)
+    /// A failure with its own explanation. Shown to users as exactly this text.
     case failed(String)
+}
+
+extension NodeExecutionError: LocalizedError {
+    /// The message of ``failed(_:)`` as written. The other cases keep their default description,
+    /// which names the case and its values. Using the plain text matters when failures nest, as
+    /// they do through subgraphs: quoting the text at every level would double its escapes each time.
+    public var errorDescription: String? {
+        if case .failed(let message) = self { message } else { nil }
+    }
 }
 
 /// Where a node is in time during a run. Deterministic runs supply a fixed `delta`.

@@ -4,9 +4,9 @@ import Testing
 
 // MARK: Fixture
 
-private let number: PortType = "number"
+let number: PortType = "number"
 
-private func registries() -> (NodeRegistry, TypeRegistry) {
+func registries() -> (NodeRegistry, TypeRegistry) {
     var types = TypeRegistry()
     types.register(PortTypeInfo(type: number, displayName: "Number", color: RGBAColor(red: 0, green: 0, blue: 0)))
     var nodes = NodeRegistry()
@@ -29,7 +29,7 @@ private func registries() -> (NodeRegistry, TypeRegistry) {
 
 /// A subgraph computing `x + offset`: inner `add.a` takes input `x`, inner `add.b` takes a
 /// constant whose `value` is promoted as `offset`, and `add.out` is the output `result`.
-private struct Adder {
+struct Adder {
     var definition: SubgraphDefinition
     let add: NodeID, constant: NodeID
 
@@ -121,6 +121,8 @@ private func connect(_ editor: GraphEditor, _ a: NodeID, _ out: PortID, _ b: Nod
         .contains { $0.contains("no input port \"zzz\"") })
     #expect(problems { $0.inputs[0].kind = .trigger }.contains { $0.contains("is a data port") })
     #expect(problems { $0.inputs[0].targets = [] }.contains { $0.contains("feeds nothing") })
+    #expect(problems { $0.inputs[0].targets = [PortAddress(node: adder.add, port: "b", direction: .input)] }
+        .contains { $0.contains("also linked inside") })
     #expect(problems { $0.outputs[0].source = nil }.contains { $0.contains("has no source") })
     #expect(problems { $0.outputs[0].source = aIn }.contains { $0.contains("must be an output port") })
     #expect(problems { $0.properties[0].targets = [] }.contains { $0.contains("sets nothing") })
@@ -303,9 +305,11 @@ private func wiredEditor() throws -> (GraphEditor, Adder, instance: NodeID, sour
     let (editor, inner) = try makeEditor()
     var outer = Adder()
     let nested = Node(typeID: inner.definition.typeID)
+    let sink = Node(typeID: "add")   // a node of its own: the exposed input already feeds `outer.add`
     outer.definition.graph.insert(nested)
+    outer.definition.graph.insert(sink)
     outer.definition.graph.insert(Link(
-        sourceNode: nested.id, sourcePort: "result", targetNode: outer.add, targetPort: "a"))
+        sourceNode: nested.id, sourcePort: "result", targetNode: sink.id, targetPort: "a"))
     try editor.apply(.addSubgraph(definition: outer.definition))
     let before = editor.subgraphs[outer.definition.id]
     var interface = inner.definition.interface

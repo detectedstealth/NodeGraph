@@ -987,7 +987,7 @@ private func events(_ stream: AsyncStream<ExecutionEvent>, passes: Int = 1) asyn
     let statuses = seen.compactMap { event -> (Int, NodeID, NodeRunStatus)? in
         if case .nodeFinished(let node, let tick, let status, _) = event { (tick, node, status) } else { nil }
     }
-    #expect(statuses.contains { $0.0 == 0 && $0.1 == bad && $0.2 == .failed(message: "failed(\"boom\")") })
+    #expect(statuses.contains { $0.0 == 0 && $0.1 == bad && $0.2 == .failed(message: "boom") })
     #expect(statuses.contains { $0.0 == 0 && $0.1 == after && $0.2 == .skipped(.upstreamFailed) })
     #expect(statuses.contains { $0.0 == 1 && $0.1 == src && $0.2 == .cached })
 }

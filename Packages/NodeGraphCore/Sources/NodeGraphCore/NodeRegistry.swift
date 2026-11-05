@@ -24,6 +24,15 @@ public struct NodeRegistry: Sendable {
         executors[definition.typeID] = execute
     }
 
+    /// A copy that also defines the node type of every given subgraph, so instances can be
+    /// created, linked and run. Runs through ``GraphRunner``, which handles instances itself,
+    /// so no executor is attached.
+    public func registeringSubgraphs(_ definitions: some Sequence<SubgraphDefinition>) -> NodeRegistry {
+        var copy = self
+        for definition in definitions { copy.register(definition.nodeDefinition) }
+        return copy
+    }
+
     /// Removes a definition and its executor.
     public mutating func unregister(_ typeID: NodeTypeID) {
         definitions.removeValue(forKey: typeID)
