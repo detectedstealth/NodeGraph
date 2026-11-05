@@ -1,3 +1,4 @@
+import Collections
 import Foundation
 import Synchronization
 
@@ -18,6 +19,8 @@ public enum EditValidation: Sendable {
 /// own). The streams returned by ``changes()`` can be consumed from anywhere.
 public final class GraphEditor {
     public private(set) var graph: Graph
+    /// Subgraph definitions, in storage order. Edit them with the subgraph commands.
+    public private(set) var subgraphs: OrderedDictionary<SubgraphID, SubgraphDefinition>
     /// Increments once per applied top-level command.
     public private(set) var revision: Int
     public var nodes: NodeRegistry
@@ -28,16 +31,47 @@ public final class GraphEditor {
 
     public init(
         graph: Graph = Graph(),
+        subgraphs: [SubgraphDefinition] = [],
         revision: Int = 0,
         nodes: NodeRegistry,
         types: TypeRegistry,
         connectionValidator: ConnectionValidator = ConnectionValidator()
     ) {
         self.graph = graph
+        self.subgraphs = OrderedDictionary(subgraphs.map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })
         self.revision = revision
         self.nodes = nodes
         self.types = types
         self.connectionValidator = connectionValidator
+        refreshSubgraphTypes()
+    }
+
+    /// Opens a saved document for editing.
+    public convenience init(
+        document: GraphDocument,
+        nodes: NodeRegistry,
+        types: TypeRegistry,
+        connectionValidator: ConnectionValidator = ConnectionValidator()
+    ) {
+        self.init(
+            graph: document.graph, subgraphs: document.subgraphs, nodes: nodes, types: types,
+            connectionValidator: connectionValidator)
+    }
+
+    /// The current state as a document, ready to save.
+    public func makeDocument(metadata: [String: GraphValue] = [:]) -> GraphDocument {
+        GraphDocument(graph: graph, subgraphs: Array(subgraphs.values), metadata: metadata)
+    }
+
+    /// Registers the node type of every subgraph so instances can be created, linked and
+    /// validated. Done automatically; call it after replacing ``nodes`` with a new registry.
+    /// Executors already registered for these types are kept.
+    public func refreshSubgraphTypes() {
+        for definition in subgraphs.values { registerType(of: definition) }
+    }
+
+    private func registerType(of definition: SubgraphDefinition) {
+        nodes.register(definition.nodeDefinition, execute: nodes.executor(for: definition.typeID))
     }
 
     /// The registries and graph as validators see them.
@@ -96,8 +130,10 @@ public final class GraphEditor {
     // MARK: Applying commands
 
     /// Applies `command` to `graph` and returns its inverse.
+    ///
+    /// `scope` is the subgraph whose inner graph `graph` is, or nil for the root graph.
     private func perform(
-        _ command: GraphCommand, on graph: inout Graph, validation: EditValidation
+        _ command: GraphCommand, on graph: inout Graph, scope: SubgraphID? = nil, validation: EditValidation
     ) throws -> GraphCommand {
         switch command {
         case .addNode(let node, let index):
@@ -185,22 +221,121 @@ public final class GraphEditor {
             graph.insert(group)
             return .updateGroup(group: previous)
 
+        case .addSubgraph(let definition, let index):
+            guard scope == nil else { throw GraphEditError.invalidScope }
+            guard subgraphs[definition.id] == nil else { throw GraphEditError.duplicateID(definition.id.description) }
+            try checkIndex(index, count: subgraphs.count)
+            if validation == .full { try validate(definition) }
+            if let index {
+                subgraphs.updateValue(definition, forKey: definition.id, insertingAt: index)
+            } else {
+                subgraphs[definition.id] = definition
+            }
+            registerType(of: definition)
+            return .removeSubgraph(id: definition.id)
+
+        case .removeSubgraph(let id):
+            guard scope == nil else { throw GraphEditError.invalidScope }
+            guard let definition = subgraphs[id] else { throw GraphEditError.subgraphNotFound(id) }
+            let inUse = graph.nodes.values.contains { $0.typeID == definition.typeID }
+                || subgraphs.values.contains { $0.graph.nodes.values.contains { $0.typeID == definition.typeID } }
+            guard !inUse else { throw GraphEditError.subgraphInUse(id) }
+            let index = subgraphs.index(forKey: id)
+            subgraphs.removeValue(forKey: id)
+            nodes.unregister(definition.typeID)
+            return .addSubgraph(definition: definition, index: index)
+
+        case .setSubgraphInterface(let id, let interface):
+            guard scope == nil else { throw GraphEditError.invalidScope }
+            return try setInterface(of: id, to: interface, rootGraph: &graph, validation: validation)
+
+        case .inSubgraph(let id, let inner):
+            guard scope == nil else { throw GraphEditError.invalidScope }
+            guard let at = subgraphs.index(forKey: id) else { throw GraphEditError.subgraphNotFound(id) }
+            let inverse = try perform(inner, on: &subgraphs.values[at].graph, scope: id, validation: validation)
+            return .inSubgraph(id: id, command: inverse)
+
         case .batch(let commands):
             var inverses: [GraphCommand] = []
             do {
                 for command in commands {
-                    inverses.append(try perform(command, on: &graph, validation: validation))
+                    inverses.append(try perform(command, on: &graph, scope: scope, validation: validation))
                 }
             } catch {
                 // Put back what the earlier steps changed. Inverses restore exactly, so this
                 // cannot fail on a graph the steps just produced.
                 for inverse in inverses.reversed() {
-                    _ = try? perform(inverse, on: &graph, validation: .structural)
+                    _ = try? perform(inverse, on: &graph, scope: scope, validation: .structural)
                 }
                 throw error
             }
             return .batch(commands: inverses.reversed())
         }
+    }
+
+    /// Everything wrong with a definition that is about to be added or changed.
+    private func validate(_ definition: SubgraphDefinition) throws {
+        var problems = definition.problems(nodes: nodes)
+        let context = ValidationContext(graph: definition.graph, nodes: nodes, types: types)
+        problems += GraphValidator(connections: connectionValidator).validate(context)
+            .filter { $0.severity == .error }.map(\.message)
+        guard problems.isEmpty else { throw GraphEditError.invalidSubgraph(problems) }
+    }
+
+    /// Replaces a subgraph's interface and removes what instances can no longer have: links to
+    /// ports that are gone or changed kind, and values of properties that are gone. Returns the
+    /// command that undoes all of it.
+    private func setInterface(
+        of id: SubgraphID, to interface: SubgraphInterface, rootGraph: inout Graph, validation: EditValidation
+    ) throws -> GraphCommand {
+        guard let at = subgraphs.index(forKey: id) else { throw GraphEditError.subgraphNotFound(id) }
+        let old = subgraphs.values[at]
+        var updated = old
+        updated.interface = interface
+        if validation == .full { try validate(updated) }
+
+        let typeID = old.typeID, newDefinition = updated.nodeDefinition, oldDefinition = old.nodeDefinition
+        func cleanup(in graph: Graph) -> [GraphCommand] {
+            var commands: [GraphCommand] = []
+            var removed = Set<LinkID>()
+            for node in graph.nodes.values where node.typeID == typeID {
+                func broken(_ address: PortAddress) -> Bool {
+                    guard let port = newDefinition.port(address.port, direction: address.direction) else { return true }
+                    return oldDefinition.port(address.port, direction: address.direction)?.kind != port.kind
+                }
+                for link in graph.links(attachedTo: node.id) where !removed.contains(link.id) {
+                    let sourceBroken = link.source.node == node.id && broken(link.source)
+                    let targetBroken = link.target.node == node.id && broken(link.target)
+                    if sourceBroken || targetBroken {
+                        removed.insert(link.id)
+                        commands.append(.removeLink(id: link.id))
+                    }
+                }
+                for property in node.properties.keys.sorted() where newDefinition.property(property) == nil {
+                    commands.append(.setNodeProperty(node: node.id, property: property, value: nil))
+                }
+            }
+            return commands
+        }
+
+        // Clean up the root graph and every subgraph that contains instances.
+        var undo: [GraphCommand] = []
+        let rootCleanup = cleanup(in: rootGraph)
+        if !rootCleanup.isEmpty {
+            undo.append(try perform(.batch(commands: rootCleanup), on: &rootGraph, validation: .structural))
+        }
+        for index in subgraphs.values.indices {
+            let otherID = subgraphs.values[index].id
+            let commands = cleanup(in: subgraphs.values[index].graph)
+            guard !commands.isEmpty else { continue }
+            let inverse = try perform(
+                .batch(commands: commands), on: &subgraphs.values[index].graph, scope: otherID, validation: .structural)
+            undo.append(.inSubgraph(id: otherID, command: inverse))
+        }
+
+        subgraphs.values[at] = updated
+        registerType(of: updated)
+        return .batch(commands: [.setSubgraphInterface(id: id, interface: old.interface)] + undo)
     }
 
     private func checkIndex(_ index: Int?, count: Int) throws {

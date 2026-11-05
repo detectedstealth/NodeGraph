@@ -75,7 +75,7 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
 
 ## Phase 3: Subgraphs and composition
 
-- [ ] Subgraph definitions with exposed ports and promoted properties
+- [x] Subgraph definitions with exposed ports and promoted properties (model, document storage, editing commands; running instances is the next item)
 - [ ] Instance nodes execute the inner graph with correct port mapping and scoping
 - [ ] Convert selection to subgraph; unpack subgraph
 - [ ] Reusable definition library (in document, then external via Sync)

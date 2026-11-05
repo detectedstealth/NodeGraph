@@ -61,7 +61,7 @@ public enum NodeAttribute: Hashable, Sendable, Codable {
 ///
 /// Apply commands with ``GraphEditor``. Add commands carry an optional `index` so that undoing
 /// a removal restores the original storage order.
-public enum GraphCommand: Hashable, Sendable, Codable {
+public indirect enum GraphCommand: Hashable, Sendable, Codable {
     case addNode(node: Node, index: Int? = nil)
     /// Also removes every link attached to the node.
     case removeNode(id: NodeID)
@@ -76,6 +76,17 @@ public enum GraphCommand: Hashable, Sendable, Codable {
     case removeGroup(id: GroupID)
     /// Replaces a group, matched by id.
     case updateGroup(group: NodeGroup)
+    /// Adds a subgraph definition. Subgraph commands work only at the top level of a document, not
+    /// inside ``inSubgraph(id:command:)``.
+    case addSubgraph(definition: SubgraphDefinition, index: Int? = nil)
+    /// Removes a definition that has no instances anywhere.
+    case removeSubgraph(id: SubgraphID)
+    /// Replaces a definition's name, ports and promoted properties. Links and property values on
+    /// instances that the new interface no longer supports are removed in the same step.
+    case setSubgraphInterface(id: SubgraphID, interface: SubgraphInterface)
+    /// Applies `command` to a subgraph's inner graph. The inner graph is edited with the same
+    /// commands as the root graph.
+    case inSubgraph(id: SubgraphID, command: GraphCommand)
     /// Commands applied in order as one undoable step. Applies fully or not at all.
     case batch(commands: [GraphCommand])
 }
@@ -94,6 +105,8 @@ extension GraphCommand {
             n1 == n2 && p1 == p2 ? next : nil
         case (.updateGroup(let a), .updateGroup(let b)):
             a.id == b.id ? next : nil
+        case (.inSubgraph(let id1, let a), .inSubgraph(let id2, let b)):
+            id1 == id2 ? a.coalesced(with: b).map { .inSubgraph(id: id1, command: $0) } : nil
         case (.batch(let a), .batch(let b)):
             // Same shape, every pair mergeable: a repeated group move, for example.
             a.count == b.count && !a.isEmpty ? merge(a, b) : nil
@@ -148,5 +161,12 @@ public enum GraphEditError: Error, Hashable, Sendable {
     case nonFiniteValue
     /// A group's bounds are not finite or have no positive width and height.
     case invalidGeometry
+    case subgraphNotFound(SubgraphID)
+    /// The subgraph still has instances. Remove them first.
+    case subgraphInUse(SubgraphID)
+    /// The definition is inconsistent; the strings say how (see ``SubgraphDefinition/problems(nodes:)``).
+    case invalidSubgraph([String])
+    /// A subgraph command was used somewhere it is not allowed, such as inside another subgraph.
+    case invalidScope
     case invalidConnection([GraphDiagnostic])
 }

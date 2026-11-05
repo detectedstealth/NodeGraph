@@ -80,7 +80,7 @@ private func measure<T>(_ limit: Duration, _ label: String, _ body: () async thr
 @Test func aFailedBatchRollsBackWithoutCopyingTheGraph() async throws {
     let rig = try Rig.chain(editedThroughEditor: 2_000)
     let before = rig.editor.graph
-    try await measure(.seconds(2), "100 failing batches") {
+    await measure(.seconds(2), "100 failing batches") {
         for _ in 0..<100 {
             #expect(throws: GraphEditError.self) {
                 try rig.editor.apply(.batch(commands: [

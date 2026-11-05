@@ -24,13 +24,41 @@ public struct GraphDocument: Hashable, Sendable, Codable {
 
     public private(set) var schemaVersion: Int
     public var graph: Graph
+    /// Reusable subgraph definitions, in storage order. Instances in `graph` (and in other
+    /// definitions) refer to them by node type. Omitted from the file when there are none.
+    public var subgraphs: [SubgraphDefinition]
     /// Free-form document information (title, author, tool settings). Keys are chosen by the app.
     public var metadata: [String: GraphValue]
 
-    public init(graph: Graph = Graph(), metadata: [String: GraphValue] = [:]) {
+    public init(graph: Graph = Graph(), subgraphs: [SubgraphDefinition] = [], metadata: [String: GraphValue] = [:]) {
         self.schemaVersion = Self.currentSchemaVersion
         self.graph = graph
+        self.subgraphs = subgraphs
         self.metadata = metadata
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case schemaVersion, graph, subgraphs, metadata
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = try container.decode(Int.self, forKey: .schemaVersion)
+        graph = try container.decode(Graph.self, forKey: .graph)
+        subgraphs = try container.decodeIfPresent([SubgraphDefinition].self, forKey: .subgraphs) ?? []
+        metadata = try container.decode([String: GraphValue].self, forKey: .metadata)
+        guard Set(subgraphs.map(\.id)).count == subgraphs.count else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .subgraphs, in: container, debugDescription: "Duplicate subgraph id")
+        }
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(schemaVersion, forKey: .schemaVersion)
+        try container.encode(graph, forKey: .graph)
+        if !subgraphs.isEmpty { try container.encode(subgraphs, forKey: .subgraphs) }
+        try container.encode(metadata, forKey: .metadata)
     }
 
     // MARK: Writing
@@ -85,6 +113,8 @@ public struct GraphDocument: Hashable, Sendable, Codable {
     /// duplicates. Such nodes still load and save with all their data (position, properties,
     /// links); use ``NodeRegistry/addingPlaceholders(for:)`` so editors can display them.
     public func missingNodeTypes(in registry: NodeRegistry) -> [NodeTypeID] {
-        Set(graph.nodes.values.map(\.typeID).filter { registry.definition(for: $0) == nil }).sorted()
+        let defined = Set(subgraphs.map(\.typeID))
+        let used = graph.nodes.values.map(\.typeID) + subgraphs.flatMap { $0.graph.nodes.values.map(\.typeID) }
+        return Set(used.filter { registry.definition(for: $0) == nil && !defined.contains($0) }).sorted()
     }
 }

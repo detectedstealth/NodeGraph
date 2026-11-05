@@ -24,6 +24,12 @@ public struct NodeRegistry: Sendable {
         executors[definition.typeID] = execute
     }
 
+    /// Removes a definition and its executor.
+    public mutating func unregister(_ typeID: NodeTypeID) {
+        definitions.removeValue(forKey: typeID)
+        executors[typeID] = nil
+    }
+
     /// The code that runs nodes of this type, if any was registered.
     public func executor(for typeID: NodeTypeID) -> NodeExecutor? {
         executors[typeID]

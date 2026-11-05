@@ -15,7 +15,7 @@ App (macOS + iPadOS) ──> UI, Nodes, Sync
 
 | Concept | Description |
 |---|---|
-| `GraphDocument` | Serializable root: schema version, root `Graph`, subgraph definitions, metadata. |
+| `GraphDocument` | Serializable root: schema version, root `Graph`, subgraph definitions (omitted from the file when there are none), metadata. |
 | `Graph` | Nodes, links, groups (`NodeGroup`). Value type, `Codable`, `Sendable`. |
 | `NodeID`, `LinkID`, `GroupID` | Opaque `UUID`-backed IDs. Stable across save/load and safe for a distributed server. |
 | `NodeDefinition` | Class-level description registered by a pack: type id (`"math.add"`), ports, properties schema, default size, category, execute function. |
@@ -25,7 +25,7 @@ App (macOS + iPadOS) ──> UI, Nodes, Sync
 | `GraphValue` | Runtime value enum: bool, int, double, string, vector, matrix, color, array, object, data, and `.handle(HandleID)` for large or opaque payloads (frames, point clouds). |
 | `Link` | Output port to input port. An input accepts one link; an output accepts many. |
 | `Property` | Typed, schema-described node setting. Drives inspector and in-node widgets. |
-| `Subgraph` | A `Graph` plus exposed input/output ports and promoted properties. Used by instance nodes (reusable definitions). |
+| `SubgraphDefinition` | A `Graph` plus a `SubgraphInterface`: exposed inputs and outputs (each bound to inner ports by node id and port id) and promoted properties (each bound to inner node properties). Stored in `GraphDocument.subgraphs`. An instance is an ordinary `Node` whose type is `subgraph.<uuid>`; its `NodeDefinition` is generated from the interface. |
 
 Distinct data flow and trigger flow: ports have a `kind` (`.data` or `.trigger`). Triggers carry events; data ports carry values.
 
