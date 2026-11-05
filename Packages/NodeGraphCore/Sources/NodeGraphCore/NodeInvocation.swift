@@ -59,9 +59,8 @@ public enum NodeInvocation {
         let outcome: NodeRunResult.Outcome
         do {
             let outputs = try await executor(context)
-            let declared = Set(context.definition.outputs.map(\.id))
-            if let stray = outputs.values.keys.sorted().first(where: { !declared.contains($0) }) {
-                outcome = .failure(NodeFailure(message: describe(NodeExecutionError.undeclaredOutput(stray))))
+            if let problem = outputProblem(outputs, in: context.definition) {
+                outcome = .failure(NodeFailure(message: describe(problem)))
             } else {
                 outcome = .success(outputs)
             }
@@ -84,6 +83,20 @@ public enum NodeInvocation {
                 duration: .zero)
         }
         return await run(executor, context: context)
+    }
+
+    /// Values must go to declared data outputs and triggers to declared trigger outputs.
+    private static func outputProblem(_ outputs: NodeOutputs, in definition: NodeDefinition) -> NodeExecutionError? {
+        let declared = Dictionary(definition.outputs.map { ($0.id, $0.kind) }, uniquingKeysWith: { first, _ in first })
+        for port in outputs.values.keys.sorted() {
+            guard let kind = declared[port] else { return .undeclaredOutput(port) }
+            if kind != .data { return .wrongPortKind(port) }
+        }
+        for port in outputs.triggers.sorted() {
+            guard let kind = declared[port] else { return .undeclaredOutput(port) }
+            if kind != .trigger { return .wrongPortKind(port) }
+        }
+        return nil
     }
 
     private static func describe(_ error: any Error) -> String {

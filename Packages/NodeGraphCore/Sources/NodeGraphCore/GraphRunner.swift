@@ -51,7 +51,9 @@ public struct TickResult: Hashable, Sendable {
 /// ``ExecutionPlan``. Nodes in the same plan level run concurrently, except in deterministic
 /// mode. A node's inputs come from the outputs of the nodes linked to it in the same pass; a
 /// link leaving a feedback node delivers that node's output from the *previous* pass. An input
-/// with several links receives their values as an `.array`, in link order. A node whose upstream
+/// with several links receives their values as an `.array`, in link order. A trigger input fires
+/// when any linked trigger output fired in the same pass (or the previous one, for a feedback
+/// link); triggers carry events, never values. A node whose upstream
 /// failed is skipped, and a failing node does not stop the rest of the graph.
 ///
 /// The runner works on its own copy of the graph; call ``update(graph:registry:)`` to change it.
@@ -63,6 +65,7 @@ public actor GraphRunner {
             var isFeedback: Bool
         }
         var port: PortID
+        var kind: PortKind
         var sources: [Source]
         var isMultiple: Bool
     }
@@ -260,9 +263,10 @@ public actor GraphRunner {
                         duration: .zero)
                     continue
                 }
+                let resolved = Self.resolveInputs(bindings, outputs: outputs, feedback: feedback)
                 let context = NodeContext(
                     node: node, definition: definition,
-                    linkedInputs: Self.resolveInputs(bindings, outputs: outputs, feedback: feedback),
+                    linkedInputs: resolved.values, triggered: resolved.triggered,
                     time: time, services: services, logger: logger, onProgress: onProgress)
                 jobs.append((index, executor, context))
             }
@@ -290,22 +294,31 @@ public actor GraphRunner {
         return (results, wasCancelled)
     }
 
-    /// Values for each input port: from this pass's outputs, or last pass's for feedback links.
+    /// Values and fired triggers for a node's inputs: from this pass's outputs, or last pass's for
+    /// feedback links.
     private static func resolveInputs(
         _ bindings: [InputBinding], outputs: [NodeID: NodeOutputs], feedback: [NodeID: NodeOutputs]
-    ) -> [PortID: GraphValue] {
-        var inputs: [PortID: GraphValue] = [:]
+    ) -> (values: [PortID: GraphValue], triggered: Set<PortID>) {
+        var values: [PortID: GraphValue] = [:]
+        var triggered = Set<PortID>()
         for binding in bindings {
-            let values = binding.sources.compactMap { source in
-                (source.isFeedback ? feedback[source.node] : outputs[source.node])?[source.port]
+            func produced(_ source: InputBinding.Source) -> NodeOutputs? {
+                source.isFeedback ? feedback[source.node] : outputs[source.node]
             }
+            if binding.kind == .trigger {
+                if binding.sources.contains(where: { produced($0)?.triggers.contains($0.port) == true }) {
+                    triggered.insert(binding.port)
+                }
+                continue
+            }
+            let linked = binding.sources.compactMap { produced($0)?.values[$0.port] }
             if binding.isMultiple {
-                if !values.isEmpty { inputs[binding.port] = .array(values) }
-            } else if let value = values.first {
-                inputs[binding.port] = value
+                if !linked.isEmpty { values[binding.port] = .array(linked) }
+            } else if let value = linked.first {
+                values[binding.port] = value
             }
         }
-        return inputs
+        return (values, triggered)
     }
 
     private static func makeSnapshot(graph: Graph, registry: NodeRegistry) throws -> Snapshot {
@@ -318,11 +331,12 @@ public actor GraphRunner {
         var bindings: [NodeID: [InputBinding]] = [:]
         for node in graph.nodes.values {
             guard let definition = registry.definition(for: node.typeID) else { continue }
-            for port in definition.inputs where port.kind == .data {
+            for port in definition.inputs {
                 let address = PortAddress(node: node.id, port: port.id, direction: .input)
                 guard let links = linksByTarget[address], !links.isEmpty else { continue }
                 bindings[node.id, default: []].append(InputBinding(
                     port: port.id,
+                    kind: port.kind,
                     sources: links.map {
                         .init(node: $0.source.node, port: $0.source.port, isFeedback: feedbackLinks.contains($0.id))
                     },

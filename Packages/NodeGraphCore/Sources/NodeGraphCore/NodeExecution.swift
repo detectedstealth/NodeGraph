@@ -7,16 +7,23 @@ import Logging
 /// ``NodeContext/checkCancellation()`` and ``NodeContext/reportProgress(_:message:)``.
 public typealias NodeExecutor = @Sendable (NodeContext) async throws -> NodeOutputs
 
-/// Values a node produces, keyed by output port.
+/// What a node produces: values on its data output ports and events on its trigger output ports.
+///
+/// The dictionary-literal form sets values only: `["sum": 3.0]`.
 public struct NodeOutputs: Hashable, Sendable, ExpressibleByDictionaryLiteral {
+    /// Values by data output port.
     public var values: [PortID: GraphValue]
+    /// Trigger output ports that fire this evaluation.
+    public var triggers: Set<PortID>
 
-    public init(_ values: [PortID: GraphValue] = [:]) {
+    public init(_ values: [PortID: GraphValue] = [:], triggers: Set<PortID> = []) {
         self.values = values
+        self.triggers = triggers
     }
 
     public init(dictionaryLiteral elements: (PortID, GraphValue)...) {
         values = Dictionary(elements, uniquingKeysWith: { _, last in last })
+        triggers = []
     }
 
     public subscript(port: PortID) -> GraphValue? {
@@ -38,6 +45,8 @@ public enum NodeExecutionError: Error, Hashable, Sendable {
     case notExecutable(NodeTypeID)
     /// The executor returned a value for a port the definition does not declare.
     case undeclaredOutput(PortID)
+    /// The executor wrote a value to a trigger port, or fired a data port.
+    case wrongPortKind(PortID)
     case failed(String)
 }
 
@@ -105,6 +114,8 @@ public struct NodeContext: Sendable {
     public let inputs: [PortID: GraphValue]
     /// Property values: the node's overrides over the definition's defaults.
     public let properties: [PropertyID: GraphValue]
+    /// Trigger input ports that received an event this evaluation.
+    public let triggered: Set<PortID>
     public let time: ExecutionTime
     public let services: ServiceContainer
     /// Tagged with the node id and type.
@@ -113,11 +124,14 @@ public struct NodeContext: Sendable {
 
     /// Builds the context for running `node`.
     ///
-    /// - Parameter linkedInputs: Values already delivered over links, keyed by input port.
+    /// - Parameters:
+    ///   - linkedInputs: Values already delivered over links, keyed by input port.
+    ///   - triggered: Trigger input ports that received an event.
     public init(
         node: Node,
         definition: NodeDefinition,
         linkedInputs: [PortID: GraphValue] = [:],
+        triggered: Set<PortID> = [],
         time: ExecutionTime = ExecutionTime(),
         services: ServiceContainer = ServiceContainer(),
         logger: Logger = Logger(label: "NodeGraph.node"),
@@ -138,6 +152,7 @@ public struct NodeContext: Sendable {
         self.definition = definition
         self.inputs = inputs
         self.properties = properties
+        self.triggered = triggered
         self.time = time
         self.services = services
         self.logger = tagged
@@ -173,6 +188,11 @@ public struct NodeContext: Sendable {
             throw NodeExecutionError.invalidInput(port, expected: "string")
         }
         return value
+    }
+
+    /// Whether a trigger input port received an event this evaluation.
+    public func didTrigger(_ port: PortID) -> Bool {
+        triggered.contains(port)
     }
 
     /// A property value.

@@ -379,3 +379,134 @@ private struct Gain: Sendable { var value: Double }
     #expect(await runner.step().outputs(of: id) == ["out": 4.0])
     #expect(seen.all == ["0.5 half"])
 }
+
+// MARK: Triggers
+
+private func triggerPack() -> Pack {
+    var p = Pack()
+    // Fires "hit" when its input exceeds a threshold.
+    p.registry.register(NodeDefinition(
+        typeID: "threshold", displayName: "Threshold",
+        ports: [
+            PortDefinition(id: "in", direction: .input, defaultValue: 0.0),
+            PortDefinition(id: "hit", direction: .output, kind: .trigger),
+            PortDefinition(id: "out", direction: .output),
+        ])
+    ) { ctx in
+        let over = try ctx.number("in") > 10
+        return NodeOutputs(["out": .double(try ctx.number("in"))], triggers: over ? ["hit"] : [])
+    }
+    // Reports which of its trigger inputs fired.
+    p.registry.register(NodeDefinition(
+        typeID: "listener", displayName: "Listener",
+        ports: [
+            PortDefinition(id: "a", direction: .input, kind: .trigger),
+            PortDefinition(id: "b", direction: .input, kind: .trigger, allowsMultipleLinks: true),
+            PortDefinition(id: "fired", direction: .output),
+        ])
+    ) { ctx in
+        ["fired": .string([ctx.didTrigger("a") ? "a" : "", ctx.didTrigger("b") ? "b" : ""].joined())]
+    }
+    return p
+}
+
+private func firedPorts(_ tick: TickResult, _ node: NodeID) -> String? {
+    tick.outputs(of: node)?["fired"]?.stringValue
+}
+
+@Test func aTriggerFiresDownstreamInputsOnlyWhenTheSourceFires() async throws {
+    var p = triggerPack()
+    let quiet = p.node("const", ["value": 1.0]), loud = p.node("const", ["value": 50.0])
+    let low = p.node("threshold"), high = p.node("threshold")
+    let listener = p.node("listener"), other = p.node("listener")
+    p.link(quiet, "out", low, "in"); p.link(loud, "out", high, "in")
+    p.link(low, "hit", listener, "a")
+    p.link(high, "hit", other, "a")
+    let tick = await (try p.runner()).step()
+    #expect(tick.succeeded)
+    #expect(firedPorts(tick, listener) == "")
+    #expect(firedPorts(tick, other) == "a")
+    #expect(tick.outputs(of: high)?.triggers == ["hit"] && tick.outputs(of: low)?.triggers == [])
+}
+
+@Test func anyOneOfSeveralTriggerSourcesFiresTheInput() async throws {
+    var p = triggerPack()
+    let quiet = p.node("const", ["value": 1.0]), loud = p.node("const", ["value": 50.0])
+    let low = p.node("threshold"), high = p.node("threshold"), listener = p.node("listener")
+    p.link(quiet, "out", low, "in"); p.link(loud, "out", high, "in")
+    p.link(low, "hit", listener, "b")
+    p.link(high, "hit", listener, "b")
+    #expect(firedPorts(await (try p.runner()).step(), listener) == "b")
+}
+
+@Test func triggersAndDataAreIndependent() async throws {
+    var p = triggerPack()
+    let loud = p.node("const", ["value": 50.0]), source = p.node("threshold"), listener = p.node("listener")
+    p.link(loud, "out", source, "in")
+    p.link(source, "hit", listener, "a")
+    let tick = await (try p.runner()).step()
+    // The trigger fired, and the data output next to it still carries its value.
+    #expect(tick.outputs(of: source) == NodeOutputs(["out": 50.0], triggers: ["hit"]))
+    #expect(firedPorts(tick, listener) == "a")
+}
+
+@Test func unconnectedTriggerInputsNeverFire() async throws {
+    var p = triggerPack()
+    let listener = p.node("listener")
+    #expect(firedPorts(await (try p.runner()).step(), listener) == "")
+}
+
+@Test func triggersOverFeedbackLinksArriveOnTheNextPass() async throws {
+    var p = triggerPack()
+    p.registry.register(NodeDefinition(
+        typeID: "pulse", displayName: "Pulse", ports: [PortDefinition(id: "tick", direction: .output, kind: .trigger)],
+        isFeedback: true)
+    ) { _ in NodeOutputs(triggers: ["tick"]) }
+    let pulse = p.node("pulse"), listener = p.node("listener")
+    p.link(pulse, "tick", listener, "a")
+    let runner = try p.runner()
+    let first = await runner.step(), second = await runner.step()
+    #expect(firedPorts(first, listener) == "")      // nothing existed on the first pass
+    #expect(firedPorts(second, listener) == "a")
+}
+
+@Test func aFailedTriggerSourceSkipsTheListener() async throws {
+    var p = triggerPack()
+    p.registry.register(NodeDefinition(
+        typeID: "badfire", displayName: "BadFire", ports: [PortDefinition(id: "hit", direction: .output, kind: .trigger)])
+    ) { _ in throw NodeExecutionError.failed("no") }
+    let source = p.node("badfire"), listener = p.node("listener")
+    p.link(source, "hit", listener, "a")
+    let tick = await (try p.runner()).step()
+    #expect(tick.results[listener]?.outcome == .skipped(.upstreamFailed))
+}
+
+@Test func writingTheWrongKindOfOutputFails() async throws {
+    var p = triggerPack()
+    p.registry.register(NodeDefinition(
+        typeID: "valueOnTrigger", displayName: "V",
+        ports: [PortDefinition(id: "hit", direction: .output, kind: .trigger), PortDefinition(id: "out", direction: .output)])
+    ) { _ in ["hit": 1.0] }
+    p.registry.register(NodeDefinition(
+        typeID: "fireOnData", displayName: "F",
+        ports: [PortDefinition(id: "hit", direction: .output, kind: .trigger), PortDefinition(id: "out", direction: .output)])
+    ) { _ in NodeOutputs(triggers: ["out"]) }
+    p.registry.register(NodeDefinition(
+        typeID: "fireUnknown", displayName: "U", ports: [PortDefinition(id: "hit", direction: .output, kind: .trigger)])
+    ) { _ in NodeOutputs(triggers: ["nope"]) }
+    let a = p.node("valueOnTrigger"), b = p.node("fireOnData"), c = p.node("fireUnknown")
+    let tick = await (try p.runner()).step()
+    for (id, word) in [(a, "wrongPortKind"), (b, "wrongPortKind"), (c, "undeclaredOutput")] {
+        guard case .failure(let failure)? = tick.results[id]?.outcome else { Issue.record("expected failure"); continue }
+        #expect(failure.message.contains(word))
+    }
+}
+
+@Test func triggerPortsDoNotGetDataDefaults() {
+    let definition = NodeDefinition(typeID: "t", displayName: "T", ports: [
+        PortDefinition(id: "go", direction: .input, kind: .trigger, defaultValue: true)])
+    let ctx = NodeContext(node: Node(typeID: "t"), definition: definition)
+    #expect(ctx.inputs["go"] == nil && !ctx.didTrigger("go"))
+    let fired = NodeContext(node: Node(typeID: "t"), definition: definition, triggered: ["go"])
+    #expect(fired.didTrigger("go"))
+}
