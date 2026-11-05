@@ -5,14 +5,14 @@ import Testing
 
 // MARK: Fixture
 
-private final class Counter: Sendable {
+final class RunCounter: Sendable {
     private let value = Mutex(0)
     func hit() { value.withLock { $0 += 1 } }
     var count: Int { value.withLock { $0 } }
 }
 
 /// Registries whose nodes actually run.
-private func runnable(counter: Counter = Counter()) -> (NodeRegistry, TypeRegistry) {
+func runnable(counter: RunCounter = RunCounter()) -> (NodeRegistry, TypeRegistry) {
     var (nodes, types) = registries()
     nodes.register(NodeDefinition(
         typeID: "add", displayName: "Add",
@@ -57,7 +57,7 @@ private struct World {
     var subgraphs: [SubgraphDefinition] = []
     let nodes: NodeRegistry
 
-    init(counter: Counter = Counter()) { nodes = runnable(counter: counter).0 }
+    init(counter: RunCounter = RunCounter()) { nodes = runnable(counter: counter).0 }
 
     @discardableResult
     mutating func add(_ type: NodeTypeID, _ properties: [PropertyID: GraphValue] = [:], mode: NodeMode = .always) -> NodeID {
@@ -170,7 +170,7 @@ private func accumulator() -> SubgraphDefinition {
 }
 
 @Test func pureNodesInsideAnInstanceAreCachedAcrossPasses() async throws {
-    let counter = Counter()
+    let counter = RunCounter()
     var w = World(counter: counter)
     let adder = Adder()
     w.subgraphs = [adder.definition]
