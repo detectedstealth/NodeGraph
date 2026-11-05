@@ -12,7 +12,7 @@ public struct NodeFailure: Hashable, Sendable, Codable {
 /// The result of running one node.
 public struct NodeRunResult: Hashable, Sendable {
     /// Why a node was not run.
-    public enum SkipReason: Hashable, Sendable {
+    public enum SkipReason: String, Hashable, Sendable, Codable {
         /// A node feeding it failed, was cancelled, or was itself skipped for that reason.
         case upstreamFailed
         /// A node feeding it is switched off (mode `never`), or was skipped because of one.
@@ -48,6 +48,18 @@ public struct NodeRunResult: Hashable, Sendable {
         self.node = node
         self.outcome = outcome
         self.duration = duration
+    }
+
+    /// A summary of what happened, without the outputs.
+    public var status: NodeRunStatus {
+        switch outcome {
+        case .success: .succeeded
+        case .failure(let failure): .failed(message: failure.message)
+        case .cancelled: .cancelled
+        case .skipped(let reason): .skipped(reason)
+        case .bypassed: .bypassed
+        case .cached: .cached
+        }
     }
 
     /// The outputs if the node ran, was bypassed, or was served from the cache.

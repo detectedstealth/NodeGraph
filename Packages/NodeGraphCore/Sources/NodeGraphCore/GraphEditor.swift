@@ -24,7 +24,7 @@ public final class GraphEditor {
     public var types: TypeRegistry
     public var connectionValidator: ConnectionValidator
 
-    private let broadcaster = ChangeBroadcaster()
+    private let broadcaster = Broadcaster<GraphChange>()
 
     public init(
         graph: Graph = Graph(),
@@ -239,25 +239,5 @@ public final class GraphEditor {
                 node: link.target.node, port: link.target))
         }
         if diagnostics.containsErrors { throw GraphEditError.invalidConnection(diagnostics) }
-    }
-}
-
-/// Fans changes out to any number of `AsyncStream`s. Thread-safe so streams can end anywhere.
-private final class ChangeBroadcaster: Sendable {
-    private let continuations = Mutex<[UUID: AsyncStream<GraphChange>.Continuation]>([:])
-
-    func stream() -> AsyncStream<GraphChange> {
-        let id = UUID()
-        let (stream, continuation) = AsyncStream.makeStream(of: GraphChange.self)
-        continuation.onTermination = { [weak self] _ in
-            self?.continuations.withLock { _ = $0.removeValue(forKey: id) }
-        }
-        continuations.withLock { $0[id] = continuation }
-        return stream
-    }
-
-    func send(_ change: GraphChange) {
-        let current = continuations.withLock { Array($0.values) }
-        for continuation in current { continuation.yield(change) }
     }
 }

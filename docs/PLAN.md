@@ -69,7 +69,7 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
 - [x] Trigger (event) ports and flow, separate from data
 - [x] Node modes: always, never, muted, bypassed, onTrigger
 - [x] Dirty tracking and result cache
-- [ ] `ExecutionEvent` stream for UI state
+- [x] `ExecutionEvent` stream for UI state
 - [ ] Built-in packs in `NodeGraphNodes`: math, logic, string, flow, utility (reroute, note, constant)
 - [ ] Tests: ordering, cycles, bypass/mute semantics, cancellation, deterministic runs, perf at 10k nodes
 

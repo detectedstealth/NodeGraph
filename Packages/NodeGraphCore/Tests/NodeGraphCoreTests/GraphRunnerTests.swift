@@ -935,3 +935,184 @@ private struct CachePack {
     }
     #expect(try await outcomes(caching: true) == outcomes(caching: false))
 }
+
+// MARK: Execution events
+
+/// Reads events until the end of the first pass `count` passes have finished.
+private func events(_ stream: AsyncStream<ExecutionEvent>, passes: Int = 1) async -> [ExecutionEvent] {
+    var all: [ExecutionEvent] = [], finished = 0
+    for await event in stream {
+        all.append(event)
+        if case .passFinished = event { finished += 1 }
+        if finished == passes { break }
+    }
+    return all
+}
+
+@Test func eventsBracketAPassAndAnnounceEachNodeOnce() async throws {
+    var p = Pack()
+    let a = p.node("const", ["value": 1.0]), b = p.node("pass"), c = p.node("const", mode: .muted)
+    p.link(a, "out", b, "in")
+    let runner = try p.runner()
+    let stream = runner.events()
+    _ = await runner.step()
+    let seen = await events(stream)
+
+    guard case .passStarted(let tick, _) = seen.first, case .passFinished(let endTick, _, let cancelled) = seen.last else {
+        Issue.record("pass not bracketed: \(seen)"); return
+    }
+    #expect(tick == 0 && endTick == 0 && !cancelled)
+    let finished = seen.compactMap { event -> (NodeID, NodeRunStatus)? in
+        if case .nodeFinished(let node, _, let status, _) = event { (node, status) } else { nil }
+    }
+    #expect(Set(finished.map(\.0)) == [a, b, c] && finished.count == 3)
+    #expect(finished.first { $0.0 == c }?.1 == .skipped(.muted))
+    #expect(finished.first { $0.0 == a }?.1 == .succeeded)
+
+    // Executed nodes start before they finish; muted nodes never start.
+    let index = { (match: (ExecutionEvent) -> Bool) in seen.firstIndex(where: match)! }
+    #expect(index { $0 == .nodeStarted(node: a, tick: 0) } < index { if case .nodeFinished(a, _, _, _) = $0 { true } else { false } })
+    #expect(!seen.contains(.nodeStarted(node: c, tick: 0)))
+}
+
+@Test func failuresCachingAndBypassAreReportedInTheirEvents() async throws {
+    var c = CachePack()
+    let src = c.node("src", ["value": 1.0]), bad = c.pack.node("fail"), after = c.pack.node("pass")
+    c.pack.link(bad, "out", after, "in")
+    _ = src
+    let runner = try c.runner()
+    let stream = runner.events()
+    _ = await runner.step(); _ = await runner.step()
+    let seen = await events(stream, passes: 2)
+    let statuses = seen.compactMap { event -> (Int, NodeID, NodeRunStatus)? in
+        if case .nodeFinished(let node, let tick, let status, _) = event { (tick, node, status) } else { nil }
+    }
+    #expect(statuses.contains { $0.0 == 0 && $0.1 == bad && $0.2 == .failed(message: "failed(\"boom\")") })
+    #expect(statuses.contains { $0.0 == 0 && $0.1 == after && $0.2 == .skipped(.upstreamFailed) })
+    #expect(statuses.contains { $0.0 == 1 && $0.1 == src && $0.2 == .cached })
+}
+
+@Test func progressArrivesBetweenStartAndFinish() async throws {
+    var p = Pack()
+    p.registry.register(NodeDefinition(
+        typeID: "work", displayName: "Work", ports: [PortDefinition(id: "out", direction: .output)])
+    ) { ctx in
+        ctx.reportProgress(0.25, message: "a quarter")
+        ctx.reportProgress(1)
+        return [:]
+    }
+    let work = p.node("work")
+    let runner = try p.runner()
+    let stream = runner.events()
+    _ = await runner.step()
+    let seen = await events(stream)
+    let ofNode = seen.filter {
+        switch $0 {
+        case .nodeStarted(let n, _), .nodeFinished(let n, _, _, _): n == work
+        case .nodeProgress(let p): p.node == work
+        default: false
+        }
+    }
+    #expect(ofNode.count == 4)
+    #expect(ofNode[1] == .nodeProgress(NodeProgress(node: work, fraction: 0.25, message: "a quarter")))
+    if case .nodeProgress(let last) = ofNode[2] { #expect(last.fraction == 1) } else { Issue.record("expected progress") }
+}
+
+@Test func theStateTrackerFollowsEvents() async throws {
+    var p = Pack()
+    let wait = p.node("wait")
+    let runner = try p.runner()
+    let stream = runner.events()
+    let task = Task { await runner.step() }
+
+    var state = ExecutionState()
+    var sawRunning = false
+    for await event in stream {
+        state.apply(event)
+        if case .running = state[wait] {
+            sawRunning = true
+            #expect(state.isRunning)
+            task.cancel()
+        }
+        if case .passFinished = event { break }
+    }
+    _ = await task.value
+    #expect(sawRunning)
+    #expect(!state.isRunning && state.wasCancelled && state.tick == 0)
+    if case .finished(.cancelled, _) = state[wait] {} else { Issue.record("expected the waiting node to finish cancelled") }
+}
+
+@Test func theStateTrackerReducesEventsDirectly() {
+    let node = NodeID(), other = NodeID()
+    var state = ExecutionState()
+    #expect(state[node] == .idle && !state.isRunning && state.tick == nil)
+    state.apply(.passStarted(tick: 3, time: ExecutionTime(tick: 3)))
+    state.apply(.nodeProgress(NodeProgress(node: node, fraction: 0.5, message: nil)))   // ignored: not running
+    #expect(state[node] == .idle && state.isRunning && state.tick == 3)
+    state.apply(.nodeStarted(node: node, tick: 3))
+    #expect(state[node] == .running(progress: nil, message: nil))
+    state.apply(.nodeProgress(NodeProgress(node: node, fraction: 0.5, message: "half")))
+    #expect(state[node] == .running(progress: 0.5, message: "half"))
+    state.apply(.nodeFinished(node: node, tick: 3, status: .succeeded, duration: .seconds(1)))
+    state.apply(.nodeFinished(node: other, tick: 3, status: .cached, duration: .zero))
+    state.apply(.passFinished(tick: 3, duration: .seconds(2), wasCancelled: false))
+    #expect(state[node] == .finished(.succeeded, duration: .seconds(1)) && !state.isRunning)
+    // A new pass keeps the last known results until a node is reached again.
+    state.apply(.passStarted(tick: 4, time: ExecutionTime(tick: 4)))
+    #expect(state[node] == .finished(.succeeded, duration: .seconds(1)))
+    state.prune(keeping: [other])
+    #expect(state[node] == .idle && state[other] != .idle)
+}
+
+@Test func everySubscriberGetsEveryEventAndNobodyIsRequired() async throws {
+    var p = Pack()
+    p.node("const", ["value": 1.0])
+    let runner = try p.runner()
+    _ = await runner.step()                    // nobody listening: must not fail or leak
+    let first = runner.events(), second = runner.events()
+    _ = await runner.step()
+    let a = await events(first), b = await events(second)
+    #expect(a == b && !a.isEmpty)
+}
+
+@Test func eventsEndWhenTheRunnerIsReleased() async throws {
+    var p = Pack()
+    p.node("const", ["value": 1.0])
+    var runner: GraphRunner? = try p.runner()
+    let stream = runner!.events()
+    runner = nil
+    var count = 0
+    for await _ in stream { count += 1 }       // returns because the stream finished
+    #expect(count == 0)
+}
+
+@Test func cancelledPassesReportCancelledNodesAndTheCancelledFlag() async throws {
+    var p = Pack()
+    let waiting = p.node("wait"), after = p.node("pass")
+    p.link(waiting, "out", after, "in")
+    let runner = try p.runner()
+    let stream = runner.events()
+    let task = Task { await runner.step() }
+    try await Task.sleep(for: .milliseconds(50))
+    task.cancel()
+    let seen = await events(stream)
+    _ = await task.value
+    #expect(seen.contains { if case .passFinished(_, _, true) = $0 { true } else { false } })
+    let cancelled = seen.compactMap { event -> NodeID? in
+        if case .nodeFinished(let n, _, .cancelled, _) = event { n } else { nil }
+    }
+    #expect(Set(cancelled) == [waiting, after])
+}
+
+@Test func statusMatchesEveryOutcome() {
+    let id = NodeID()
+    func status(_ outcome: NodeRunResult.Outcome) -> NodeRunStatus {
+        NodeRunResult(node: id, outcome: outcome, duration: .zero).status
+    }
+    #expect(status(.success(.empty)) == .succeeded)
+    #expect(status(.failure(NodeFailure(message: "x"))) == .failed(message: "x"))
+    #expect(status(.cancelled) == .cancelled)
+    #expect(status(.skipped(.muted)) == .skipped(.muted))
+    #expect(status(.bypassed(.empty)) == .bypassed)
+    #expect(status(.cached(.empty)) == .cached)
+}

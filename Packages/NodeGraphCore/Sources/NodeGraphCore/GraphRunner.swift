@@ -116,6 +116,8 @@ public actor GraphRunner {
     private var runStart: ContinuousClock.Instant?
     private var inFlight: Task<TickResult, Never>?
 
+    private let eventBroadcaster = Broadcaster<ExecutionEvent>()
+
     private let requests: AsyncStream<Void>
     private let requestContinuation: AsyncStream<Void>.Continuation
 
@@ -176,6 +178,16 @@ public actor GraphRunner {
         cache = [:]
         lastTickStart = nil
         runStart = nil
+    }
+
+    /// A new stream of ``ExecutionEvent``s for every pass from now on, for driving a UI's
+    /// running, error and progress indicators. Each call returns an independent stream that
+    /// ends when the runner is released. Events are never dropped by default; pass a bounded
+    /// policy only if the consumer can recover from missing events (see ``ExecutionState``).
+    public nonisolated func events(
+        bufferingPolicy: AsyncStream<ExecutionEvent>.Continuation.BufferingPolicy = .unbounded
+    ) -> AsyncStream<ExecutionEvent> {
+        eventBroadcaster.stream(bufferingPolicy: bufferingPolicy)
     }
 
     /// Asks an event-driven run to evaluate. Cheap and safe from anywhere.
@@ -267,8 +279,9 @@ public actor GraphRunner {
         }
 
         let snapshot = snapshot
+        eventBroadcaster.send(.passStarted(tick: tick, time: time))
         let pass = await runNodes(
-            snapshot, time: time, sequential: fixedDelta != nil,
+            snapshot, time: time, tick: tick, sequential: fixedDelta != nil,
             feedback: feedbackOutputs, held: heldOutputs, cache: cache)
         let results = pass.results
         let wasCancelled = pass.wasCancelled
@@ -279,9 +292,11 @@ public actor GraphRunner {
             if let outputs = results[source]?.outputs { feedbackOutputs[source] = outputs }
         }
         tickCount += 1
+        let duration = clock.now - started
+        eventBroadcaster.send(.passFinished(tick: tick, duration: duration, wasCancelled: wasCancelled))
         return TickResult(
             tick: tick, time: time, results: results,
-            duration: clock.now - started, wasCancelled: wasCancelled)
+            duration: duration, wasCancelled: wasCancelled)
     }
 
     private struct PassOutput {
@@ -298,7 +313,7 @@ public actor GraphRunner {
     }
 
     private func runNodes(
-        _ snapshot: Snapshot, time: ExecutionTime, sequential: Bool,
+        _ snapshot: Snapshot, time: ExecutionTime, tick: Int, sequential: Bool,
         feedback: [NodeID: NodeOutputs], held: [NodeID: NodeOutputs], cache: [NodeID: CacheEntry]
     ) async -> PassOutput {
         var results = OrderedDictionary<NodeID, NodeRunResult>()
@@ -307,6 +322,11 @@ public actor GraphRunner {
         var held = held
         var cache = cache
         var wasCancelled = false
+        let events = eventBroadcaster
+        let forwardProgress: @Sendable (NodeProgress) -> Void = { [onProgress] progress in
+            onProgress(progress)
+            events.send(.nodeProgress(progress))
+        }
 
         func skipped(_ id: NodeID, _ reason: NodeRunResult.SkipReason) -> NodeRunResult {
             NodeRunResult(node: id, outcome: .skipped(reason), duration: .zero)
@@ -315,7 +335,11 @@ public actor GraphRunner {
         for level in snapshot.plan.levels {
             if Task.isCancelled { wasCancelled = true }
             if wasCancelled {
-                for id in level { results[id] = NodeRunResult(node: id, outcome: .cancelled, duration: .zero) }
+                for id in level {
+                    let result = NodeRunResult(node: id, outcome: .cancelled, duration: .zero)
+                    results[id] = result
+                    events.send(.nodeFinished(node: id, tick: tick, status: result.status, duration: .zero))
+                }
                 continue
             }
 
@@ -348,7 +372,7 @@ public actor GraphRunner {
                 let context = NodeContext(
                     node: node, definition: definition,
                     linkedInputs: resolved.values, triggered: resolved.triggered,
-                    time: time, services: services, logger: logger, onProgress: onProgress)
+                    time: time, services: services, logger: logger, onProgress: forwardProgress)
 
                 if node.mode == .bypassed {
                     levelResults[index] = NodeRunResult(
@@ -381,15 +405,22 @@ public actor GraphRunner {
                 jobs.append((index, executor, context, key))
             }
 
+            // Executed nodes announce themselves live; everything else is announced below.
+            let executed = Set(jobs.map(\.index))
+            @Sendable func execute(_ job: (index: Int, executor: NodeExecutor, context: NodeContext, key: CacheKey?)) async -> (Int, NodeRunResult) {
+                events.send(.nodeStarted(node: job.context.nodeID, tick: tick))
+                let result = await NodeInvocation.run(job.executor, context: job.context)
+                events.send(.nodeFinished(node: result.node, tick: tick, status: result.status, duration: result.duration))
+                return (job.index, result)
+            }
             if sequential || jobs.count < 2 {
                 for job in jobs {
-                    levelResults[job.index] = await NodeInvocation.run(job.executor, context: job.context)
+                    let (index, result) = await execute(job)
+                    levelResults[index] = result
                 }
             } else {
                 await withTaskGroup(of: (Int, NodeRunResult).self) { group in
-                    for job in jobs {
-                        group.addTask { (job.index, await NodeInvocation.run(job.executor, context: job.context)) }
-                    }
+                    for job in jobs { group.addTask { await execute(job) } }
                     for await (index, result) in group { levelResults[index] = result }
                 }
             }
@@ -399,6 +430,9 @@ public actor GraphRunner {
             for (index, id) in level.enumerated() {
                 guard let result = levelResults[index] else { continue }
                 results[id] = result
+                if !executed.contains(index) {
+                    events.send(.nodeFinished(node: id, tick: tick, status: result.status, duration: result.duration))
+                }
                 switch result.outcome {
                 case .success(let produced):
                     if let key = keyByIndex[index] { cache[id] = CacheEntry(key: key, outputs: produced) }
