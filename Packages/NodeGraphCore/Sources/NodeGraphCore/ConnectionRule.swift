@@ -22,11 +22,31 @@ public struct ValidationContext: Sendable {
     public var graph: Graph
     public var nodes: NodeRegistry
     public var types: TypeRegistry
+    /// A link to pretend is absent. Set while re-checking an existing link as if it were being
+    /// added, so the check does not collide with itself. Use the link queries below, which
+    /// honour it, instead of reading `graph.links` directly in a rule.
+    public var ignoredLink: LinkID?
 
-    public init(graph: Graph, nodes: NodeRegistry, types: TypeRegistry) {
+    public init(graph: Graph, nodes: NodeRegistry, types: TypeRegistry, ignoring ignoredLink: LinkID? = nil) {
         self.graph = graph
         self.nodes = nodes
         self.types = types
+        self.ignoredLink = ignoredLink
+    }
+
+    /// Links that end at the given input port, not counting ``ignoredLink``.
+    public func links(into target: PortAddress) -> [Link] {
+        graph.links(into: target).filter { $0.id != ignoredLink }
+    }
+
+    /// Links that start at the given output port, not counting ``ignoredLink``.
+    public func links(from source: PortAddress) -> [Link] {
+        graph.links(from: source).filter { $0.id != ignoredLink }
+    }
+
+    /// Links that start at any output port of `node`, not counting ``ignoredLink``.
+    public func outgoingLinks(of node: NodeID) -> [Link] {
+        graph.outgoingLinks(of: node).filter { $0.id != ignoredLink }
     }
 
     /// The definition for a node in the graph, or nil if the node or its type is unknown.
@@ -174,7 +194,7 @@ public enum ConnectionRules {
         public init() {}
 
         public func check(_ proposal: ConnectionProposal, in context: ValidationContext) -> [GraphDiagnostic] {
-            guard let existing = context.graph.links(into: proposal.target)
+            guard let existing = context.links(into: proposal.target)
                 .first(where: { $0.source == proposal.source }) else { return [] }
             return [GraphDiagnostic(
                 code: .duplicateLink, message: "These ports are already linked.",
@@ -199,14 +219,13 @@ public enum ConnectionRules {
             func isFeedback(_ node: NodeID) -> Bool { context.definition(of: node)?.isFeedback == true }
             guard !isFeedback(goal) else { return [] }
 
-            var downstream: [NodeID: [NodeID]] = [:]
-            for link in context.graph.links.values where !isFeedback(link.source.node) {
-                downstream[link.source.node, default: []].append(link.target.node)
-            }
+            // Walk downstream from the target; the link would close a loop if that reaches the source.
             var visited: Set<NodeID> = [start]
             var stack = [start]
             while let node = stack.popLast() {
-                for next in downstream[node] ?? [] {
+                if isFeedback(node) { continue }
+                for link in context.outgoingLinks(of: node) {
+                    let next = link.target.node
                     if next == goal {
                         return [GraphDiagnostic(
                             code: .cycle, message: "This link would create a cycle.",

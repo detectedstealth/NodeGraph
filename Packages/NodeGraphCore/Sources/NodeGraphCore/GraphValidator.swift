@@ -30,13 +30,45 @@ public struct GraphValidator: Sendable {
         for node in context.graph.nodes.values {
             found += validateProperties(of: node, in: context)
         }
+
+        // Cycles are found in one pass over the whole graph. Asking `noCycle` about every link
+        // separately would walk the graph once per link.
+        let checksCycles = connections.rules.contains { $0.id == "noCycle" }
+        let perLink = checksCycles ? connections.removing(ruleID: "noCycle") : connections
+        let cyclic = checksCycles ? Self.linksInCycles(context) : []
         for link in context.graph.links.values {
-            found += validate(link, in: context)
+            found += validate(link, in: context, using: perLink)
+            if cyclic.contains(link.id) {
+                found.append(GraphDiagnostic(
+                    code: .cycle, message: "This link is part of a cycle.",
+                    node: link.target.node, port: link.target, link: link.id))
+            }
         }
         for rule in graphRules {
             found += rule.check(in: context)
         }
         return found
+    }
+
+    /// Links that run between two nodes of the same loop, ignoring links leaving feedback nodes.
+    private static func linksInCycles(_ context: ValidationContext) -> Set<LinkID> {
+        let components: [[NodeID]]
+        do {
+            _ = try ExecutionPlan.compile(context.graph, nodes: context.nodes)
+            return []
+        } catch ExecutionPlanError.cycle(let found) {
+            components = found
+        } catch {
+            return []
+        }
+        var component: [NodeID: Int] = [:]
+        for (index, members) in components.enumerated() { for node in members { component[node] = index } }
+        return Set(context.graph.links.values.compactMap { link in
+            guard link.source.node != link.target.node,
+                  let from = component[link.source.node], from == component[link.target.node],
+                  context.definition(of: link.source.node)?.isFeedback != true else { return nil }
+            return link.id
+        })
     }
 
     private func validateProperties(of node: Node, in context: ValidationContext) -> [GraphDiagnostic] {
@@ -65,9 +97,11 @@ public struct GraphValidator: Sendable {
     }
 
     /// Re-checks a link as if it were being added to the graph without itself.
-    private func validate(_ link: Link, in context: ValidationContext) -> [GraphDiagnostic] {
+    private func validate(
+        _ link: Link, in context: ValidationContext, using connections: ConnectionValidator
+    ) -> [GraphDiagnostic] {
         var others = context
-        others.graph.removeLink(link.id)
+        others.ignoredLink = link.id
         let result = connections.check(ConnectionProposal(source: link.source, target: link.target), in: others)
         var found = result.diagnostics.map { diagnostic in
             var tagged = diagnostic

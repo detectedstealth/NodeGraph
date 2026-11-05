@@ -50,10 +50,10 @@ public struct ConnectionValidator: Sendable {
     func replacedLinks(for proposal: ConnectionProposal, in context: ValidationContext) -> [LinkID] {
         var replaced: [LinkID] = []
         if context.port(proposal.target)?.allowsMultipleLinks == false {
-            replaced += context.graph.links(into: proposal.target).map(\.id)
+            replaced += context.links(into: proposal.target).map(\.id)
         }
         if context.port(proposal.source)?.allowsMultipleLinks == false {
-            replaced += context.graph.links(from: proposal.source).map(\.id)
+            replaced += context.links(from: proposal.source).map(\.id)
         }
         var seen = Set<LinkID>()
         return replaced.filter { seen.insert($0).inserted }

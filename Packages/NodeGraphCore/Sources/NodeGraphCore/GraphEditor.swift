@@ -46,11 +46,13 @@ public final class GraphEditor {
     }
 
     /// Applies `command` atomically. On failure the graph, revision and streams are untouched.
+    ///
+    /// Cost does not grow with the size of the graph for single commands: they check before they
+    /// change anything. A batch that fails part-way is rolled back with the inverses of the steps
+    /// that had succeeded.
     @discardableResult
     public func apply(_ command: GraphCommand, validation: EditValidation = .full) throws -> GraphChange {
-        var working = graph
-        let inverse = try perform(command, on: &working, validation: validation)
-        graph = working
+        let inverse = try perform(command, on: &graph, validation: validation)
         revision += 1
         let change = GraphChange(revision: revision, command: command, inverse: inverse)
         broadcaster.send(change)
@@ -109,9 +111,9 @@ public final class GraphEditor {
             guard let node = graph.nodes[id] else { throw GraphEditError.nodeNotFound(id) }
             let nodeIndex = graph.nodes.index(forKey: id)
             // Links go first, ascending, so re-adding them in order restores their positions.
-            let attached = graph.links.enumerated()
-                .filter { $0.element.value.touches(id) }
-                .map { (index: $0.offset, link: $0.element.value) }
+            let attached = graph.links(attachedTo: id)
+                .compactMap { link in graph.links.index(forKey: link.id).map { (index: $0, link: link) } }
+                .sorted { $0.index < $1.index }
             for (_, link) in attached { graph.removeLink(link.id) }
             graph.removeNode(id)
             return .batch(commands: [.addNode(node: node, index: nodeIndex)]
@@ -185,8 +187,17 @@ public final class GraphEditor {
 
         case .batch(let commands):
             var inverses: [GraphCommand] = []
-            for command in commands {
-                inverses.append(try perform(command, on: &graph, validation: validation))
+            do {
+                for command in commands {
+                    inverses.append(try perform(command, on: &graph, validation: validation))
+                }
+            } catch {
+                // Put back what the earlier steps changed. Inverses restore exactly, so this
+                // cannot fail on a graph the steps just produced.
+                for inverse in inverses.reversed() {
+                    _ = try? perform(inverse, on: &graph, validation: .structural)
+                }
+                throw error
             }
             return .batch(commands: inverses.reversed())
         }

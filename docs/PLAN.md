@@ -71,7 +71,7 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
 - [x] Dirty tracking and result cache
 - [x] `ExecutionEvent` stream for UI state
 - [x] Built-in packs in `NodeGraphNodes`: math, logic, string, flow, utility (reroute, note, constant). 43 node types. Port-type conversion at runtime is still open: see decision 61.
-- [ ] Tests: ordering, cycles, bypass/mute semantics, cancellation, deterministic runs, perf at 10k nodes
+- [x] Tests: ordering, cycles, bypass/mute semantics, cancellation, deterministic runs, perf at 10k nodes (`ScaleTests`: build, edit, validate, compile, run, save and load a 10k-node graph, all under a second in a debug build)
 
 ## Phase 3: Subgraphs and composition
 
