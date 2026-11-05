@@ -70,7 +70,7 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
 - [x] Node modes: always, never, muted, bypassed, onTrigger
 - [x] Dirty tracking and result cache
 - [x] `ExecutionEvent` stream for UI state
-- [ ] Built-in packs in `NodeGraphNodes`: math, logic, string, flow, utility (reroute, note, constant)
+- [x] Built-in packs in `NodeGraphNodes`: math, logic, string, flow, utility (reroute, note, constant). 43 node types. Port-type conversion at runtime is still open: see decision 61.
 - [ ] Tests: ordering, cycles, bypass/mute semantics, cancellation, deterministic runs, perf at 10k nodes
 
 ## Phase 3: Subgraphs and composition

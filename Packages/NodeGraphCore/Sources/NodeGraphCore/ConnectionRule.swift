@@ -182,10 +182,12 @@ public enum ConnectionRules {
         }
     }
 
-    /// The link must not create a cycle.
+    /// The link must not create a cycle. Links leaving a feedback node
+    /// (``NodeDefinition/isFeedback``) do not count, matching ``ExecutionPlan``: they carry the
+    /// previous evaluation's value, so a loop through a feedback node is legal.
     public struct NoCycle: ConnectionRule {
         public let id = "noCycle"
-        public let summary = "A link cannot create a cycle."
+        public let summary = "A link cannot create a cycle unless a feedback node breaks it."
         public init() {}
 
         public func check(_ proposal: ConnectionProposal, in context: ValidationContext) -> [GraphDiagnostic] {
@@ -194,8 +196,11 @@ public enum ConnectionRules {
             // A self-link is NoSelfLink's concern.
             guard start != goal else { return [] }
 
+            func isFeedback(_ node: NodeID) -> Bool { context.definition(of: node)?.isFeedback == true }
+            guard !isFeedback(goal) else { return [] }
+
             var downstream: [NodeID: [NodeID]] = [:]
-            for link in context.graph.links.values {
+            for link in context.graph.links.values where !isFeedback(link.source.node) {
                 downstream[link.source.node, default: []].append(link.target.node)
             }
             var visited: Set<NodeID> = [start]

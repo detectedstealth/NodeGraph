@@ -256,3 +256,41 @@ private struct RequiresTwoNodes: GraphRule {
     let data = try JSONEncoder().encode(found)
     #expect(try JSONDecoder().decode([GraphDiagnostic].self, from: data) == found)
 }
+
+// MARK: Feedback nodes
+
+private func feedbackFixture() -> (Fixture, add: NodeID, memory: NodeID) {
+    var f = Fixture()
+    f.context.nodes.register(NodeDefinition(typeID: "memory", displayName: "Memory", ports: [
+        PortDefinition(id: "in", direction: .input, type: "number"),
+        PortDefinition(id: "out", direction: .output, type: "number"),
+    ], isFeedback: true))
+    let add = f.addNode()
+    let memory = Node(typeID: "memory")
+    f.context.graph.insert(memory)
+    return (f, add, memory.id)
+}
+
+@Test func aLoopThroughAFeedbackNodeIsAllowed() {
+    var (f, add, memory) = feedbackFixture()
+    f.link(add, "out", memory, "in")
+    // memory -> add would close add -> memory -> add, but memory's output is the previous pass.
+    #expect(f.check(memory, "out", add, "in").isAllowed)
+    f.link(memory, "out", add, "in")
+    #expect(GraphValidator().validate(f.context).isEmpty)
+}
+
+@Test func aLoopWithoutAFeedbackNodeIsStillRejected() {
+    var (f, add, _) = feedbackFixture()
+    let other = f.addNode()
+    f.link(add, "out", other, "in")
+    #expect(codes(f.check(other, "out", add, "in")) == [.cycle])
+}
+
+@Test func feedbackDoesNotHideAnUnrelatedCycle() {
+    var (f, a, memory) = feedbackFixture()
+    let b = f.addNode(), c = f.addNode()
+    f.link(a, "out", b, "in"); f.link(b, "out", c, "in")
+    f.link(memory, "out", a, "in")
+    #expect(codes(f.check(c, "out", a, "in")) == [.cycle])
+}
