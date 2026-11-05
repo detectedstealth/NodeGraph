@@ -86,8 +86,10 @@ private struct Pack {
     }
 
     @discardableResult
-    mutating func node(_ type: NodeTypeID, _ properties: [PropertyID: GraphValue] = [:]) -> NodeID {
-        let node = Node(typeID: type, properties: properties)
+    mutating func node(
+        _ type: NodeTypeID, _ properties: [PropertyID: GraphValue] = [:], mode: NodeMode = .always
+    ) -> NodeID {
+        let node = Node(typeID: type, mode: mode, properties: properties)
         graph.insert(node)
         return node.id
     }
@@ -509,4 +511,185 @@ private func firedPorts(_ tick: TickResult, _ node: NodeID) -> String? {
     #expect(ctx.inputs["go"] == nil && !ctx.didTrigger("go"))
     let fired = NodeContext(node: Node(typeID: "t"), definition: definition, triggered: ["go"])
     #expect(fired.didTrigger("go"))
+}
+
+
+// MARK: Node modes
+
+@Test func aNeverNodeAndEverythingAfterItAreSwitchedOff() async throws {
+    var p = Pack()
+    let off = p.node("const", ["value": 1.0], mode: .never)
+    let next = p.node("pass"), last = p.node("pass"), independent = p.node("const", ["value": 2.0])
+    p.link(off, "out", next, "in"); p.link(next, "out", last, "in")
+    let tick = await (try p.runner()).step()
+    #expect(tick.results[off]?.outcome == .skipped(.disabled))
+    #expect(tick.results[next]?.outcome == .skipped(.upstreamDisabled))
+    #expect(tick.results[last]?.outcome == .skipped(.upstreamDisabled))
+    #expect(tick.outputs(of: independent) == ["out": 2.0])
+    #expect(tick.failedNodes.isEmpty)
+}
+
+@Test func aMutedNodePublishesNothingButNodesAfterItStillRun() async throws {
+    var p = Pack()
+    let muted = p.node("const", ["value": 5.0], mode: .muted), sum = p.node("add")
+    p.link(muted, "out", sum, "a")
+    let tick = await (try p.runner()).step()
+    #expect(tick.results[muted]?.outcome == .skipped(.muted))
+    #expect(tick.outputs(of: sum) == ["sum": 0.0], "the muted value must not arrive; the default does")
+    #expect(tick.succeeded == false && tick.failedNodes.isEmpty)
+}
+
+@Test func failureOutranksDisabledWhenBothFeedANode() async throws {
+    var p = Pack()
+    let bad = p.node("fail"), off = p.node("const", mode: .never), total = p.node("total")
+    p.link(off, "out", total, "in"); p.link(bad, "out", total, "in")
+    #expect(await (try p.runner()).step().results[total]?.outcome == .skipped(.upstreamFailed))
+}
+
+@Test func aMutedOrNeverNodeDoesNotNeedItsTypeToExist() async throws {
+    var p = Pack()
+    let ghostMuted = p.node("ghost", mode: .muted), ghostOff = p.node("ghost", mode: .never)
+    let tick = await (try p.runner()).step()
+    #expect(tick.results[ghostMuted]?.outcome == .skipped(.muted))
+    #expect(tick.results[ghostOff]?.outcome == .skipped(.disabled))
+}
+
+@Test func aBypassedNodePassesItsInputThrough() async throws {
+    var p = Pack()
+    let source = p.node("const", ["value": 7.0]), bypassed = p.node("add", mode: .bypassed), after = p.node("pass")
+    p.link(source, "out", bypassed, "a")
+    p.link(bypassed, "sum", after, "in")
+    let tick = await (try p.runner()).step()
+    #expect(tick.results[bypassed]?.outcome == .bypassed(["sum": 7.0]))
+    #expect(tick.outputs(of: after) == ["out": 7.0])
+    #expect(tick.outputs(of: bypassed) == ["sum": 7.0])
+    #expect(tick.succeeded == false, "a bypassed node is not a success")
+}
+
+@Test func bypassMatchesPortsByTypeAndOrder() {
+    let definition = NodeDefinition(typeID: "mix", displayName: "Mix", ports: [
+        PortDefinition(id: "n1", direction: .input, type: "number"),
+        PortDefinition(id: "s1", direction: .input, type: "string"),
+        PortDefinition(id: "n2", direction: .input, type: "number"),
+        PortDefinition(id: "text", direction: .output, type: "string"),
+        PortDefinition(id: "first", direction: .output, type: "number"),
+        PortDefinition(id: "second", direction: .output, type: "number"),
+        PortDefinition(id: "extra", direction: .output, type: "number"),
+        PortDefinition(id: "any", direction: .output),
+        PortDefinition(id: "go", direction: .input, kind: .trigger),
+        PortDefinition(id: "skip", direction: .input, kind: .trigger),
+        PortDefinition(id: "done", direction: .output, kind: .trigger),
+        PortDefinition(id: "never", direction: .output, kind: .trigger),
+    ])
+    let result = definition.bypassedOutputs(
+        inputs: ["n1": 1.0, "s1": "s", "n2": 2.0], triggered: ["go"])
+    #expect(result.values == ["text": "s", "first": 1.0, "second": 2.0])   // no third number; "any" has nothing left
+    #expect(result.triggers == ["done"])
+    // An input with no value is not passed on, and the next one takes its place.
+    let sparse = definition.bypassedOutputs(inputs: ["n2": 2.0], triggered: [])
+    #expect(sparse.values == ["first": 2.0] && sparse.triggers.isEmpty)
+}
+
+@Test func aBypassedNodeWithAMissingPackStillPassesThrough() async throws {
+    var p = Pack()
+    let source = p.node("const", ["value": 3.0]), ghost = p.node("ghost", mode: .bypassed), after = p.node("pass")
+    p.link(source, "out", ghost, "in")
+    p.link(ghost, "out", after, "in")
+    // Placeholder definitions give the missing type ports (from its links) but no executor.
+    let registry = p.registry.addingPlaceholders(for: p.graph)
+    let tick = await (try GraphRunner(graph: p.graph, registry: registry)).step()
+    #expect(tick.results[ghost]?.outcome == .bypassed(["out": 3.0]))
+    #expect(tick.outputs(of: after) == ["out": 3.0])
+    #expect(tick.failedNodes.isEmpty)
+}
+
+@Test func bypassedTriggersPassThrough() async throws {
+    var p = triggerPack()
+    p.registry.register(NodeDefinition(typeID: "relay", displayName: "Relay", ports: [
+        PortDefinition(id: "in", direction: .input, kind: .trigger),
+        PortDefinition(id: "out", direction: .output, kind: .trigger),
+    ])) { _ in NodeOutputs.empty }
+    let loud = p.node("const", ["value": 50.0]), source = p.node("threshold")
+    let relay = p.node("relay", mode: .bypassed), listener = p.node("listener")
+    p.link(loud, "out", source, "in"); p.link(source, "hit", relay, "in"); p.link(relay, "out", listener, "a")
+    #expect(firedPorts(await (try p.runner()).step(), listener) == "a")
+}
+
+private func latchPack() -> Pack {
+    var p = triggerPack()
+    // Copies "in" to "out" and fires "done", but only when "go" fires (when set to onTrigger).
+    p.registry.register(NodeDefinition(
+        typeID: "latch", displayName: "Latch",
+        ports: [
+            PortDefinition(id: "in", direction: .input, defaultValue: 0.0),
+            PortDefinition(id: "go", direction: .input, kind: .trigger),
+            PortDefinition(id: "out", direction: .output),
+            PortDefinition(id: "done", direction: .output, kind: .trigger),
+        ])
+    ) { ctx in NodeOutputs(["out": try ctx.input("in")], triggers: ["done"]) }
+    return p
+}
+
+@Test func anOnTriggerNodeRunsOnlyWhenTriggeredAndHoldsItsLastOutputs() async throws {
+    var p = latchPack()
+    let value = p.node("const", ["value": 50.0]), gate = p.node("threshold")
+    let latch = p.node("latch", mode: .onTrigger), reader = p.node("add"), listener = p.node("listener")
+    p.link(value, "out", gate, "in")
+    p.link(gate, "out", latch, "in")
+    p.link(gate, "hit", latch, "go")
+    p.link(latch, "out", reader, "a")
+    p.link(latch, "done", listener, "a")
+    let runner = try p.runner()
+
+    let first = await runner.step()           // 50 > 10: the gate fires, the latch runs
+    #expect(first.results[latch]?.outcome == .success(NodeOutputs(["out": 50.0], triggers: ["done"])))
+    #expect(first.outputs(of: reader) == ["sum": 50.0])
+    #expect(firedPorts(first, listener) == "a")
+
+    var quiet = p
+    quiet.graph.insert(Node(id: value, typeID: "const", properties: ["value": 1.0]))
+    try await runner.update(graph: quiet.graph, registry: quiet.registry)
+    let second = await runner.step()          // 1 < 10: no trigger
+    #expect(second.results[latch]?.outcome == .skipped(.notTriggered))
+    #expect(second.outputs(of: reader) == ["sum": 50.0], "the reader still sees the held value")
+    #expect(firedPorts(second, listener) == "", "triggers are events, never held")
+
+    await runner.reset()
+    let third = await runner.step()
+    #expect(third.outputs(of: reader) == ["sum": 0.0], "reset forgets held outputs")
+}
+
+@Test func anOnTriggerNodeBeforeItsFirstRunPublishesNothing() async throws {
+    var p = latchPack()
+    let latch = p.node("latch", mode: .onTrigger), reader = p.node("add")
+    p.link(latch, "out", reader, "a")
+    let tick = await (try p.runner()).step()
+    #expect(tick.results[latch]?.outcome == .skipped(.notTriggered))
+    #expect(tick.outputs(of: reader) == ["sum": 0.0])
+}
+
+@Test func anOnTriggerNodeWithNoTriggerInputsNeverRuns() async throws {
+    var p = Pack()
+    let id = p.node("const", ["value": 1.0], mode: .onTrigger)
+    let runner = try p.runner()
+    _ = await runner.step()
+    #expect(await runner.step().results[id]?.outcome == .skipped(.notTriggered))
+}
+
+@Test func changingAModeTakesEffectOnUpdate() async throws {
+    var p = Pack()
+    let id = p.node("const", ["value": 1.0])
+    let runner = try p.runner()
+    #expect(await runner.step().outputs(of: id) == ["out": 1.0])
+    var changed = p
+    changed.graph.insert(Node(id: id, typeID: "const", mode: .muted, properties: ["value": 1.0]))
+    try await runner.update(graph: changed.graph, registry: changed.registry)
+    #expect(await runner.step().results[id]?.outcome == .skipped(.muted))
+}
+
+@Test func modesSurviveSavingAndLoading() throws {
+    var p = Pack()
+    p.node("const", mode: .bypassed); p.node("const", mode: .onTrigger)
+    let document = try GraphDocument.decode(from: GraphDocument(graph: p.graph).encoded())
+    #expect(document.graph.nodes.values.map(\.mode) == [.bypassed, .onTrigger])
 }

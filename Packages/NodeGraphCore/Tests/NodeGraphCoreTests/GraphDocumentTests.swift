@@ -279,3 +279,15 @@ func oldDocumentsMigrateStepByStep(version: Int) throws {
     // Real definitions are never replaced.
     #expect(withPlaceholders.definition(for: "math.add")?.displayName == "Add")
 }
+
+@Test func placeholderInputsAreMultiLinkOnlyWhereTheGraphAlreadyHasSeveralLinks() throws {
+    var graph = Graph()
+    let a = Node(typeID: "t"), b = Node(typeID: "t"), ghost = Node(typeID: "ghost")
+    [a, b, ghost].forEach { graph.insert($0) }
+    graph.insert(Link(sourceNode: a.id, sourcePort: "o", targetNode: ghost.id, targetPort: "many"))
+    graph.insert(Link(sourceNode: b.id, sourcePort: "o", targetNode: ghost.id, targetPort: "many"))
+    graph.insert(Link(sourceNode: a.id, sourcePort: "o", targetNode: ghost.id, targetPort: "one"))
+    let definition = try #require(NodeRegistry().addingPlaceholders(for: graph).definition(for: "ghost"))
+    #expect(definition.port("many", direction: .input)?.allowsMultipleLinks == true)
+    #expect(definition.port("one", direction: .input)?.allowsMultipleLinks == false)
+}

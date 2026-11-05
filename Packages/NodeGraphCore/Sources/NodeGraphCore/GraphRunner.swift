@@ -86,6 +86,8 @@ public actor GraphRunner {
     private var tickCount = 0
     /// Outputs of feedback nodes from the last pass that produced them.
     private var feedbackOutputs: [NodeID: NodeOutputs] = [:]
+    /// Last data outputs of `onTrigger` nodes, published again on passes where they don't run.
+    private var heldOutputs: [NodeID: NodeOutputs] = [:]
     private var lastTickStart: ContinuousClock.Instant?
     private var runStart: ContinuousClock.Instant?
     private var inFlight: Task<TickResult, Never>?
@@ -118,12 +120,14 @@ public actor GraphRunner {
     public func update(graph: Graph, registry: NodeRegistry) throws {
         snapshot = try Self.makeSnapshot(graph: graph, registry: registry)
         feedbackOutputs = feedbackOutputs.filter { snapshot.feedbackSources.contains($0.key) }
+        heldOutputs = heldOutputs.filter { snapshot.graph.nodes[$0.key]?.mode == .onTrigger }
     }
 
     /// Forgets the tick count, feedback values and run clock, as if freshly created.
     public func reset() {
         tickCount = 0
         feedbackOutputs = [:]
+        heldOutputs = [:]
         lastTickStart = nil
         runStart = nil
     }
@@ -217,8 +221,12 @@ public actor GraphRunner {
         }
 
         let snapshot = snapshot
-        let (results, wasCancelled) = await runNodes(
-            snapshot, time: time, sequential: fixedDelta != nil, feedback: feedbackOutputs)
+        let pass = await runNodes(
+            snapshot, time: time, sequential: fixedDelta != nil,
+            feedback: feedbackOutputs, held: heldOutputs)
+        let results = pass.results
+        let wasCancelled = pass.wasCancelled
+        heldOutputs = pass.held
 
         for source in snapshot.feedbackSources {
             if let outputs = results[source]?.outputs { feedbackOutputs[source] = outputs }
@@ -229,13 +237,31 @@ public actor GraphRunner {
             duration: clock.now - started, wasCancelled: wasCancelled)
     }
 
+    private struct PassOutput {
+        var results: OrderedDictionary<NodeID, NodeRunResult>
+        var wasCancelled: Bool
+        var held: [NodeID: NodeOutputs]
+    }
+
+    /// Why a node's outputs are unavailable to the nodes after it.
+    private enum Unusable {
+        case failed
+        case disabled
+    }
+
     private func runNodes(
-        _ snapshot: Snapshot, time: ExecutionTime, sequential: Bool, feedback: [NodeID: NodeOutputs]
-    ) async -> (OrderedDictionary<NodeID, NodeRunResult>, Bool) {
+        _ snapshot: Snapshot, time: ExecutionTime, sequential: Bool,
+        feedback: [NodeID: NodeOutputs], held: [NodeID: NodeOutputs]
+    ) async -> PassOutput {
         var results = OrderedDictionary<NodeID, NodeRunResult>()
         var outputs: [NodeID: NodeOutputs] = [:]
-        var unusable = Set<NodeID>()   // failed, skipped or cancelled this pass
+        var unusable: [NodeID: Unusable] = [:]
+        var held = held
         var wasCancelled = false
+
+        func skipped(_ id: NodeID, _ reason: NodeRunResult.SkipReason) -> NodeRunResult {
+            NodeRunResult(node: id, outcome: .skipped(reason), duration: .zero)
+        }
 
         for level in snapshot.plan.levels {
             if Task.isCancelled { wasCancelled = true }
@@ -244,22 +270,28 @@ public actor GraphRunner {
                 continue
             }
 
-            // Decide which nodes run and build their contexts before any suspension.
+            // Decide what each node does and build its context before any suspension.
             var jobs: [(index: Int, executor: NodeExecutor, context: NodeContext)] = []
             var levelResults = [NodeRunResult?](repeating: nil, count: level.count)
             for (index, id) in level.enumerated() {
+                guard let node = snapshot.graph.nodes[id] else { continue }
+                let definition = snapshot.registry.definition(for: node.typeID)
+
+                // These modes need nothing from the node's type or inputs.
+                if node.mode == .never { levelResults[index] = skipped(id, .disabled); continue }
+                if node.mode == .muted { levelResults[index] = skipped(id, .muted); continue }
+
                 let bindings = snapshot.bindings[id] ?? []
-                if bindings.contains(where: { $0.sources.contains { !$0.isFeedback && unusable.contains($0.node) } }) {
-                    levelResults[index] = NodeRunResult(node: id, outcome: .skipped(.upstreamFailed), duration: .zero)
+                let blockers = bindings.flatMap(\.sources).filter { !$0.isFeedback }.compactMap { unusable[$0.node] }
+                if !blockers.isEmpty {
+                    levelResults[index] = skipped(id, blockers.contains(.failed) ? .upstreamFailed : .upstreamDisabled)
                     continue
                 }
-                guard let node = snapshot.graph.nodes[id],
-                      let definition = snapshot.registry.definition(for: node.typeID),
-                      let executor = snapshot.registry.executor(for: node.typeID) else {
-                    let type = snapshot.graph.nodes[id]?.typeID ?? ""
+
+                guard let definition else {
                     levelResults[index] = NodeRunResult(
                         node: id,
-                        outcome: .failure(NodeFailure(message: "\(NodeExecutionError.notExecutable(type))")),
+                        outcome: .failure(NodeFailure(message: "\(NodeExecutionError.notExecutable(node.typeID))")),
                         duration: .zero)
                     continue
                 }
@@ -268,6 +300,25 @@ public actor GraphRunner {
                     node: node, definition: definition,
                     linkedInputs: resolved.values, triggered: resolved.triggered,
                     time: time, services: services, logger: logger, onProgress: onProgress)
+
+                if node.mode == .bypassed {
+                    levelResults[index] = NodeRunResult(
+                        node: id,
+                        outcome: .bypassed(definition.bypassedOutputs(inputs: context.inputs, triggered: context.triggered)),
+                        duration: .zero)
+                    continue
+                }
+                if node.mode == .onTrigger, resolved.triggered.isEmpty {
+                    levelResults[index] = skipped(id, .notTriggered)
+                    continue
+                }
+                guard let executor = snapshot.registry.executor(for: node.typeID) else {
+                    levelResults[index] = NodeRunResult(
+                        node: id,
+                        outcome: .failure(NodeFailure(message: "\(NodeExecutionError.notExecutable(node.typeID))")),
+                        duration: .zero)
+                    continue
+                }
                 jobs.append((index, executor, context))
             }
 
@@ -285,13 +336,31 @@ public actor GraphRunner {
             }
 
             for (index, id) in level.enumerated() {
-                let result = levelResults[index]!
+                guard let result = levelResults[index] else { continue }
                 results[id] = result
-                if let produced = result.outputs { outputs[id] = produced } else { unusable.insert(id) }
-                if case .cancelled = result.outcome { wasCancelled = true }
+                switch result.outcome {
+                case .success(let produced):
+                    outputs[id] = produced
+                    if snapshot.graph.nodes[id]?.mode == .onTrigger {
+                        held[id] = NodeOutputs(produced.values)
+                    }
+                case .bypassed(let produced):
+                    outputs[id] = produced
+                case .skipped(.muted):
+                    outputs[id] = .empty
+                case .skipped(.notTriggered):
+                    outputs[id] = held[id] ?? .empty
+                case .skipped(.disabled), .skipped(.upstreamDisabled):
+                    unusable[id] = .disabled
+                case .skipped(.upstreamFailed), .failure:
+                    unusable[id] = .failed
+                case .cancelled:
+                    unusable[id] = .failed
+                    wasCancelled = true
+                }
             }
         }
-        return (results, wasCancelled)
+        return PassOutput(results: results, wasCancelled: wasCancelled, held: held)
     }
 
     /// Values and fired triggers for a node's inputs: from this pass's outputs, or last pass's for

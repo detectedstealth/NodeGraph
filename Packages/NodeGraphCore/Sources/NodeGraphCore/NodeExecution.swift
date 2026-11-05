@@ -26,6 +26,9 @@ public struct NodeOutputs: Hashable, Sendable, ExpressibleByDictionaryLiteral {
         triggers = []
     }
 
+    /// No values and no triggers.
+    public static let empty = NodeOutputs([:])
+
     public subscript(port: PortID) -> GraphValue? {
         get { values[port] }
         set { values[port] = newValue }

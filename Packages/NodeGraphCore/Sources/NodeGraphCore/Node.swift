@@ -1,11 +1,18 @@
 /// Whether and how a node takes part in execution.
 public enum NodeMode: String, Hashable, Sendable, Codable, CaseIterable {
+    /// Runs every evaluation.
     case always
+    /// Switched off. Does not run, and nodes that depend on it are skipped too.
     case never
-    /// Skipped; outputs are empty.
+    /// Does not run and publishes no outputs. Nodes after it still run, with their inputs
+    /// unlinked (defaults apply).
     case muted
-    /// Skipped; inputs pass through to matching outputs.
+    /// Does not run. Each data output takes the value of the first unused data input of the same
+    /// type; trigger inputs pass to trigger outputs in order. Works for any node, even one whose
+    /// pack is missing.
     case bypassed
+    /// Runs only in evaluations where at least one trigger input fired, and keeps publishing its
+    /// last outputs in between.
     case onTrigger
 }
 

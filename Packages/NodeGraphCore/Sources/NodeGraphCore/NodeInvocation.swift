@@ -13,8 +13,17 @@ public struct NodeFailure: Hashable, Sendable, Codable {
 public struct NodeRunResult: Hashable, Sendable {
     /// Why a node was not run.
     public enum SkipReason: Hashable, Sendable {
-        /// A node feeding it failed, was skipped, or was cancelled.
+        /// A node feeding it failed, was cancelled, or was itself skipped for that reason.
         case upstreamFailed
+        /// A node feeding it is switched off (mode `never`), or was skipped because of one.
+        case upstreamDisabled
+        /// The node's mode is `never`.
+        case disabled
+        /// The node's mode is `muted`. It publishes no outputs, and nodes after it still run.
+        case muted
+        /// The node's mode is `onTrigger` and no trigger input fired. It keeps publishing the
+        /// outputs of its last run.
+        case notTriggered
     }
 
     public enum Outcome: Hashable, Sendable {
@@ -24,6 +33,8 @@ public struct NodeRunResult: Hashable, Sendable {
         case cancelled
         /// The node was deliberately not run.
         case skipped(SkipReason)
+        /// The node's mode is `bypassed`: its inputs were passed through to matching outputs.
+        case bypassed(NodeOutputs)
     }
 
     public var node: NodeID
@@ -37,9 +48,12 @@ public struct NodeRunResult: Hashable, Sendable {
         self.duration = duration
     }
 
-    /// The outputs if the node succeeded.
+    /// The outputs if the node ran or was bypassed.
     public var outputs: NodeOutputs? {
-        if case .success(let outputs) = outcome { outputs } else { nil }
+        switch outcome {
+        case .success(let outputs), .bypassed(let outputs): outputs
+        default: nil
+        }
     }
 }
 
