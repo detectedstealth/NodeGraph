@@ -63,7 +63,7 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
 
 ## Phase 2: Execution engine
 
-- [ ] `ExecutionPlan` compiler: topological order, cycle detection, feedback node support
+- [x] `ExecutionPlan` compiler: topological order, cycle detection, feedback node support
 - [ ] `NodeContext`, async `execute`, cancellation, error capture, timing, progress
 - [ ] `GraphRunner` actor with modes: once, continuous, step, event-driven, deterministic
 - [ ] Trigger (event) ports and flow, separate from data

@@ -21,6 +21,7 @@ public struct DiagnosticCode: StringIdentifier {
     public static let duplicateLink: DiagnosticCode = "connection.duplicate"
     public static let cycle: DiagnosticCode = "connection.cycle"
     public static let tooManyLinks: DiagnosticCode = "connection.tooManyLinks"
+    public static let executionCycle: DiagnosticCode = "execution.cycle"
     public static let unknownNodeType: DiagnosticCode = "node.unknownType"
     public static let unknownProperty: DiagnosticCode = "node.unknownProperty"
     public static let invalidProperty: DiagnosticCode = "node.invalidProperty"

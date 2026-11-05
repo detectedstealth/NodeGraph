@@ -45,6 +45,9 @@ public struct NodeDefinition: Hashable, Sendable, Codable {
     public var ports: [PortDefinition]
     public var properties: [PropertyDefinition]
     public var defaultSize: GraphSize
+    /// Marks a delay or memory node whose outputs carry the value from the previous evaluation.
+    /// Links leaving it do not order execution, so they may close a loop without being a cycle.
+    public var isFeedback: Bool
 
     public init(
         typeID: NodeTypeID,
@@ -52,7 +55,8 @@ public struct NodeDefinition: Hashable, Sendable, Codable {
         category: String = "",
         ports: [PortDefinition] = [],
         properties: [PropertyDefinition] = [],
-        defaultSize: GraphSize = GraphSize(width: 160, height: 80)
+        defaultSize: GraphSize = GraphSize(width: 160, height: 80),
+        isFeedback: Bool = false
     ) {
         self.typeID = typeID
         self.displayName = displayName
@@ -60,6 +64,7 @@ public struct NodeDefinition: Hashable, Sendable, Codable {
         self.ports = ports
         self.properties = properties
         self.defaultSize = defaultSize
+        self.isFeedback = isFeedback
     }
 
     /// Inputs in declaration order.
