@@ -107,6 +107,11 @@ public struct GraphDocument: Hashable, Sendable, Codable {
         }
     }
 
+    /// Loops among the document's subgraph definitions (see ``SubgraphDefinition/loops(in:)``). The
+    /// editor never creates one, but a file edited by hand or another tool can contain one; a run
+    /// stops at the first nested instance that goes too deep rather than looping forever.
+    public var recursiveSubgraphs: [[SubgraphID]] { SubgraphDefinition.loops(in: subgraphs) }
+
     // MARK: Unknown node types
 
     /// Node types used in the graph that `registry` does not define, sorted and without

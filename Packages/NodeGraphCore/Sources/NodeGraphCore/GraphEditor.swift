@@ -297,6 +297,7 @@ public final class GraphEditor {
             guard scope == nil else { throw GraphEditError.invalidScope }
             guard subgraphs[definition.id] == nil else { throw GraphEditError.duplicateID(definition.id.description) }
             try checkIndex(index, count: subgraphs.count)
+            for contained in definition.directDependencies.sorted() { try checkNoLoop(placing: contained, inside: definition.id) }
             if validation == .full { try validate(definition) }
             if let index {
                 subgraphs.updateValue(definition, forKey: definition.id, insertingAt: index)
@@ -332,6 +333,9 @@ public final class GraphEditor {
         case .inSubgraph(let id, let inner):
             guard scope == nil else { throw GraphEditError.invalidScope }
             guard let at = subgraphs.index(forKey: id) else { throw GraphEditError.subgraphNotFound(id) }
+            // Checked before the inner graph is borrowed for editing, while the other definitions can
+            // still be read.
+            for contained in instancesAdded(by: inner) { try checkNoLoop(placing: contained, inside: id) }
             let inverse = try perform(inner, on: &subgraphs.values[at].graph, scope: id, validation: validation)
             return .inSubgraph(id: id, command: inverse)
 
@@ -351,6 +355,32 @@ public final class GraphEditor {
             }
             return .batch(commands: inverses.reversed())
         }
+    }
+
+    /// The subgraphs that `command` places instances of, looking through batches.
+    private func instancesAdded(by command: GraphCommand) -> [SubgraphID] {
+        switch command {
+        case .addNode(let node, _): node.typeID.subgraphID.map { [$0] } ?? []
+        case .batch(let commands): commands.flatMap(instancesAdded)
+        default: []
+        }
+    }
+
+    /// Refuses to put an instance of `contained` inside `container` if that would make a subgraph
+    /// contain itself: `contained` is `container`, or already contains an instance of it somewhere
+    /// below.
+    private func checkNoLoop(placing contained: SubgraphID, inside container: SubgraphID) throws {
+        if contained == container { throw GraphEditError.recursiveSubgraph([container, container]) }
+        var visited = Set<SubgraphID>()
+        func path(from id: SubgraphID) -> [SubgraphID]? {
+            guard visited.insert(id).inserted, let definition = subgraphs[id] else { return nil }
+            for next in definition.directDependencies.sorted() {
+                if next == container { return [id, next] }
+                if let rest = path(from: next) { return [id] + rest }
+            }
+            return nil
+        }
+        if let route = path(from: contained) { throw GraphEditError.recursiveSubgraph([container] + route) }
     }
 
     /// Remembers nodes whose automatically resized port groups may need adjusting after this command.
@@ -410,6 +440,7 @@ public final class GraphEditor {
     ) throws -> (old: SubgraphDefinition, undo: [GraphCommand]) {
         guard let at = subgraphs.index(forKey: updated.id) else { throw GraphEditError.subgraphNotFound(updated.id) }
         let old = subgraphs.values[at]
+        for contained in updated.directDependencies.sorted() { try checkNoLoop(placing: contained, inside: updated.id) }
         if validation == .full { try validate(updated) }
 
         let typeID = old.typeID, newDefinition = updated.nodeDefinition, oldDefinition = old.nodeDefinition

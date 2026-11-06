@@ -187,5 +187,8 @@ public enum GraphEditError: Error, Hashable, Sendable {
     case invalidSubgraph([String])
     /// A subgraph command was used somewhere it is not allowed, such as inside another subgraph.
     case invalidScope
+    /// The edit would make a subgraph contain an instance of itself, directly or through others.
+    /// The ids run around the loop, starting and ending with the same subgraph.
+    case recursiveSubgraph([SubgraphID])
     case invalidConnection([GraphDiagnostic])
 }

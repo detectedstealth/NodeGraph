@@ -230,6 +230,29 @@ public struct SubgraphDefinition: Hashable, Sendable, Codable {
         return problems
     }
 
+    /// Loops among definitions: each is a chain of subgraph ids that ends back at its first, where
+    /// every one contains an instance of the next. A sound set has none. Instances of an
+    /// undefined subgraph are ignored.
+    public static func loops(in definitions: [SubgraphDefinition]) -> [[SubgraphID]] {
+        let byID = Dictionary(definitions.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        var loops: [[SubgraphID]] = []
+        var finished = Set<SubgraphID>()
+        var path: [SubgraphID] = []
+        func visit(_ id: SubgraphID) {
+            if let start = path.firstIndex(of: id) {
+                loops.append(Array(path[start...]) + [id])
+                return
+            }
+            guard !finished.contains(id), let definition = byID[id] else { return }
+            path.append(id)
+            for next in definition.directDependencies.sorted() { visit(next) }
+            path.removeLast()
+            finished.insert(id)
+        }
+        for definition in definitions { visit(definition.id) }
+        return loops
+    }
+
     /// Subgraphs this one contains instances of, directly.
     public var directDependencies: Set<SubgraphID> {
         Set(graph.nodes.values.compactMap { $0.typeID.subgraphID })

@@ -81,7 +81,7 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
 - [x] Reusable definition library: `SubgraphLibrary` model, file form, import, update and status in Core. Storing a library externally (file, server) is a `GraphStore` job in Phase 6.
 - [x] Reroute points on links (link waypoints; the `util.reroute` node remains for passing a value through)
 - [x] Dynamic ports (variadic inputs/outputs) and connection-change hooks on `NodeDefinition` (declarative `keepOneFree` resizing; closure hooks are not built, see decision 91). 45 node types.
-- [ ] Tests: nested subgraphs, recursion guard, port changes preserving links
+- [x] Tests: nested subgraphs (three levels, state per instance path), recursion guard (editor-time `recursiveSubgraph` plus run-time depth limit), port changes preserving links (rename, reorder, retype, add, remove, kind change, dynamic counts)
 
 ## Phase 4: Editor UI (SwiftUI Canvas)
 
