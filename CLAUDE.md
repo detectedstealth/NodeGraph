@@ -18,7 +18,6 @@ Packages/
   NodeGraphSync/      GraphStore protocol + local implementations. Server comes later.
 App/                  Xcode app target (macOS + iPadOS), thin shell.
 docs/                 PLAN.md, ARCHITECTURE.md, DECISIONS.md
-Legacy/               LEGACY prototype (own Package.swift). Reference only; do not extend. Delete once Phase 1 lands.
 scripts/ci.sh         Tests all packages; `--ios` also builds for iOS simulator.
 NodeGraph.xcworkspace Open this in Xcode.
 ```
