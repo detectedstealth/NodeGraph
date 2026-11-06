@@ -79,7 +79,7 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
 - [x] Instance nodes execute the inner graph with correct port mapping and scoping
 - [x] Convert selection to subgraph; unpack subgraph
 - [x] Reusable definition library: `SubgraphLibrary` model, file form, import, update and status in Core. Storing a library externally (file, server) is a `GraphStore` job in Phase 6.
-- [ ] Reroute points on links
+- [x] Reroute points on links (link waypoints; the `util.reroute` node remains for passing a value through)
 - [ ] Dynamic ports (variadic inputs/outputs) and connection-change hooks on `NodeDefinition`
 - [ ] Tests: nested subgraphs, recursion guard, port changes preserving links
 

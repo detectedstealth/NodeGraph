@@ -212,7 +212,8 @@ extension GraphEditor {
         for link in inner.links.values {
             commands.append(scoped(.addLink(link: Link(
                 sourceNode: map[link.source.node]!, sourcePort: link.source.port,
-                targetNode: map[link.target.node]!, targetPort: link.target.port)), scope))
+                targetNode: map[link.target.node]!, targetPort: link.target.port,
+                waypoints: link.waypoints.map { GraphPoint(x: $0.x + offset.x, y: $0.y + offset.y) })), scope))
         }
         for input in definition.interface.inputs {
             let address = PortAddress(node: id, port: input.id, direction: .input)

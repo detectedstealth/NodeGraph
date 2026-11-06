@@ -23,7 +23,7 @@ App (macOS + iPadOS) ──> UI, Nodes, Sync
 | `Port` | Addressed by a stable `PortID` (name unique within the node and direction), not by array index. |
 | `PortType` | Open, string-backed struct (`"number"`, `"image"`, `"robot.pose"`). Packs register types with color, display name, and compatibility/conversion rules via `TypeRegistry`. |
 | `GraphValue` | Runtime value enum: bool, int, double, string, vector, matrix, color, array, object, data, and `.handle(HandleID)` for large or opaque payloads (frames, point clouds). |
-| `Link` | Output port to input port. An input accepts one link; an output accepts many. |
+| `Link` | Output port to input port. An input accepts one link; an output accepts many. May carry `waypoints`, points the drawn link passes through (display only). |
 | `Property` | Typed, schema-described node setting. Drives inspector and in-node widgets. |
 | `SubgraphDefinition` | A `Graph` plus a `SubgraphInterface`: exposed inputs and outputs (each bound to inner ports by node id and port id) and promoted properties (each bound to inner node properties). Stored in `GraphDocument.subgraphs`. An instance is an ordinary `Node` whose type is `subgraph.<uuid>`; its `NodeDefinition` is generated from the interface. |
 

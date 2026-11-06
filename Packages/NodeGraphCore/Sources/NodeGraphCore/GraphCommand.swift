@@ -72,6 +72,9 @@ public indirect enum GraphCommand: Hashable, Sendable, Codable {
     case setNodeProperty(node: NodeID, property: PropertyID, value: GraphValue?)
     case addLink(link: Link, index: Int? = nil)
     case removeLink(id: LinkID)
+    /// Replaces the points a link is drawn through. Empty makes it a straight run between its ends.
+    /// Only the picture changes; what the graph computes does not.
+    case setLinkWaypoints(link: LinkID, waypoints: [GraphPoint])
     case addGroup(group: NodeGroup, index: Int? = nil)
     case removeGroup(id: GroupID)
     /// Replaces a group, matched by id.
@@ -107,6 +110,8 @@ extension GraphCommand {
             n1 == n2 && a1.field == a2.field ? next : nil
         case (.setNodeProperty(let n1, let p1, _), .setNodeProperty(let n2, let p2, _)):
             n1 == n2 && p1 == p2 ? next : nil
+        case (.setLinkWaypoints(let l1, _), .setLinkWaypoints(let l2, _)):
+            l1 == l2 ? next : nil
         case (.updateGroup(let a), .updateGroup(let b)):
             a.id == b.id ? next : nil
         case (.inSubgraph(let id1, let a), .inSubgraph(let id2, let b)):

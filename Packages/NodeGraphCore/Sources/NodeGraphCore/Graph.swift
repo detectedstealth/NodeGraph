@@ -129,6 +129,14 @@ public struct Graph: Sendable {
         return removed
     }
 
+    /// Replaces a link's waypoints in place. Returns false if the link does not exist.
+    @discardableResult
+    mutating func setWaypoints(of id: LinkID, to waypoints: [GraphPoint]) -> Bool {
+        guard links[id] != nil else { return false }
+        links[id]!.waypoints = waypoints
+        return true
+    }
+
     @discardableResult
     mutating func removeGroup(_ id: GroupID) -> NodeGroup? {
         groups.removeValue(forKey: id)

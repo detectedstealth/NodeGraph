@@ -202,6 +202,14 @@ public final class GraphEditor {
             graph.removeLink(id)
             return .addLink(link: link, index: index)
 
+        case .setLinkWaypoints(let id, let waypoints):
+            guard let link = graph.links[id] else { throw GraphEditError.linkNotFound(id) }
+            if validation == .full, !waypoints.allSatisfy({ $0.x.isFinite && $0.y.isFinite }) {
+                throw GraphEditError.nonFiniteValue
+            }
+            graph.setWaypoints(of: id, to: waypoints)
+            return .setLinkWaypoints(link: id, waypoints: link.waypoints)
+
         case .addGroup(let group, let index):
             guard graph.groups[group.id] == nil else { throw GraphEditError.duplicateID(group.id.description) }
             try checkIndex(index, count: graph.groups.count)
