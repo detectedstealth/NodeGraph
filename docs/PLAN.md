@@ -87,7 +87,7 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
 
 - [x] `GraphEditorModel` (`@Observable`), `GraphTheme`, `NodeLayout` (single source for geometry), plus `GraphCamera` and `GraphSelection`. 33 tests in NodeGraphUI.
 - [ ] Canvas rendering: grid, nodes, ports, links (spline, linear, straight), groups, comments, selection, viewport culling, level of detail
-- [ ] Spatial index for hit testing
+- [x] Spatial index for hit testing (`SpatialIndex`, `node(at:)`, `port(at:)`, `group(at:)`, `items(in:)`, `nodes(in:)`; 49 UI tests)
 - [ ] Bridge `GraphHistory` to the platform `UndoManager` (Core stays UI-free)
 - [ ] Interaction state machine: pan, zoom (anchored, non-compounding), move, resize, marquee, connect, reconnect, shift-drag link move, snap to grid
 - [ ] macOS input: scroll/trackpad, right-click menus, keyboard shortcuts, hover

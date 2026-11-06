@@ -40,8 +40,14 @@ public final class GraphEditorModel {
     public var selection = GraphSelection()
     public var theme: GraphTheme
     public var metrics: NodeLayoutMetrics {
-        didSet { layoutCache.removeAll() }
+        didSet {
+            layoutCache.removeAll()
+            cachedSpatialIndex = nil
+        }
     }
+
+    /// Built on demand by hit testing and dropped by every edit. Not observed.
+    @ObservationIgnored var cachedSpatialIndex: SpatialIndex<CanvasItem>?
 
     private struct CachedLayout {
         var node: Node
@@ -118,6 +124,7 @@ public final class GraphEditorModel {
 
     private func didEdit(affectingDefinitions: Bool) {
         if affectingDefinitions { layoutCache.removeAll() }
+        cachedSpatialIndex = nil
         graph = editor.graph
         revision = editor.revision
         pruneSelection()
