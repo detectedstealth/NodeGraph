@@ -224,3 +224,18 @@ private func move(_ history: GraphHistory, _ id: NodeID, to x: Double) throws {
     let data = try JSONEncoder().encode(entry)
     #expect(try JSONDecoder().decode(HistoryEntry.self, from: data) == entry)
 }
+
+@Test func recordedStepCountIgnoresMergesAndSurvivesTrimming() throws {
+    let history = makeHistory(limit: 2)
+    let id = try addNode(history)
+    #expect(history.recordedStepCount == 1)
+    try move(history, id, to: 10)
+    try move(history, id, to: 20)  // merges into the previous move
+    #expect(history.recordedStepCount == 2)
+    history.endCoalescing()
+    _ = try addNode(history)  // pushes the stack past its limit
+    #expect(history.undoStack.count == 2)
+    #expect(history.recordedStepCount == 3)
+    try history.group { _ = try addNode(history); _ = try addNode(history) }
+    #expect(history.recordedStepCount == 4)
+}

@@ -1,3 +1,4 @@
+import Foundation
 import NodeGraphCore
 import Observation
 
@@ -35,6 +36,22 @@ public final class GraphEditorModel {
     public private(set) var graph: Graph
     /// Increments with every edit, including undo and redo.
     public private(set) var revision: Int
+
+    /// The platform undo manager to keep in step with ``history``, typically the one SwiftUI
+    /// provides as `@Environment(\.undoManager)`. Set it from the view; set nil to detach.
+    ///
+    /// The model sets `groupsByEvent` to false on it and groups each step itself, so one Undo
+    /// command always reverts exactly one history step, however many edits arrive in one event.
+    public var undoManager: UndoManager? {
+        didSet {
+            guard undoManager !== oldValue else { return }
+            oldValue?.removeAllActions(withTarget: self)
+            undoManager?.groupsByEvent = false
+            undoManager?.levelsOfUndo = history.limit
+        }
+    }
+    /// ``GraphHistory/recordedStepCount`` when the undo manager was last told about a step.
+    private var registeredStepCount = 0
 
     public var camera = GraphCamera()
     public var selection = GraphSelection()
@@ -77,6 +94,7 @@ public final class GraphEditorModel {
     ) throws -> GraphChange {
         let change = try history.perform(command, name: name, coalescing: coalescing)
         didEdit(affectingDefinitions: command.changesDefinitions)
+        registerUndoIfStepRecorded()
         return change
     }
 
@@ -85,12 +103,16 @@ public final class GraphEditorModel {
     public func connect(_ proposal: ConnectionProposal, name: String? = nil) throws -> GraphChange {
         let change = try history.connect(proposal, name: name)
         didEdit(affectingDefinitions: false)
+        registerUndoIfStepRecorded()
         return change
     }
 
     /// Runs `body` and records everything it performs as one undo step.
     public func group(name: String? = nil, _ body: () throws -> Void) throws {
-        defer { didEdit(affectingDefinitions: true) }
+        defer {
+            didEdit(affectingDefinitions: true)
+            registerUndoIfStepRecorded()
+        }
         try history.group(name: name, body)
     }
 
@@ -104,16 +126,61 @@ public final class GraphEditorModel {
     public var undoName: String? { history.undoName }
     public var redoName: String? { history.redoName }
 
+    /// Undoes the newest step. Goes through the undo manager when one is attached, so its
+    /// stacks and the Edit menu stay in step.
     public func undo() throws {
-        let affectsDefinitions = history.undoStack.last?.inverse.changesDefinitions ?? false
-        defer { didEdit(affectingDefinitions: affectsDefinitions) }
-        try history.undo()
+        if let undoManager, undoManager.canUndo {
+            undoManager.undo()
+        } else {
+            try performHistoryStep(redo: false)
+        }
     }
 
     public func redo() throws {
-        let affectsDefinitions = history.redoStack.last?.command.changesDefinitions ?? false
-        defer { didEdit(affectingDefinitions: affectsDefinitions) }
-        try history.redo()
+        if let undoManager, undoManager.canRedo {
+            undoManager.redo()
+        } else {
+            try performHistoryStep(redo: true)
+        }
+    }
+
+    /// Steps the history and registers the matching action on the undo manager: while it is
+    /// undoing that lands on its redo stack, and while redoing, back on its undo stack.
+    private func performHistoryStep(redo: Bool) throws {
+        let affectsDefinitions = redo
+            ? history.redoStack.last?.command.changesDefinitions ?? false
+            : history.undoStack.last?.inverse.changesDefinitions ?? false
+        // The manager may hold older actions than the history keeps; those do nothing.
+        guard redo ? history.canRedo : history.canUndo else { return }
+        let name = redo ? history.redoName : history.undoName
+        do {
+            if redo { try history.redo() } else { try history.undo() }
+        } catch {
+            // The history cleared itself; the manager's stacks no longer match it.
+            undoManager?.removeAllActions(withTarget: self)
+            didEdit(affectingDefinitions: true)
+            throw error
+        }
+        didEdit(affectingDefinitions: affectsDefinitions)
+        guard let undoManager else { return }
+        undoManager.registerUndo(withTarget: self) { model in
+            try? model.performHistoryStep(redo: !redo)
+        }
+        undoManager.setActionName(name ?? "")
+    }
+
+    /// Tells the undo manager about a step the history just recorded. An edit that merged into
+    /// the previous step (a drag, a slider sweep) is not a new step and registers nothing.
+    private func registerUndoIfStepRecorded() {
+        guard history.recordedStepCount != registeredStepCount else { return }
+        registeredStepCount = history.recordedStepCount
+        guard let undoManager else { return }
+        undoManager.beginUndoGrouping()
+        undoManager.registerUndo(withTarget: self) { model in
+            try? model.performHistoryStep(redo: false)
+        }
+        undoManager.setActionName(history.undoName ?? "")
+        undoManager.endUndoGrouping()
     }
 
     /// Re-reads the editor after something else changed it. Layouts are rebuilt in full, since

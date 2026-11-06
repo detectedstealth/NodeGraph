@@ -31,6 +31,11 @@ public final class GraphHistory {
     public private(set) var undoStack: [HistoryEntry] = []
     public private(set) var redoStack: [HistoryEntry] = []
 
+    /// Counts undo steps ever recorded. Increases when an edit starts a new step and stays put when
+    /// it merges into the previous one, so a bridge to a platform undo manager can tell the two apart
+    /// (the stack size cannot, once the limit trims it).
+    public private(set) var recordedStepCount = 0
+
     /// Whether the newest undo entry may still absorb a coalescing edit.
     private var canMerge = false
     /// Changes collected by an open ``group(name:_:)``, or nil when no group is open.
@@ -149,6 +154,7 @@ public final class GraphHistory {
                 name: last.name ?? name, command: merged.command, inverse: merged.inverse)
         } else {
             undoStack.append(HistoryEntry(name: name, command: change.command, inverse: change.inverse))
+            recordedStepCount += 1
             trim()
         }
         canMerge = coalescing
