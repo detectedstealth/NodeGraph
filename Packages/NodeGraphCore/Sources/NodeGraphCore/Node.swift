@@ -31,6 +31,10 @@ public struct Node: Hashable, Sendable {
     public var isPinned: Bool
     /// Values that differ from the definition's defaults, keyed by property id.
     public var properties: [PropertyID: GraphValue]
+    /// How many ports each of the definition's dynamic port groups has on this node. Groups not
+    /// listed have their initial count. Change it with ``GraphCommand/setPortCount(node:group:count:)``,
+    /// which keeps this canonical by leaving out counts equal to the initial one.
+    public var portCounts: [String: Int]
 
     public init(
         id: NodeID = NodeID(),
@@ -42,8 +46,10 @@ public struct Node: Hashable, Sendable {
         mode: NodeMode = .always,
         isCollapsed: Bool = false,
         isPinned: Bool = false,
-        properties: [PropertyID: GraphValue] = [:]
+        properties: [PropertyID: GraphValue] = [:],
+        portCounts: [String: Int] = [:]
     ) {
+        self.portCounts = portCounts
         self.id = id
         self.typeID = typeID
         self.position = position
@@ -78,7 +84,7 @@ public struct Node: Hashable, Sendable {
 /// string-backed type would otherwise encode as a flat key/value array in unspecified order.
 extension Node: Codable {
     private enum CodingKeys: String, CodingKey {
-        case id, typeID, position, size, title, color, mode, isCollapsed, isPinned, properties
+        case id, typeID, position, size, title, color, mode, isCollapsed, isPinned, properties, portCounts
     }
 
     public init(from decoder: any Decoder) throws {
@@ -96,7 +102,8 @@ extension Node: Codable {
             properties: Dictionary(
                 uniqueKeysWithValues: (try container.decodeIfPresent(
                     [String: GraphValue].self, forKey: .properties) ?? [:])
-                    .map { (PropertyID($0.key), $0.value) })
+                    .map { (PropertyID($0.key), $0.value) }),
+            portCounts: try container.decodeIfPresent([String: Int].self, forKey: .portCounts) ?? [:]
         )
     }
 
@@ -114,5 +121,6 @@ extension Node: Codable {
         try container.encode(
             Dictionary(uniqueKeysWithValues: properties.map { ($0.key.rawValue, $0.value) }),
             forKey: .properties)
+        if !portCounts.isEmpty { try container.encode(portCounts, forKey: .portCounts) }
     }
 }

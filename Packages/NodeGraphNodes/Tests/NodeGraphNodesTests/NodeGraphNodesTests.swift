@@ -18,7 +18,7 @@ private func evaluate(
 ) async throws -> NodeRunResult {
     let (nodes, _) = standardRegistries()
     let node = Node(typeID: type, properties: properties)
-    let definition = try #require(nodes.definition(for: type))
+    let definition = try #require(nodes.definition(for: node))
     let context = NodeContext(node: node, definition: definition, linkedInputs: inputs)
     return await NodeInvocation.run(node: node, registry: nodes, context: context)
 }
@@ -332,6 +332,9 @@ func toStringDescribesAnyValue(_ value: GraphValue, _ expected: String) async th
         for port in definition.ports where port.kind == .data && port.type != .any {
             #expect(types.info(for: port.type) != nil, "\(definition.typeID).\(port.id) uses an unregistered type")
         }
+        for group in definition.dynamicPorts where group.kind == .data && group.type != .any {
+            #expect(types.info(for: group.type) != nil, "\(definition.typeID).\(group.id) uses an unregistered type")
+        }
     }
 }
 
@@ -372,4 +375,66 @@ func toStringDescribesAnyValue(_ value: GraphValue, _ expected: String) async th
         }
     }
     #expect(tick.results.count == rig.editor.nodes.registeredDefinitions.count)
+}
+
+// MARK: Variadic nodes
+
+private func inputIDs(_ rig: Rig, _ node: NodeID) -> [String] {
+    rig.editor.nodes.definition(for: rig.editor.graph.nodes[node]!)!.inputs.map(\.id.rawValue)
+}
+
+@Test func sumGrowsAnInputEachTimeTheLastOneIsConnected() async throws {
+    let rig = Rig()
+    let sum = try rig.add("math.sum")
+    #expect(inputIDs(rig, sum) == ["in_1", "in_2"])
+    var expected = 0.0
+    for (n, value) in [1.0, 2.0, 3.0, 4.0].enumerated() {
+        let constant = try rig.add("util.number", ["value": .double(value)])
+        try rig.link(constant, "value", sum, PortID("in_\(n + 1)"))
+        expected += value
+        #expect(inputIDs(rig, sum).count == max(2, n + 2), "one free input after the last linked one, and never fewer than two")
+    }
+    let tick = try await rig.step()
+    #expect(tick.succeeded && tick.outputs(of: sum)?["result"] == .double(expected))
+    #expect(expected == 10)
+}
+
+@Test func sumIgnoresFreeInputsAndRejectsNonNumbers() async throws {
+    #expect(try await result("math.sum") == 0.0)
+    let text = try await failure("math.sum", ["in_1": "five"])
+    #expect(text?.contains("needs numbers") == true)
+}
+
+@Test func joinConcatenatesInPortOrderWithASeparator() async throws {
+    let rig = Rig()
+    let join = try rig.add("string.join", ["separator": ", "])
+    for (n, word) in ["alpha", "beta", "gamma"].enumerated() {
+        let constant = try rig.add("util.string", ["value": .string(word)])
+        try rig.link(constant, "value", join, PortID("in_\(n + 1)"))
+    }
+    let tick = try await rig.step()
+    #expect(tick.outputs(of: join)?["result"] == "alpha, beta, gamma")
+    #expect(try await result("string.join", ["in_2": "b"], properties: ["separator": "-"]) == "b", "a free port is skipped")
+}
+
+@Test func variadicNodesAreEditedUndoneAndSavedLikeAnyOther() async throws {
+    let rig = Rig()
+    let history = GraphHistory(editor: rig.editor)
+    let sum = try rig.add("math.sum")
+    let constant = try rig.add("util.number", ["value": 5.0])
+    let before = rig.editor.graph
+    try history.connect(ConnectionProposal(
+        source: PortAddress(node: constant, port: "value", direction: .output),
+        target: PortAddress(node: sum, port: "in_2", direction: .input)))
+    #expect(inputIDs(rig, sum).count == 3)
+    try history.undo()
+    #expect(rig.editor.graph == before)
+    try history.redo()
+
+    let loaded = try GraphDocument.decode(from: rig.editor.makeDocument().encoded())
+    #expect(loaded.graph == rig.editor.graph)
+    let (nodes, types) = standardRegistries()
+    #expect(GraphValidator().validate(ValidationContext(graph: loaded.graph, nodes: nodes, types: types)).isEmpty)
+    let after = await (try GraphRunner(document: loaded, registry: nodes)).step()
+    #expect(after.outputs(of: sum)?["result"] == 5.0)
 }

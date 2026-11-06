@@ -195,7 +195,7 @@ public struct SubgraphDefinition: Hashable, Sendable, Codable {
                 problems.append("\(label) must be an \(direction.rawValue) port")
                 return
             }
-            guard let definition = registry.definition(for: node.typeID) else { return }
+            guard let definition = registry.definition(for: node) else { return }
             guard let port = definition.port(address.port, direction: direction) else {
                 problems.append("\(label): \(node.typeID) has no \(direction.rawValue) port \"\(address.port)\"")
                 return

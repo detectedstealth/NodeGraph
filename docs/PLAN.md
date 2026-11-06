@@ -70,7 +70,7 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
 - [x] Node modes: always, never, muted, bypassed, onTrigger
 - [x] Dirty tracking and result cache
 - [x] `ExecutionEvent` stream for UI state
-- [x] Built-in packs in `NodeGraphNodes`: math, logic, string, flow, utility (reroute, note, constant). 43 node types. Port-type conversion at runtime is still open: see decision 61.
+- [x] Built-in packs in `NodeGraphNodes`: math, logic, string, flow, utility (reroute, note, constant). 45 node types. Port-type conversion at runtime is still open: see decision 61.
 - [x] Tests: ordering, cycles, bypass/mute semantics, cancellation, deterministic runs, perf at 10k nodes (`ScaleTests`: build, edit, validate, compile, run, save and load a 10k-node graph, all under a second in a debug build)
 
 ## Phase 3: Subgraphs and composition
@@ -80,7 +80,7 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
 - [x] Convert selection to subgraph; unpack subgraph
 - [x] Reusable definition library: `SubgraphLibrary` model, file form, import, update and status in Core. Storing a library externally (file, server) is a `GraphStore` job in Phase 6.
 - [x] Reroute points on links (link waypoints; the `util.reroute` node remains for passing a value through)
-- [ ] Dynamic ports (variadic inputs/outputs) and connection-change hooks on `NodeDefinition`
+- [x] Dynamic ports (variadic inputs/outputs) and connection-change hooks on `NodeDefinition` (declarative `keepOneFree` resizing; closure hooks are not built, see decision 91). 45 node types.
 - [ ] Tests: nested subgraphs, recursion guard, port changes preserving links
 
 ## Phase 4: Editor UI (SwiftUI Canvas)

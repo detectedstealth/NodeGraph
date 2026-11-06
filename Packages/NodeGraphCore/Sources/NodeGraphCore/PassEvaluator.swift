@@ -35,7 +35,7 @@ struct Snapshot: Sendable {
 
         var bindings: [NodeID: [InputBinding]] = [:]
         for node in graph.nodes.values {
-            guard let definition = registry.definition(for: node.typeID) else { continue }
+            guard let definition = registry.definition(for: node) else { continue }
             for port in definition.inputs {
                 let address = PortAddress(node: node.id, port: port.id, direction: .input)
                 guard let links = linksByTarget[address], !links.isEmpty else { continue }
@@ -188,7 +188,7 @@ enum PassEvaluator {
             var levelResults = [NodeRunResult?](repeating: nil, count: level.count)
             for (index, id) in level.enumerated() {
                 guard var node = snapshot.graph.nodes[id] else { continue }
-                let definition = snapshot.registry.definition(for: node.typeID)
+                let definition = snapshot.registry.definition(for: node)
 
                 // These modes need nothing from the node's type or inputs.
                 if node.mode == .never { levelResults[index] = skipped(id, .disabled); continue }

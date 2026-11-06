@@ -70,6 +70,10 @@ public indirect enum GraphCommand: Hashable, Sendable, Codable {
     case setNodeAttribute(node: NodeID, attribute: NodeAttribute)
     /// Sets a property value, or removes the override when `value` is nil.
     case setNodeProperty(node: NodeID, property: PropertyID, value: GraphValue?)
+    /// Sets how many ports a node has in one of its dynamic port groups. Shrinking removes the
+    /// links to the ports that go away; undo puts them back. Growing and shrinking happen from the
+    /// end, so the numbers of the remaining ports never change.
+    case setPortCount(node: NodeID, group: String, count: Int)
     case addLink(link: Link, index: Int? = nil)
     case removeLink(id: LinkID)
     /// Replaces the points a link is drawn through. Empty makes it a straight run between its ends.
@@ -108,6 +112,8 @@ extension GraphCommand {
             Set(a.map(\.node)) == Set(b.map(\.node)) ? next : nil
         case (.setNodeAttribute(let n1, let a1), .setNodeAttribute(let n2, let a2)):
             n1 == n2 && a1.field == a2.field ? next : nil
+        case (.setPortCount(let n1, let g1, _), .setPortCount(let n2, let g2, _)):
+            n1 == n2 && g1 == g2 ? next : nil
         case (.setNodeProperty(let n1, let p1, _), .setNodeProperty(let n2, let p2, _)):
             n1 == n2 && p1 == p2 ? next : nil
         case (.setLinkWaypoints(let l1, _), .setLinkWaypoints(let l2, _)):
@@ -170,6 +176,10 @@ public enum GraphEditError: Error, Hashable, Sendable {
     case nonFiniteValue
     /// A group's bounds are not finite or have no positive width and height.
     case invalidGeometry
+    /// The node's type has no dynamic port group with this id.
+    case unknownPortGroup(String)
+    /// The count is outside the group's limits.
+    case portCountOutOfRange(group: String, count: Int)
     case subgraphNotFound(SubgraphID)
     /// The subgraph still has instances. Remove them first.
     case subgraphInUse(SubgraphID)

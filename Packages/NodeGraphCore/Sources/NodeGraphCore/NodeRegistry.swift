@@ -48,6 +48,11 @@ public struct NodeRegistry: Sendable {
         definitions[typeID]
     }
 
+    /// The definition as `node` sees it, with the ports its dynamic port counts ask for.
+    public func definition(for node: Node) -> NodeDefinition? {
+        definitions[node.typeID]?.resolved(for: node)
+    }
+
     /// A node's frame in graph space: its own size, else its definition's default size, else
     /// zero-sized when the type is unregistered.
     public func frame(of node: Node) -> GraphRect {

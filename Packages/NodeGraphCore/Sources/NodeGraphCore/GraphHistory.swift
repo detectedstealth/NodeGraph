@@ -109,7 +109,7 @@ public final class GraphHistory {
     public func undo() throws {
         guard let entry = undoStack.last else { return }
         do {
-            try editor.apply(entry.inverse, validation: .structural)
+            try editor.apply(entry.inverse, validation: .structural, adjustsPorts: false)
         } catch {
             clear()
             throw error

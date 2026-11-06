@@ -51,7 +51,7 @@ public struct ValidationContext: Sendable {
 
     /// The definition for a node in the graph, or nil if the node or its type is unknown.
     public func definition(of node: NodeID) -> NodeDefinition? {
-        graph.nodes[node].flatMap { nodes.definition(for: $0.typeID) }
+        graph.nodes[node].flatMap { nodes.definition(for: $0) }
     }
 
     /// The definition of the addressed port, or nil if the node, type or port is unknown.

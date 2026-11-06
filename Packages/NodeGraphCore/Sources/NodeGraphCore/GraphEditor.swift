@@ -29,6 +29,15 @@ public final class GraphEditor {
 
     private let broadcaster = Broadcaster<GraphChange>()
 
+    /// A node in a particular graph (the root, or a subgraph's inner graph).
+    private struct ScopedNode: Hashable {
+        var scope: SubgraphID?
+        var node: NodeID
+    }
+
+    /// Nodes with automatically resized port groups whose links changed during this `apply`.
+    private var resizeQueue = Set<ScopedNode>()
+
     public init(
         graph: Graph = Graph(),
         subgraphs: [SubgraphDefinition] = [],
@@ -84,9 +93,32 @@ public final class GraphEditor {
     /// Cost does not grow with the size of the graph for single commands: they check before they
     /// change anything. A batch that fails part-way is rolled back with the inverses of the steps
     /// that had succeeded.
+    ///
+    /// - Parameter adjustsPorts: Whether to resize automatically sized port groups after the
+    ///   command (see ``DynamicPortGroup/Resizing/keepOneFree``). Leave it on for new edits and for
+    ///   replaying a command, which recomputes the same adjustments. Turn it off only when applying
+    ///   a recorded inverse, which already contains them, so undo restores the exact earlier state.
     @discardableResult
-    public func apply(_ command: GraphCommand, validation: EditValidation = .full) throws -> GraphChange {
-        let inverse = try perform(command, on: &graph, validation: validation)
+    public func apply(
+        _ command: GraphCommand, validation: EditValidation = .full, adjustsPorts: Bool = true
+    ) throws -> GraphChange {
+        resizeQueue.removeAll()
+        var inverse: GraphCommand
+        do {
+            inverse = try perform(command, on: &graph, validation: validation)
+        } catch {
+            resizeQueue.removeAll()
+            throw error
+        }
+        // Nodes whose links changed may now need more or fewer dynamic ports. The adjustments are
+        // part of the same change, so undo takes them back together with the command.
+        let adjustments = adjustsPorts ? automaticResizes() : []
+        resizeQueue.removeAll()
+        if !adjustments.isEmpty {
+            var undo: [GraphCommand] = []
+            for adjustment in adjustments { undo.append(try perform(adjustment, on: &graph, validation: .structural)) }
+            inverse = .batch(commands: undo.reversed() + [inverse])
+        }
         revision += 1
         let change = GraphChange(revision: revision, command: command, inverse: inverse)
         broadcaster.send(change)
@@ -97,7 +129,7 @@ public final class GraphEditor {
     /// `inverse` redoes the original.
     @discardableResult
     public func revert(_ change: GraphChange) throws -> GraphChange {
-        try apply(change.inverse, validation: .structural)
+        try apply(change.inverse, validation: .structural, adjustsPorts: false)
     }
 
     /// Connects two ports, removing any link a single-link port gives up, as one change.
@@ -150,7 +182,10 @@ public final class GraphEditor {
             let attached = graph.links(attachedTo: id)
                 .compactMap { link in graph.links.index(forKey: link.id).map { (index: $0, link: link) } }
                 .sorted { $0.index < $1.index }
-            for (_, link) in attached { graph.removeLink(link.id) }
+            for (_, link) in attached {
+                graph.removeLink(link.id)
+                queueResize(link.source.node, link.target.node, scope: scope, in: graph)
+            }
             graph.removeNode(id)
             return .batch(commands: [.addNode(node: node, index: nodeIndex)]
                 + attached.map { .addLink(link: $0.link, index: $0.index) })
@@ -186,6 +221,33 @@ public final class GraphEditor {
             graph.updateNode(id) { $0.properties[property] = value }
             return .setNodeProperty(node: id, property: property, value: previous)
 
+        case .setPortCount(let id, let group, let count):
+            guard let node = graph.nodes[id] else { throw GraphEditError.nodeNotFound(id) }
+            guard let declared = nodes.definition(for: node.typeID)?.dynamicPorts.first(where: { $0.id == group }) else {
+                throw GraphEditError.unknownPortGroup(group)
+            }
+            guard count == declared.clamped(count) else {
+                throw GraphEditError.portCountOutOfRange(group: group, count: count)
+            }
+            let oldCount = declared.clamped(node.portCounts[group])
+            // Links to ports that go away go first, so undo can put them back after the ports.
+            var undo: [GraphCommand] = []
+            if count < oldCount {
+                let gone = Set(((count + 1)...oldCount).map(declared.portID))
+                for link in graph.links(attachedTo: id) {
+                    let end = declared.direction == .input ? link.target : link.source
+                    if end.node == id, gone.contains(end.port) {
+                        let at = graph.links.index(forKey: link.id)
+                        graph.removeLink(link.id)
+                        undo.append(.addLink(link: link, index: at))
+                    }
+                }
+            }
+            graph.updateNode(id) {
+                $0.portCounts[group] = count == declared.initialCount ? nil : count
+            }
+            return .batch(commands: [.setPortCount(node: id, group: group, count: oldCount)] + undo.reversed())
+
         case .addLink(let link, let index):
             guard graph.links[link.id] == nil else { throw GraphEditError.duplicateID(link.id.description) }
             try checkIndex(index, count: graph.links.count)
@@ -194,12 +256,14 @@ public final class GraphEditor {
             }
             if validation == .full { try validate(link, in: graph) }
             graph.insert(link, at: index)
+            queueResize(link.source.node, link.target.node, scope: scope, in: graph)
             return .removeLink(id: link.id)
 
         case .removeLink(let id):
             guard let link = graph.links[id] else { throw GraphEditError.linkNotFound(id) }
             let index = graph.links.index(forKey: id)
             graph.removeLink(id)
+            queueResize(link.source.node, link.target.node, scope: scope, in: graph)
             return .addLink(link: link, index: index)
 
         case .setLinkWaypoints(let id, let waypoints):
@@ -287,6 +351,45 @@ public final class GraphEditor {
             }
             return .batch(commands: inverses.reversed())
         }
+    }
+
+    /// Remembers nodes whose automatically resized port groups may need adjusting after this command.
+    private func queueResize(_ nodeIDs: NodeID..., scope: SubgraphID?, in graph: Graph) {
+        for id in nodeIDs {
+            guard let node = graph.nodes[id],
+                  nodes.definition(for: node.typeID)?.dynamicPorts.contains(where: { $0.resizing == .keepOneFree }) == true
+            else { continue }
+            resizeQueue.insert(ScopedNode(scope: scope, node: id))
+        }
+    }
+
+    /// The `setPortCount` commands that leave every queued node with exactly one free port at the
+    /// end of each automatically resized group, within the group's limits.
+    private func automaticResizes() -> [GraphCommand] {
+        var commands: [GraphCommand] = []
+        let queued = resizeQueue.sorted { ($0.scope?.description ?? "", $0.node) < ($1.scope?.description ?? "", $1.node) }
+        for entry in queued {
+            let graph = entry.scope.flatMap { subgraphs[$0]?.graph } ?? self.graph
+            guard entry.scope == nil || subgraphs[entry.scope!] != nil,
+                  let node = graph.nodes[entry.node],
+                  let definition = nodes.definition(for: node.typeID) else { continue }
+            for group in definition.dynamicPorts where group.resizing == .keepOneFree {
+                let current = group.clamped(node.portCounts[group.id])
+                var highestLinked = 0
+                for n in stride(from: current, through: 1, by: -1) {
+                    let address = PortAddress(node: node.id, port: group.portID(n), direction: group.direction)
+                    let linked = group.direction == .input
+                        ? !graph.links(into: address).isEmpty : !graph.links(from: address).isEmpty
+                    if linked { highestLinked = n; break }
+                }
+                let wanted = group.clamped(max(highestLinked + 1, group.initialCount))
+                if wanted != current {
+                    let command = GraphCommand.setPortCount(node: node.id, group: group.id, count: wanted)
+                    commands.append(entry.scope.map { .inSubgraph(id: $0, command: command) } ?? command)
+                }
+            }
+        }
+        return commands
     }
 
     /// Everything wrong with a definition that is about to be added or changed.

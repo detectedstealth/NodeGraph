@@ -180,6 +180,12 @@ public struct NodeContext: Sendable {
         return value
     }
 
+    /// The values at the input ports of a dynamic group, in port order. Unlinked ports without a
+    /// default are skipped, so a variadic node sees only what was actually provided.
+    public func values(inGroup group: String) -> [GraphValue] {
+        definition.inputs.filter { $0.group == group }.compactMap { inputs[$0.id] }
+    }
+
     /// A number at an input port, accepting `.int` or `.double`.
     public func number(_ port: PortID) throws -> Double {
         guard let value = try input(port).numberValue else {

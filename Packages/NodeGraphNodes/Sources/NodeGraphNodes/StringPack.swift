@@ -23,6 +23,23 @@ public enum StringPack: NodePack {
             return ["result": .string(try ctx.string("value").replacingOccurrences(of: find, with: try ctx.string("replacement")))]
         }
 
+        // Joins any number of strings, in port order, with a separator. Unlinked ports are skipped.
+        nodes.register(NodeDefinition(
+            typeID: "string.join", displayName: "Join", category: "String",
+            ports: [PortDefinition(id: "result", direction: .output, type: .string)],
+            dynamicPorts: [DynamicPortGroup(
+                id: "in", displayName: "Text", type: .string, minimum: 2, initialCount: 2, resizing: .keepOneFree)],
+            properties: [PropertyDefinition(
+                id: "separator", displayName: "Separator", kind: .string(multiline: false), defaultValue: "")],
+            isPure: true)
+        ) { ctx in
+            let parts = try ctx.values(inGroup: "in").map { value -> String in
+                guard let text = value.stringValue else { throw NodeExecutionError.failed("Join needs strings") }
+                return text
+            }
+            return ["result": .string(parts.joined(separator: try ctx.property("separator").stringValue ?? ""))]
+        }
+
         nodes.register(NodeDefinition(
             typeID: "string.length", displayName: "Length", category: "String",
             ports: [

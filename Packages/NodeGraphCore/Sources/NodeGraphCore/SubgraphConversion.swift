@@ -74,7 +74,7 @@ extension GraphEditor {
         }
 
         func port(_ address: PortAddress) -> PortDefinition? {
-            inner.nodes[address.node].flatMap { nodes.definition(for: $0.typeID) }?
+            inner.nodes[address.node].flatMap { nodes.definition(for: $0) }?
                 .port(address.port, direction: address.direction)
         }
         var usedInputs = Set<String>(), usedOutputs = Set<String>(), usedProperties = Set<String>()

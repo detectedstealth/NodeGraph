@@ -78,6 +78,18 @@ public struct GraphValidator: Sendable {
                 node: node.id)]
         }
         var found: [GraphDiagnostic] = []
+        for (group, count) in node.portCounts.sorted(by: { $0.key < $1.key }) {
+            guard let declared = definition.dynamicPorts.first(where: { $0.id == group }) else {
+                found.append(GraphDiagnostic(
+                    code: .invalidPortCount, message: "\(node.typeID) has no port group \"\(group)\".", node: node.id))
+                continue
+            }
+            if count != declared.clamped(count) {
+                found.append(GraphDiagnostic(
+                    code: .invalidPortCount,
+                    message: "Port group \"\(group)\" has \(count) ports, outside its limits.", node: node.id))
+            }
+        }
         for (id, value) in node.properties.sorted(by: { $0.key < $1.key }) {
             guard let property = definition.property(id) else {
                 found.append(GraphDiagnostic(

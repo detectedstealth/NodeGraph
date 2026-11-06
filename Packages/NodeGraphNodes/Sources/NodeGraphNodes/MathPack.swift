@@ -34,6 +34,23 @@ public enum MathPack: NodePack {
         unary("math.sin", "Sine", in: &nodes) { sin($0) }
         unary("math.cos", "Cosine", in: &nodes) { cos($0) }
 
+        // Adds any number of inputs. The node always shows one free input after the last linked
+        // one, so connecting the last port makes another.
+        nodes.register(NodeDefinition(
+            typeID: "math.sum", displayName: "Sum", category: "Math",
+            ports: [number("result", .output)],
+            dynamicPorts: [DynamicPortGroup(
+                id: "in", displayName: "Value", type: .number, minimum: 2, initialCount: 2, resizing: .keepOneFree)],
+            isPure: true)
+        ) { ctx in
+            var total = 0.0
+            for value in ctx.values(inGroup: "in") {
+                guard let number = value.numberValue else { throw NodeExecutionError.failed("Sum needs numbers") }
+                total += number
+            }
+            return ["result": .double(try finite(total, "Sum"))]
+        }
+
         nodes.register(NodeDefinition(
             typeID: "math.clamp", displayName: "Clamp", category: "Math",
             ports: [

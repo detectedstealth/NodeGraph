@@ -19,8 +19,8 @@ App (macOS + iPadOS) ──> UI, Nodes, Sync
 | `Graph` | Nodes, links, groups (`NodeGroup`). Value type, `Codable`, `Sendable`. |
 | `NodeID`, `LinkID`, `GroupID` | Opaque `UUID`-backed IDs. Stable across save/load and safe for a distributed server. |
 | `NodeDefinition` | Class-level description registered by a pack: type id (`"math.add"`), ports, properties schema, default size, category, execute function. |
-| `Node` | Instance: id, definition id, position, size, mode, property values, per-instance port overrides. No runtime state. |
-| `Port` | Addressed by a stable `PortID` (name unique within the node and direction), not by array index. |
+| `Node` | Instance: id, definition id, position, size, mode, property values, dynamic port counts. No runtime state. |
+| `Port` | Addressed by a stable `PortID` (name unique within the node and direction), not by array index. A definition may declare `DynamicPortGroup`s (`in_1`, `in_2`, ...) whose length each node chooses; `NodeRegistry.definition(for: node)` gives the ports that node actually has. |
 | `PortType` | Open, string-backed struct (`"number"`, `"image"`, `"robot.pose"`). Packs register types with color, display name, and compatibility/conversion rules via `TypeRegistry`. |
 | `GraphValue` | Runtime value enum: bool, int, double, string, vector, matrix, color, array, object, data, and `.handle(HandleID)` for large or opaque payloads (frames, point clouds). |
 | `Link` | Output port to input port. An input accepts one link; an output accepts many. May carry `waypoints`, points the drawn link passes through (display only). |
