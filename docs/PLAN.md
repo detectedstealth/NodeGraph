@@ -85,7 +85,7 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
 
 ## Phase 4: Editor UI (SwiftUI Canvas)
 
-- [ ] `GraphEditorModel` (`@Observable`), `GraphTheme`, `NodeLayout` (single source for geometry)
+- [x] `GraphEditorModel` (`@Observable`), `GraphTheme`, `NodeLayout` (single source for geometry), plus `GraphCamera` and `GraphSelection`. 33 tests in NodeGraphUI.
 - [ ] Canvas rendering: grid, nodes, ports, links (spline, linear, straight), groups, comments, selection, viewport culling, level of detail
 - [ ] Spatial index for hit testing
 - [ ] Bridge `GraphHistory` to the platform `UndoManager` (Core stays UI-free)
