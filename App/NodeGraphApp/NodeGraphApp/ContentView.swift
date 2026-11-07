@@ -2,11 +2,17 @@ import NodeGraphUI
 import SwiftUI
 
 struct ContentView: View {
-    @State private var model = DemoGraph.makeModel()
+    @State private var controller = GraphInteractionController(model: DemoGraph.makeModel())
 
     var body: some View {
-        GraphCanvasView(model: model)
-            .ignoresSafeArea()
+        GraphCanvasView(controller: controller)
+            .ignoresSafeArea(.container)
+            .overlay(alignment: .topTrailing) {
+                Button("Add Node", systemImage: "plus") { controller.beginAddNode() }
+                    .labelStyle(.iconOnly)
+                    .buttonStyle(.borderedProminent)
+                    .padding()
+            }
     }
 }
 

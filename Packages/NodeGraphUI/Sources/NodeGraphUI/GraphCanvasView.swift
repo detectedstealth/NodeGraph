@@ -16,8 +16,14 @@ public struct GraphCanvasView: View {
     @Environment(\.undoManager) private var undoManager
 
     public init(model: GraphEditorModel) {
-        self.model = model
-        _controller = State(initialValue: GraphInteractionController(model: model))
+        self.init(controller: GraphInteractionController(model: model))
+    }
+
+    /// Use this form to keep the controller, for example to open the add-node search from a
+    /// toolbar button with ``GraphInteractionController/beginAddNode(at:from:)``.
+    public init(controller: GraphInteractionController) {
+        self.model = controller.model
+        _controller = State(initialValue: controller)
     }
 
     public var body: some View {
@@ -83,6 +89,7 @@ public struct GraphCanvasView: View {
         #endif
         // Last, so the editor sits above the touch layer and the drag gesture.
         .overlay { WidgetEditorOverlay(controller: controller) }
+        .overlay { AddNodeOverlay(controller: controller) }
     }
 
     #if !canImport(UIKit)

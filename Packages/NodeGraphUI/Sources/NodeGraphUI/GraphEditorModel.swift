@@ -279,6 +279,23 @@ public final class GraphEditorModel {
             + (widgetProvider?.widgets(for: node, definition: definition) ?? [])
     }
 
+    /// The node types that can be added right now, as a searchable list.
+    public func makeNodeCatalog() -> NodeCatalog {
+        NodeCatalog(nodes: editor.nodes, types: editor.types)
+    }
+
+    /// The layout a new node of `typeID` would have at the origin, to place it by one of its ports.
+    func previewLayout(of typeID: NodeTypeID) -> NodeLayout? {
+        let node = Node(typeID: typeID)
+        guard let definition = definition(of: node) else { return nil }
+        return NodeLayout(node: node, definition: definition, widgets: widgetSpecs(for: node, definition: definition), metrics: metrics)
+    }
+
+    /// What a link dragged from `anchor` needs from a node it ends on.
+    func filter(for anchor: PortAddress) -> PortFilter? {
+        layout(of: anchor.node)?.port(anchor).map { PortFilter($0.definition) }
+    }
+
     /// Registers the drawing for ``WidgetKind/custom(_:)`` widgets of this name. Packs call this
     /// at setup; a custom widget with no renderer shows its value as text.
     public func registerWidgetRenderer(named name: String, _ renderer: @escaping WidgetRenderer) {

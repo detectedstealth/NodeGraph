@@ -320,13 +320,13 @@ private func pt(_ x: Double, _ y: Double) -> CGPoint { CGPoint(x: x, y: y) }
         #expect(link.target.node == sink.id && link.target.port == "a")
     }
 
-    @Test func releaseOnEmptyCanvasReportsThePortAndPlace() throws {
+    @Test func releaseOnEmptyCanvasOpensTheAddNodeSearchForThatPort() throws {
         let (rig, source, _) = try pair()
-        var reported: (PortAddress, GraphPoint)?
-        rig.controller.onLinkReleasedOnEmpty = { reported = ($0, $1) }
         rig.drag(from: rig.port(source, "out", .output), to: pt(300, 500))
-        #expect(reported?.0.port == "out")
-        #expect(reported?.1 == GraphPoint(x: 300, y: 500))
+        let request = try #require(rig.controller.addNodeRequest)
+        #expect(request.anchor?.port == "out")
+        #expect(request.graphPoint == GraphPoint(x: 300, y: 500))
+        #expect(request.filter == PortFilter(direction: .output, type: "number", kind: .data))
         #expect(linkCount(rig) == 0)
     }
 

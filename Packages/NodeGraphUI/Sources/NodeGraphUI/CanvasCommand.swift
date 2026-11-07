@@ -16,6 +16,8 @@ public enum CanvasCommand: Hashable, Sendable {
     case zoomIn
     case zoomOut
     case toggleSnapToGrid
+    /// Opens the add-node search at a graph-space position, or at the pointer when nil.
+    case addNode(at: GraphPoint?)
     /// Collapses the selected nodes, or expands them if all are already collapsed.
     case toggleCollapsed
     /// Pins the selected nodes, or unpins them if all are already pinned.
@@ -54,6 +56,7 @@ public enum CanvasKeyMap {
             case "0" where commandKey: return .resetZoom
             case "=" where commandKey, "+" where commandKey: return .zoomIn
             case "-" where commandKey: return .zoomOut
+            case "a" where modifiers == .shift: return .addNode(at: nil)
             case "f" where modifiers.isDisjoint(with: [.command, .control, .option]): return .zoomToFit
             default: return nil
             }

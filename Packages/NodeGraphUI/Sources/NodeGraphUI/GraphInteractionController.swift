@@ -23,10 +23,11 @@ public final class GraphInteractionController {
     public var dragThreshold = 3.0
     /// Maximum distance, in screen points, from a link at which a press picks it.
     public var linkPickDistance = 6.0
-    /// Called when a link dragged from a port is released over empty canvas, so the editor can
-    /// offer to add a node there. Receives the port and the graph point.
-    @ObservationIgnored public var onLinkReleasedOnEmpty: ((PortAddress, GraphPoint) -> Void)?
-
+    /// Reads the time, so tests can drive double-clicks without waiting.
+    @ObservationIgnored var now: () -> ContinuousClock.Instant = { .now }
+    /// Two clicks on empty canvas within this long (and ``doubleClickDistance``) are a double click.
+    public var doubleClickInterval = Duration.milliseconds(400)
+    public var doubleClickDistance = 16.0
     /// The selection rectangle being dragged, in graph space.
     public private(set) var marquee: GraphRect?
     /// The link being dragged out or moved.
@@ -104,6 +105,12 @@ public final class GraphInteractionController {
     /// A widget being edited in an overlay (text, number, choice, color), or nil.
     public private(set) var editor: WidgetEditor?
 
+    /// A request to add a node, shown as the search panel, or nil.
+    public private(set) var addNodeRequest: AddNodeRequest?
+    private var lastEmptyClick: (point: CGPoint, time: ContinuousClock.Instant)?
+    /// The last place the pointer was reported, for commands that act where it is.
+    private var lastPointer: CGPoint?
+
     private var state = State.idle
     /// The kind of pointer of the press in progress, which sets how close counts as on a port.
     private var pressKind = PointerKind.mouse
@@ -120,6 +127,7 @@ public final class GraphInteractionController {
         at point: CGPoint, modifiers: InputModifiers = [], kind: PointerKind = .platformDefault
     ) {
         closeEditor(commit: true)
+        cancelAddNode()
         if isActive { cancel() }
         pressKind = kind
         let graphPoint = model.camera.graphPoint(forScreen: point)
@@ -245,7 +253,7 @@ public final class GraphInteractionController {
         case .marquee:
             break
         case .connecting(let anchor, let replacing):
-            finishConnection(anchor: anchor, replacing: replacing, at: graphPoint)
+            finishConnection(anchor: anchor, replacing: replacing, at: graphPoint, screen: point)
         case .movingLinks(let source, let links):
             finishLinkMove(from: source, links: links)
         }
@@ -271,6 +279,7 @@ public final class GraphInteractionController {
 
     /// Reports where the pointer is, or nil when it leaves the canvas. Ignored during a drag.
     public func hover(at point: CGPoint?) {
+        lastPointer = point
         var result: Hover?
         if let point, !isActive {
             switch target(at: model.camera.graphPoint(forScreen: point)) {
@@ -499,6 +508,14 @@ public final class GraphInteractionController {
             activate(widget, on: id)
         case .empty:
             if !press.modifiers.extendsSelection { model.clearSelection() }
+            let time = now()
+            if let last = lastEmptyClick, time - last.time <= doubleClickInterval,
+               hypot(press.startScreen.x - last.point.x, press.startScreen.y - last.point.y) <= doubleClickDistance {
+                lastEmptyClick = nil
+                beginAddNode(at: press.startScreen)
+            } else {
+                lastEmptyClick = (press.startScreen, time)
+            }
         default:
             break
         }
@@ -563,7 +580,7 @@ public final class GraphInteractionController {
         return editor.connectionValidator.check(ConnectionProposal(source: anchor, target: port).oriented(), in: context).isAllowed
     }
 
-    private func finishConnection(anchor: PortAddress, replacing: Link?, at point: GraphPoint) {
+    private func finishConnection(anchor: PortAddress, replacing: Link?, at point: GraphPoint, screen: CGPoint) {
         var port = draft?.candidate
         // Dropped on a node's body rather than on a port: take its first port that works.
         if port == nil, draft?.rejected == nil, let id = model.node(at: point) {
@@ -582,7 +599,7 @@ public final class GraphInteractionController {
         } else if let replacing {
             if draft?.rejected == nil { _ = try? model.perform(.removeLink(id: replacing.id), name: "Disconnect") }
         } else if draft?.rejected == nil, model.node(at: point) == nil {
-            onLinkReleasedOnEmpty?(anchor, point)
+            beginAddNode(at: screen, from: anchor)
         }
     }
 
@@ -608,6 +625,76 @@ public final class GraphInteractionController {
         } catch {
             // Refused after all: leave the graph as it was.
         }
+    }
+
+    // MARK: Adding nodes
+
+    /// A request to add a node: where, and the port a link is being dragged from, if any.
+    public struct AddNodeRequest: Hashable, Sendable {
+        public var screenPoint: CGPoint
+        public var graphPoint: GraphPoint
+        /// The port the user dragged a link from and released on empty canvas. The new node is
+        /// linked to it.
+        public var anchor: PortAddress?
+        /// What the search should require of a node so the link can attach, if there is an anchor.
+        public var filter: PortFilter?
+    }
+
+    /// Opens the add-node search at `screenPoint` (the pointer's last position, or the middle of
+    /// the view, when nil). With an `anchor`, only nodes the link can end on are offered, and the
+    /// new node is linked to that port.
+    public func beginAddNode(at screenPoint: CGPoint? = nil, from anchor: PortAddress? = nil) {
+        closeEditor(commit: true)
+        let point = screenPoint ?? lastPointer ?? CGPoint(x: model.viewSize.width / 2, y: model.viewSize.height / 2)
+        addNodeRequest = AddNodeRequest(
+            screenPoint: point, graphPoint: model.camera.graphPoint(forScreen: point), anchor: anchor,
+            filter: anchor.flatMap { model.filter(for: $0) })
+    }
+
+    public func cancelAddNode() {
+        if addNodeRequest != nil { addNodeRequest = nil }
+    }
+
+    /// Adds the matched node where the request was made and, if the request came from a dragged
+    /// link, connects it to the matched port. One undo step. Returns the new node's id.
+    @discardableResult
+    public func addNode(_ match: NodeCatalogMatch) -> NodeID? {
+        guard let request = addNodeRequest else { return nil }
+        addNodeRequest = nil
+        let typeID = match.entry.id
+        guard let preview = model.previewLayout(of: typeID) else { return nil }
+
+        // Put the node so the port the link will use lands on the release point; without a link,
+        // center it on the point.
+        var position: GraphPoint
+        if let anchor = request.anchor, let port = match.port,
+           let offset = preview.port(PortAddress(
+               node: preview.node, port: port.id, direction: anchor.direction == .output ? .input : .output))?.position {
+            position = GraphPoint(x: request.graphPoint.x - offset.x, y: request.graphPoint.y - offset.y)
+        } else {
+            position = GraphPoint(
+                x: request.graphPoint.x - preview.frame.size.width / 2,
+                y: request.graphPoint.y - model.metrics.headerHeight / 2)
+        }
+        if model.snapsToGrid {
+            let spacing = model.theme.gridSpacing
+            if spacing > 0 {
+                position = GraphPoint(x: (position.x / spacing).rounded() * spacing, y: (position.y / spacing).rounded() * spacing)
+            }
+        }
+
+        let node = Node(typeID: typeID, position: position)
+        let added = (try? model.group(name: "Add \(match.entry.displayName)") {
+            try model.perform(.addNode(node: node))
+            if let anchor = request.anchor, let port = match.port {
+                let end = PortAddress(node: node.id, port: port.id, direction: anchor.direction == .output ? .input : .output)
+                // A refused link leaves the node added without it.
+                _ = try? model.connect(ConnectionProposal(source: anchor, target: end))
+            }
+        }) != nil
+        guard added else { return nil }
+        model.select(node: node.id)
+        return node.id
     }
 
     // MARK: Widgets

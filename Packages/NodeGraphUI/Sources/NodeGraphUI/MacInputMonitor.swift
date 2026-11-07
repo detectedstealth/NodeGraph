@@ -60,6 +60,10 @@ struct MacInputMonitor: NSViewRepresentable {
             guard let view, event.window === view.window else { return false }
             let local = view.convert(event.locationInWindow, from: nil)
             guard view.bounds.contains(local) else { return false }
+            // A panel over the canvas (the add-node list, a choice list) scrolls itself; the
+            // canvas must not take its scrolling, or right-click, away.
+            if event.type == .scrollWheel, Self.isOverScrollView(in: view.window, at: event.locationInWindow) { return false }
+            if event.type == .rightMouseDown, controller.addNodeRequest != nil || controller.editor != nil { return false }
             // The canvas draws with a top-left origin; AppKit's views are bottom-left.
             let point = CGPoint(x: local.x, y: view.isFlipped ? local.y : view.bounds.height - local.y)
 
@@ -76,6 +80,18 @@ struct MacInputMonitor: NSViewRepresentable {
             default:
                 return false
             }
+        }
+
+        /// Whether the topmost view at `location` (window coordinates) is inside a scroll view.
+        /// SwiftUI's `ScrollView` is an `NSScrollView` on macOS, so this finds a list under the
+        /// pointer without knowing which panel it belongs to.
+        static func isOverScrollView(in window: NSWindow?, at location: NSPoint) -> Bool {
+            var current = window?.contentView?.hitTest(location)
+            while let candidate = current {
+                if candidate is NSScrollView { return true }
+                current = candidate.superview
+            }
+            return false
         }
 
         private func showMenu(at point: CGPoint, event: NSEvent, in view: NSView) {

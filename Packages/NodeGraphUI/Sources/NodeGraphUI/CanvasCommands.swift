@@ -15,6 +15,10 @@ extension GraphInteractionController {
             return true
 
         case .escape:
+            if addNodeRequest != nil {
+                cancelAddNode()
+                return true
+            }
             if editor != nil {
                 closeEditor(commit: false)
                 return true
@@ -72,6 +76,9 @@ extension GraphInteractionController {
             return true
         case .toggleSnapToGrid:
             model.snapsToGrid.toggle()
+            return true
+        case .addNode(let point):
+            beginAddNode(at: point.map { model.camera.screenPoint(for: $0) })
             return true
 
         case .toggleCollapsed:
@@ -134,6 +141,8 @@ extension GraphInteractionController {
         case .empty:
             model.clearSelection()
             return [
+                CanvasMenuItem("Add Node…", .addNode(at: model.camera.graphPoint(forScreen: point))),
+                .separator,
                 CanvasMenuItem("Select All", .selectAll, isEnabled: !model.graph.nodes.isEmpty),
                 .separator,
                 CanvasMenuItem("Zoom to Fit", .zoomToFit, isEnabled: !model.graph.nodes.isEmpty),
