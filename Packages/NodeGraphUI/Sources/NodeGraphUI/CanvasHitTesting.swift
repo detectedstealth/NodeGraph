@@ -8,13 +8,14 @@ public enum CanvasItem: Hashable, Sendable {
 }
 
 extension GraphEditorModel {
-    /// Room added around a link's end and waypoint box, because the drawn curve bulges outside it.
+    /// Room added around a link's path bounds, so links just off screen are still drawn and
+    /// picking has some slack.
     static var linkBoundsPadding: Double { 24 }
 
     /// Everything whose bounds intersect `rect`, in draw order (groups, then links, then nodes;
     /// within each, storage order). Use it to draw only what is visible.
     ///
-    /// Link bounds are the box around their ends and waypoints, padded; they can include a link
+    /// Link bounds are the box around the drawn path, padded; they can include a link
     /// that is just off screen, never miss one that is on it.
     public func items(in rect: GraphRect) -> [CanvasItem] {
         spatialIndex.ids(in: rect)
@@ -37,6 +38,19 @@ extension GraphEditorModel {
             }
         }
         return nil
+    }
+
+    /// The link whose drawn path passes within `tolerance` graph units of `point`, nearest first
+    /// choice when several qualify.
+    public func link(at point: GraphPoint, tolerance: Double) -> LinkID? {
+        var best: (id: LinkID, distance: Double)?
+        for item in spatialIndex.ids(at: point, radius: tolerance) {
+            guard case .link(let id) = item, let link = graph.links[id],
+                  let distance = linkPath(of: link)?.distance(to: point), distance <= tolerance,
+                  distance < (best?.distance ?? .infinity) else { continue }
+            best = (id, distance)
+        }
+        return best?.id
     }
 
     /// The topmost group whose bounds contain `point`.
@@ -78,11 +92,13 @@ extension GraphEditorModel {
     }
 
     private func linkBounds(_ link: Link) -> GraphRect? {
-        guard let ends = endpoints(of: link) else { return nil }
-        let points = [ends.source, ends.target] + link.waypoints
+        guard let bounds = linkPath(of: link)?.bounds() else { return nil }
         let pad = Self.linkBoundsPadding
-        let minX = points.map(\.x).min()! - pad, maxX = points.map(\.x).max()! + pad
-        let minY = points.map(\.y).min()! - pad, maxY = points.map(\.y).max()! + pad
-        return GraphRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+        return GraphRect(
+            x: bounds.minX - pad, y: bounds.minY - pad,
+            width: bounds.size.width + 2 * pad, height: bounds.size.height + 2 * pad)
     }
 }
+
+/// Core's `Link`, under a name that SwiftUI's `Link` view cannot shadow in files that import both.
+typealias GraphLink = Link

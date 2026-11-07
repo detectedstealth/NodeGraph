@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 import NodeGraphCore
 import Observation
@@ -56,6 +57,13 @@ public final class GraphEditorModel {
     public var camera = GraphCamera()
     public var selection = GraphSelection()
     public var theme: GraphTheme
+    /// The size of the canvas view, kept up to date by the view. Actions that depend on the
+    /// visible area, such as ``zoomToFit()``, use it.
+    public var viewSize = CGSize(width: 800, height: 600)
+    /// How links are drawn and picked. Changing it re-routes every link.
+    public var linkStyle: LinkStyle = .spline {
+        didSet { cachedSpatialIndex = nil }
+    }
     public var metrics: NodeLayoutMetrics {
         didSet {
             layoutCache.removeAll()
@@ -239,9 +247,33 @@ public final class GraphEditorModel {
         return (start, end)
     }
 
+    /// The route a link is drawn along, or nil if either end is missing.
+    public func linkPath(of link: Link) -> LinkPath? {
+        guard let ends = endpoints(of: link) else { return nil }
+        return LinkPath(from: ends.source, to: ends.target, waypoints: link.waypoints, style: linkStyle)
+    }
+
     /// The color a port is drawn with.
     public func color(of port: PortDefinition) -> RGBAColor {
         theme.color(for: port, in: editor.types)
+    }
+
+    /// Everything in the graph: the union of node frames and group bounds. Nil for an empty graph.
+    public var contentBounds: GraphRect? {
+        var rects = graph.groups.values.map(\.bounds)
+        rects += graph.nodes.keys.compactMap { layout(of: $0)?.frame }
+        guard let first = rects.first else { return nil }
+        return rects.dropFirst().reduce(first) { union, rect in
+            let minX = min(union.minX, rect.minX), minY = min(union.minY, rect.minY)
+            return GraphRect(
+                x: minX, y: minY, width: max(union.maxX, rect.maxX) - minX, height: max(union.maxY, rect.maxY) - minY)
+        }
+    }
+
+    /// Moves and zooms the camera so the whole graph is visible. Does nothing for an empty graph.
+    public func zoomToFit(padding: Double = 40) {
+        guard let bounds = contentBounds else { return }
+        camera = GraphCamera.framing(bounds, in: viewSize, padding: padding)
     }
 
     // MARK: Selection

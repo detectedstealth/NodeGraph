@@ -111,3 +111,39 @@ import NodeGraphCore
         #expect(queries < .seconds(1))
     }
 }
+
+@MainActor
+@Suite struct LinkPickingTests {
+    @Test func picksTheLinkNearThePointAndIgnoresFarOnes() throws {
+        let model = TestKit.makeModel()
+        let source = Node(typeID: TestKit.source, position: GraphPoint(x: 0, y: 0))
+        let sink = Node(typeID: TestKit.sink, position: GraphPoint(x: 600, y: 300))
+        try model.perform(.addNode(node: source))
+        try model.perform(.addNode(node: sink))
+        try model.connect(ConnectionProposal(
+            source: PortAddress(node: source.id, port: "out", direction: .output),
+            target: PortAddress(node: sink.id, port: "a", direction: .input)))
+        let link = try #require(model.graph.links.values.first)
+        let path = try #require(model.linkPath(of: link))
+        let onPath = path.polyline(curveSteps: 32)[16]
+        #expect(model.link(at: GraphPoint(x: onPath.x + 2, y: onPath.y), tolerance: 6) == link.id)
+        #expect(model.link(at: GraphPoint(x: onPath.x, y: onPath.y + 200), tolerance: 6) == nil)
+    }
+
+    @Test func changingTheStyleReroutesPicking() throws {
+        let model = TestKit.makeModel()
+        let source = Node(typeID: TestKit.source, position: GraphPoint(x: 0, y: 0))
+        let sink = Node(typeID: TestKit.sink, position: GraphPoint(x: 600, y: 300))
+        try model.perform(.addNode(node: source))
+        try model.perform(.addNode(node: sink))
+        try model.connect(ConnectionProposal(
+            source: PortAddress(node: source.id, port: "out", direction: .output),
+            target: PortAddress(node: sink.id, port: "a", direction: .input)))
+        let link = try #require(model.graph.links.values.first)
+        let splineMiddle = try #require(model.linkPath(of: link)).polyline(curveSteps: 32)[6]
+        model.linkStyle = .orthogonal
+        let orthogonalPath = try #require(model.linkPath(of: link))
+        #expect(orthogonalPath.distance(to: splineMiddle) != 0)
+        #expect(model.link(at: orthogonalPath.polyline()[1], tolerance: 2) == link.id)
+    }
+}

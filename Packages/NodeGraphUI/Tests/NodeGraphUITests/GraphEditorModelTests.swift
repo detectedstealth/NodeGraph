@@ -1,3 +1,4 @@
+import CoreGraphics
 import Testing
 import NodeGraphCore
 @testable import NodeGraphUI
@@ -141,5 +142,28 @@ import NodeGraphCore
         #expect(model.color(of: unknown) == model.theme.unknownPortColor)
         let trigger = PortDefinition(id: "t", direction: .output, kind: .trigger)
         #expect(model.color(of: trigger) == model.theme.triggerPortColor)
+    }
+}
+
+@MainActor
+@Suite struct ZoomToFitTests {
+    @Test func emptyGraphLeavesTheCameraAlone() {
+        let model = TestKit.makeModel()
+        model.zoomToFit()
+        #expect(model.camera == GraphCamera())
+        #expect(model.contentBounds == nil)
+    }
+
+    @Test func fitShowsEveryNodeAndGroup() throws {
+        let model = TestKit.makeModel()
+        model.viewSize = CGSize(width: 600, height: 400)
+        try model.perform(.addNode(node: Node(typeID: TestKit.source, position: GraphPoint(x: -2000, y: 500))))
+        try model.perform(.addNode(node: Node(typeID: TestKit.sink, position: GraphPoint(x: 3000, y: -800))))
+        try model.perform(.addGroup(group: NodeGroup(title: "G", bounds: GraphRect(x: 100, y: 1500, width: 200, height: 200))))
+        model.zoomToFit()
+        let visible = model.camera.visibleRect(in: model.viewSize)
+        let bounds = try #require(model.contentBounds)
+        #expect(visible.contains(bounds))
+        #expect(model.camera.zoom < 1)
     }
 }
