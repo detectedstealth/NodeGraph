@@ -7,7 +7,6 @@ import SwiftUI
 public struct GraphCanvasView: View {
     private let model: GraphEditorModel
     @State private var controller: GraphInteractionController
-    @State private var hasFramed = false
     @State private var isPressing = false
     @State private var viewSize = CGSize.zero
     #if !canImport(UIKit)
@@ -35,12 +34,7 @@ public struct GraphCanvasView: View {
         }
         .onGeometryChange(for: CGSize.self, of: \.size) { size in
             viewSize = size
-            model.viewSize = size
-            // Show the whole graph the first time the view has a real size.
-            if !hasFramed, size.width > 0, size.height > 0 {
-                hasFramed = true
-                model.zoomToFit()
-            }
+            model.viewSizeChanged(to: size)
         }
         #if canImport(AppKit)
         .background(MacInputMonitor(controller: controller))

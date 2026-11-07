@@ -99,7 +99,7 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
 - [x] In-node widgets: slider, number, combo, toggle, text, multiline, button, color; custom widget hook (`NodeWidget`, `WidgetEditorOverlay`, `NodeWidgetProvider`; 175 UI tests). Slider, number, combo, toggle, text, multiline, button and color work; checked on the iPad simulator.
 
 - [x] Add-node search and palette (double-click/tap, link release, Shift-A, menu, toolbar button): `NodeCatalog`, `AddNodeOverlay`; 196 UI tests, checked on the iPad simulator
-- [ ] Inspector (selected node: title, color, mode, properties, ports)
+- [x] Inspector (selected node: title, color, mode, pin, collapse, position, size, properties, ports; several nodes, a link, a group, or the graph with its problems): `Inspection`, `InspectorActions`, `GraphInspectorView`; 214 UI tests, checked on the iPad simulator
 - [ ] Breadcrumb for subgraphs (enter, leave, edit inside)
 - [ ] Copy, paste, duplicate, delete, align, distribute, collapse, pin, color
 - [ ] Mini-map; execution state overlays (running, error, progress)

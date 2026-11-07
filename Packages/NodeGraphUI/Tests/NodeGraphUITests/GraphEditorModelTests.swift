@@ -167,3 +167,54 @@ import NodeGraphCore
         #expect(model.camera.zoom < 1)
     }
 }
+
+@MainActor
+@Suite struct AutoFramingTests {
+    private func modelWithNodes() throws -> GraphEditorModel {
+        let model = TestKit.makeModel()
+        try model.perform(.addNode(node: Node(typeID: TestKit.source, position: GraphPoint(x: 0, y: 0))))
+        try model.perform(.addNode(node: Node(typeID: TestKit.sink, position: GraphPoint(x: 1500, y: 800))))
+        return model
+    }
+
+    @Test func aProvisionalSizeIsReplacedByTheRealOne() throws {
+        let model = try modelWithNodes()
+        // A window first reports a tiny size, then its real one.
+        model.viewSizeChanged(to: CGSize(width: 40, height: 40))
+        let first = model.camera
+        model.viewSizeChanged(to: CGSize(width: 1000, height: 700))
+        #expect(model.camera != first)
+        let visible = model.camera.visibleRect(in: CGSize(width: 1000, height: 700))
+        #expect(visible.contains(try #require(model.contentBounds)))
+        #expect(model.camera.zoom > GraphCamera.zoomRange.lowerBound)
+    }
+
+    @Test func resizingKeepsTheGraphInFrameUntilTheViewIsMoved() throws {
+        let model = try modelWithNodes()
+        model.viewSizeChanged(to: CGSize(width: 1000, height: 700))
+        model.viewSizeChanged(to: CGSize(width: 700, height: 700))  // for example, an inspector opening
+        #expect(model.camera.visibleRect(in: CGSize(width: 700, height: 700)).contains(try #require(model.contentBounds)))
+
+        model.camera.pan(byScreen: CGSize(width: 50, height: 0))
+        let moved = model.camera
+        model.viewSizeChanged(to: CGSize(width: 1200, height: 800))
+        #expect(model.camera == moved)  // the user's view is left alone
+    }
+
+    @Test func zeroSizesAreIgnored() throws {
+        let model = try modelWithNodes()
+        model.viewSizeChanged(to: .zero)
+        #expect(model.camera == GraphCamera())
+        model.viewSizeChanged(to: CGSize(width: 800, height: 600))
+        #expect(model.camera != GraphCamera())
+    }
+
+    @Test func anEmptyGraphIsFramedOnceItHasContent() throws {
+        let model = TestKit.makeModel()
+        model.viewSizeChanged(to: CGSize(width: 800, height: 600))
+        #expect(model.camera == GraphCamera())
+        try model.perform(.addNode(node: Node(typeID: TestKit.source, position: GraphPoint(x: 3000, y: 3000))))
+        model.viewSizeChanged(to: CGSize(width: 801, height: 600))
+        #expect(model.camera != GraphCamera())
+    }
+}

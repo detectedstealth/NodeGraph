@@ -150,19 +150,10 @@ private struct ColorEditor: View {
     @State private var color = Color.white
     @Environment(\.self) private var environment
 
-    private static let presets: [RGBAColor] = [
-        RGBAColor(red: 0.90, green: 0.30, blue: 0.30), RGBAColor(red: 0.95, green: 0.60, blue: 0.20),
-        RGBAColor(red: 0.95, green: 0.82, blue: 0.25), RGBAColor(red: 0.40, green: 0.78, blue: 0.40),
-        RGBAColor(red: 0.30, green: 0.75, blue: 0.75), RGBAColor(red: 0.30, green: 0.55, blue: 0.95),
-        RGBAColor(red: 0.60, green: 0.40, blue: 0.90), RGBAColor(red: 0.90, green: 0.45, blue: 0.75),
-        RGBAColor(red: 1, green: 1, blue: 1), RGBAColor(red: 0.6, green: 0.6, blue: 0.6),
-        RGBAColor(red: 0.3, green: 0.3, blue: 0.3), RGBAColor(red: 0, green: 0, blue: 0),
-    ]
-
     var body: some View {
         VStack(spacing: 10) {
             LazyVGrid(columns: Array(repeating: GridItem(.fixed(30), spacing: 8), count: 6), spacing: 8) {
-                ForEach(Array(Self.presets.enumerated()), id: \.offset) { _, preset in
+                ForEach(Array(ColorPresets.all.enumerated()), id: \.offset) { _, preset in
                     Button {
                         controller.commitEditor(.color(preset))
                     } label: {
@@ -200,4 +191,16 @@ extension RGBAColor {
             self.init(red: Double(resolved.red), green: Double(resolved.green), blue: Double(resolved.blue), alpha: Double(resolved.opacity))
         }
     }
+}
+
+/// The swatches offered wherever a color is picked.
+enum ColorPresets {
+    static let all: [RGBAColor] = [
+        RGBAColor(red: 0.90, green: 0.30, blue: 0.30), RGBAColor(red: 0.95, green: 0.60, blue: 0.20),
+        RGBAColor(red: 0.95, green: 0.82, blue: 0.25), RGBAColor(red: 0.40, green: 0.78, blue: 0.40),
+        RGBAColor(red: 0.30, green: 0.75, blue: 0.75), RGBAColor(red: 0.30, green: 0.55, blue: 0.95),
+        RGBAColor(red: 0.60, green: 0.40, blue: 0.90), RGBAColor(red: 0.90, green: 0.45, blue: 0.75),
+        RGBAColor(red: 1, green: 1, blue: 1), RGBAColor(red: 0.6, green: 0.6, blue: 0.6),
+        RGBAColor(red: 0.3, green: 0.3, blue: 0.3), RGBAColor(red: 0, green: 0, blue: 0),
+    ]
 }

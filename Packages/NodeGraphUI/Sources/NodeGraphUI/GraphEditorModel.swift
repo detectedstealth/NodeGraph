@@ -319,6 +319,22 @@ public final class GraphEditorModel {
         }
     }
 
+    /// The camera the model last set by fitting the graph. While ``camera`` still equals it, the
+    /// user has not moved the view, so resizing the view keeps the graph in frame.
+    private var autoFramedCamera: GraphCamera?
+
+    /// Tells the model how big the canvas view is. Until the camera is moved by hand, each new
+    /// size refits the graph, so the view that first appears at a provisional size (as a window
+    /// does on macOS) ends up framed correctly rather than stuck at the first guess.
+    public func viewSizeChanged(to size: CGSize) {
+        viewSize = size
+        guard size.width > 0, size.height > 0 else { return }
+        if autoFramedCamera == nil || camera == autoFramedCamera {
+            zoomToFit()
+            autoFramedCamera = camera
+        }
+    }
+
     /// Moves and zooms the camera so the whole graph is visible. Does nothing for an empty graph.
     public func zoomToFit(padding: Double = 40) {
         guard let bounds = contentBounds else { return }
