@@ -16,6 +16,7 @@ public struct GraphInspectorView: View {
         Form {
             switch model.inspection() {
             case .graph(let summary): GraphSection(model: model, summary: summary)
+            case .subgraph(let info): SubgraphSections(model: model, info: info)
             case .node(let info): NodeSections(model: model, info: info)
             case .nodes(let info): NodesSection(model: model, info: info)
             case .link(let info): LinkSection(model: model, info: info)
@@ -100,6 +101,14 @@ private struct NodeSections: View {
             }
         }
 
+        Section("Subgraph") {
+            if let subgraph = model.subgraph(of: info.id) {
+                ActionButton("Open \(model.scopeName(subgraph))") { model.enterSubgraph(of: info.id) }
+                ActionButton("Unpack Subgraph") { model.unpackSubgraph(instance: info.id) }
+            }
+            ActionButton("Create Subgraph…") { model.beginCreateSubgraph() }
+        }
+
         if !info.properties.isEmpty {
             Section("Properties") {
                 ForEach(info.properties) { property in
@@ -108,24 +117,38 @@ private struct NodeSections: View {
             }
         }
         if !info.inputs.isEmpty {
-            Section("Inputs") { ForEach(info.inputs) { PortRow(port: $0) } }
+            Section("Inputs") { ForEach(info.inputs) { PortRow(model: model, node: info.id, port: $0) } }
         }
         if !info.outputs.isEmpty {
-            Section("Outputs") { ForEach(info.outputs) { PortRow(port: $0) } }
+            Section("Outputs") { ForEach(info.outputs) { PortRow(model: model, node: info.id, port: $0) } }
         }
     }
 }
 
 private struct PortRow: View {
+    let model: GraphEditorModel
+    let node: NodeID
     let port: InspectedPort
 
     var body: some View {
-        LabeledContent {
-            Text(detail).foregroundStyle(.secondary)
-        } label: {
-            HStack(spacing: 6) {
-                Circle().fill(Color(port.color)).frame(width: 9, height: 9)
-                Text(port.definition.displayName)
+        HStack {
+            LabeledContent {
+                Text(detail).foregroundStyle(.secondary)
+            } label: {
+                HStack(spacing: 6) {
+                    Circle().fill(Color(port.color)).frame(width: 9, height: 9)
+                    Text(port.definition.displayName)
+                }
+            }
+            if let exposed = port.isExposed {
+                ExposeButton(isExposed: exposed, what: port.definition.direction == .input ? "input" : "output") {
+                    let address = PortAddress(node: node, port: port.definition.id, direction: port.definition.direction)
+                    if port.definition.direction == .input {
+                        model.setExposed(!exposed, input: address)
+                    } else {
+                        model.setExposed(!exposed, output: address)
+                    }
+                }
             }
         }
     }
@@ -141,6 +164,43 @@ private struct PortRow: View {
     }
 }
 
+// MARK: - Buttons
+
+/// A text button for the inspector. In a form, iPadOS draws a plain button in the accent color,
+/// which is hard to read on the inspector's gray; macOS draws it in the normal text color. This
+/// draws it in the text color on both, and dims it when disabled.
+private struct ActionButton: View {
+    let title: String
+    let action: () -> Void
+    @Environment(\.isEnabled) private var isEnabled
+
+    init(_ title: String, action: @escaping () -> Void) {
+        self.title = title
+        self.action = action
+    }
+
+    var body: some View {
+        Button(action: action) {
+            Text(title).foregroundStyle(Color.primary).opacity(isEnabled ? 1 : 0.35)
+        }
+        .buttonStyle(.borderless)
+    }
+}
+
+/// A symbol-only button, drawn in the text color for the same reason as ``ActionButton``.
+private struct IconButton: View {
+    let systemName: String
+    let action: () -> Void
+    @Environment(\.isEnabled) private var isEnabled
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemName).foregroundStyle(Color.primary).opacity(isEnabled ? 1 : 0.35)
+        }
+        .buttonStyle(.borderless)
+    }
+}
+
 // MARK: - Properties
 
 private struct PropertyRow: View {
@@ -153,6 +213,11 @@ private struct PropertyRow: View {
     var body: some View {
         HStack {
             control
+            if let exposed = property.isExposed {
+                ExposeButton(isExposed: exposed, what: "property") {
+                    model.setExposed(!exposed, property: PropertyTarget(node: node, property: property.definition.id))
+                }
+            }
             if !property.isDefault {
                 Button {
                     model.setProperty(nil, named: property.definition.id, of: node)
@@ -238,6 +303,101 @@ private struct PropertyRow: View {
     }
 }
 
+/// A button that adds a port or property to the subgraph's interface, or takes it off again.
+private struct ExposeButton: View {
+    let isExposed: Bool
+    let what: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: isExposed ? "arrow.up.right.square.fill" : "arrow.up.right.square")
+                .foregroundStyle(isExposed ? Color.accentColor : .secondary)
+        }
+        .buttonStyle(.borderless)
+        .help(isExposed ? "Stop exposing this \(what) on the subgraph" : "Expose this \(what) on the subgraph")
+        .accessibilityLabel(isExposed ? "Stop exposing \(what)" : "Expose \(what)")
+    }
+}
+
+// MARK: - Subgraph interface
+
+/// The subgraph being edited, when nothing inside it is selected: its name and category, how
+/// many nodes use it, and the inputs, outputs and properties it exposes, which can be renamed,
+/// reordered and removed here. Select a node inside to add to the list.
+private struct SubgraphSections: View {
+    let model: GraphEditorModel
+    let info: SubgraphInspection
+
+    var body: some View {
+        Section("Subgraph") {
+            LabeledContent("Name") {
+                CommitTextField(text: info.name, placeholder: "Subgraph") { model.renameSubgraph(to: $0 ?? "") }
+            }
+            LabeledContent("Category") {
+                CommitTextField(text: info.category, placeholder: "Subgraph") { model.setSubgraphCategory($0 ?? "") }
+            }
+            LabeledContent("Used by", value: info.instanceCount == 1 ? "1 node" : "\(info.instanceCount) nodes")
+            ActionButton("Leave Subgraph") { model.leaveSubgraph() }
+        }
+
+        InterfaceSection(
+            title: "Inputs", empty: "None. Select a node inside and expose one of its inputs.", entries: info.inputs,
+            rename: { model.renameInput(PortID($0), to: $1) }, remove: { model.removeInput(PortID($0)) },
+            move: { model.moveInput(PortID($0), by: $1) })
+        InterfaceSection(
+            title: "Outputs", empty: "None. Select a node inside and expose one of its outputs.", entries: info.outputs,
+            rename: { model.renameOutput(PortID($0), to: $1) }, remove: { model.removeOutput(PortID($0)) },
+            move: { model.moveOutput(PortID($0), by: $1) })
+        InterfaceSection(
+            title: "Properties", empty: "None. Select a node inside and expose one of its properties.", entries: info.properties,
+            rename: { model.renameProperty(PropertyID($0), to: $1) }, remove: { model.removeProperty(PropertyID($0)) },
+            move: { model.moveProperty(PropertyID($0), by: $1) })
+
+        Section("Inside") {
+            LabeledContent("Nodes", value: "\(info.summary.nodeCount)")
+            LabeledContent("Links", value: "\(info.summary.linkCount)")
+            LabeledContent("Groups", value: "\(info.summary.groupCount)")
+        }
+    }
+}
+
+/// One list of the interface: each entry renamed in place, moved up or down, or removed.
+private struct InterfaceSection: View {
+    let title: String
+    let empty: String
+    let entries: [InterfaceEntry]
+    let rename: (String, String) -> Bool
+    let remove: (String) -> Bool
+    let move: (String, Int) -> Bool
+
+    var body: some View {
+        Section(title) {
+            if entries.isEmpty {
+                Text(empty).font(.callout).foregroundStyle(.secondary)
+            }
+            ForEach(entries) { entry in
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        if let color = entry.color { Circle().fill(Color(color)).frame(width: 9, height: 9) }
+                        CommitTextField(text: entry.displayName, placeholder: entry.id) { rename(entry.id, $0 ?? "") }
+                        IconButton(systemName: "chevron.up") { _ = move(entry.id, -1) }
+                            .disabled(!entry.canMoveUp)
+                            .accessibilityLabel("Move \(entry.displayName) up")
+                        IconButton(systemName: "chevron.down") { _ = move(entry.id, 1) }
+                            .disabled(!entry.canMoveDown)
+                            .accessibilityLabel("Move \(entry.displayName) down")
+                        Button(role: .destructive) { _ = remove(entry.id) } label: { Image(systemName: "trash") }
+                            .accessibilityLabel("Remove \(entry.displayName)")
+                    }
+                    .buttonStyle(.borderless)
+                    Text("\(entry.typeName) · \(entry.detail)").font(.caption).foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+}
+
 // MARK: - Several nodes, links, groups
 
 private struct NodesSection: View {
@@ -258,11 +418,15 @@ private struct NodesSection: View {
             }
         }
 
+        Section("Subgraph") {
+            ActionButton("Create Subgraph…") { model.beginCreateSubgraph() }
+        }
+
         Section("Arrange") {
             LabeledContent("Align") {
                 HStack {
                     ForEach(AlignEdge.allCases, id: \.self) { edge in
-                        Button { model.align(info.ids, to: edge) } label: { Image(systemName: edge.symbol) }
+                        IconButton(systemName: edge.symbol) { model.align(info.ids, to: edge) }
                             .help("Align \(edge.title)")
                             .accessibilityLabel("Align \(edge.title)")
                     }
@@ -271,7 +435,7 @@ private struct NodesSection: View {
             LabeledContent("Distribute") {
                 HStack {
                     ForEach(DistributeAxis.allCases, id: \.self) { axis in
-                        Button { model.distribute(info.ids, along: axis) } label: { Image(systemName: axis.symbol) }
+                        IconButton(systemName: axis.symbol) { model.distribute(info.ids, along: axis) }
                             .disabled(info.ids.count < 3)
                             .help("Distribute \(axis.title)")
                             .accessibilityLabel("Distribute \(axis.title)")
@@ -294,7 +458,7 @@ private struct LinkSection: View {
             if !info.typeName.isEmpty { LabeledContent("Type", value: info.typeName) }
             LabeledContent("Reroute points", value: "\(info.waypointCount)")
             if info.waypointCount > 0 {
-                Button("Remove Reroute Points") { model.clearWaypoints(of: info.id) }
+                ActionButton("Remove Reroute Points") { model.clearWaypoints(of: info.id) }
             }
         }
     }
@@ -393,7 +557,7 @@ private struct ColorRow: View {
                     set: { _ = apply(RGBAColor($0, in: environment)) }), supportsOpacity: true)
                     .labelsHidden()
                 if allowsClear, color != nil {
-                    Button("Clear") { _ = apply(nil) }.buttonStyle(.borderless)
+                    ActionButton("Clear") { _ = apply(nil) }
                 }
             }
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 26), spacing: 6)], alignment: .leading, spacing: 6) {

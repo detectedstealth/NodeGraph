@@ -90,6 +90,7 @@ public struct GraphCanvasView: View {
         // Last, so the editor sits above the touch layer and the drag gesture.
         .overlay { WidgetEditorOverlay(controller: controller) }
         .overlay { AddNodeOverlay(controller: controller) }
+        .overlay { CreateSubgraphOverlay(model: model) }
     }
 
     #if !canImport(UIKit)

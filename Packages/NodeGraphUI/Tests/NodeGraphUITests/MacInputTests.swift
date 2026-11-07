@@ -218,7 +218,7 @@ import NodeGraphCore
         model.select(node: b.id)
         let items = controller.contextMenu(at: CGPoint(x: 60, y: 40))
         #expect(model.selection.nodes == [a.id])
-        #expect(titles(items) == ["Copy", "Cut", "Duplicate", "Collapse", "Pin", "Mode", "Disconnect All", "Delete"])
+        #expect(titles(items) == ["Copy", "Cut", "Duplicate", "Collapse", "Pin", "Mode", "Disconnect All", "Create Subgraph…", "Delete"])
         #expect(items.first { $0.title == "Disconnect All" }?.isEnabled == false)
     }
 

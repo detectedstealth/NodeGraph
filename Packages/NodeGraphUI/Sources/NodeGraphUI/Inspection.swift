@@ -9,6 +9,8 @@ public struct InspectedProperty: Hashable, Sendable, Identifiable {
     public var value: GraphValue
     /// Whether the node has no override, so the value is the definition's default.
     public var isDefault: Bool
+    /// Inside a subgraph: whether the subgraph exposes this property. Nil at the root.
+    public var isExposed: Bool?
 }
 
 /// One port of the inspected node.
@@ -19,6 +21,8 @@ public struct InspectedPort: Hashable, Sendable, Identifiable {
     public var typeName: String
     public var color: RGBAColor
     public var linkCount: Int
+    /// Inside a subgraph: whether the subgraph exposes this port. Nil at the root.
+    public var isExposed: Bool?
 }
 
 /// Everything the inspector shows for one selected node.
@@ -77,9 +81,38 @@ public struct GraphSummary: Hashable, Sendable {
     public var groupCount: Int
 }
 
+/// One exposed input, output or property of the subgraph being edited.
+public struct InterfaceEntry: Hashable, Sendable, Identifiable {
+    public var id: String
+    public var displayName: String
+    /// The type's name, or the kind of property.
+    public var typeName: String
+    public var color: RGBAColor?
+    /// What it connects to inside, in words: "feeds Add · a".
+    public var detail: String
+    public var canMoveUp: Bool
+    public var canMoveDown: Bool
+}
+
+/// The subgraph being edited, as the inspector shows it when nothing inside is selected.
+public struct SubgraphInspection: Hashable, Sendable {
+    public var id: SubgraphID
+    public var name: String
+    public var category: String
+    public var inputs: [InterfaceEntry]
+    public var outputs: [InterfaceEntry]
+    public var properties: [InterfaceEntry]
+    /// How many nodes, in the document, are instances of it.
+    public var instanceCount: Int
+    /// The inner graph, counted.
+    public var summary: GraphSummary
+}
+
 /// What the inspector is looking at, decided from the selection.
 public enum Inspection: Hashable, Sendable {
     case graph(GraphSummary)
+    /// Nothing selected while editing inside a subgraph: its name and interface.
+    case subgraph(SubgraphInspection)
     case node(NodeInspection)
     case nodes(NodesInspection)
     case link(LinkInspection)
@@ -99,7 +132,59 @@ extension GraphEditorModel {
         if selection.groups.count == 1, let id = selection.groups.first, let group = graph.groups[id] {
             return .group(inspect(group))
         }
-        return .graph(GraphSummary(nodeCount: graph.nodes.count, linkCount: graph.links.count, groupCount: graph.groups.count))
+        let summary = GraphSummary(nodeCount: graph.nodes.count, linkCount: graph.links.count, groupCount: graph.groups.count)
+        if let scope = currentScope, let definition = editor.subgraphs[scope] {
+            return .subgraph(inspect(definition, summary: summary))
+        }
+        return .graph(summary)
+    }
+
+    private func inspect(_ subgraph: SubgraphDefinition, summary: GraphSummary) -> SubgraphInspection {
+        let interface = subgraph.interface
+        func name(of node: NodeID) -> String {
+            guard let node = graph.nodes[node] else { return "missing node" }
+            return node.title ?? definition(of: node)?.displayName ?? node.typeID.rawValue
+        }
+        func port(_ address: PortAddress) -> String {
+            let displayName = graph.nodes[address.node].flatMap { self.definition(of: $0) }?
+                .port(address.port, direction: address.direction)?.displayName ?? address.port.rawValue
+            return "\(name(of: address.node)) · \(displayName)"
+        }
+        func typeName(_ type: PortType, _ kind: PortKind) -> String {
+            kind == .trigger ? "Trigger" : editor.types.info(for: type)?.displayName ?? type.rawValue
+        }
+        func entries<T>(_ items: [T], _ make: (T) -> (String, String, String, RGBAColor?, String)) -> [InterfaceEntry] {
+            items.enumerated().map { index, item in
+                let (id, displayName, typeName, color, detail) = make(item)
+                return InterfaceEntry(
+                    id: id, displayName: displayName, typeName: typeName, color: color, detail: detail,
+                    canMoveUp: index > 0, canMoveDown: index < items.count - 1)
+            }
+        }
+        let instances = (graph(of: nil) + editor.subgraphs.values.map(\.graph)).reduce(0) { total, graph in
+            total + graph.nodes.values.filter { $0.typeID == subgraph.typeID }.count
+        }
+        return SubgraphInspection(
+            id: subgraph.id, name: interface.name, category: interface.category,
+            inputs: entries(interface.inputs) {
+                ($0.id.rawValue, $0.displayName, typeName($0.type, $0.kind), editor.types.info(for: $0.type)?.color,
+                 $0.targets.isEmpty ? "feeds nothing" : "feeds " + $0.targets.map(port).joined(separator: ", "))
+            },
+            outputs: entries(interface.outputs) {
+                ($0.id.rawValue, $0.displayName, typeName($0.type, $0.kind), editor.types.info(for: $0.type)?.color,
+                 $0.source.map { "from " + port($0) } ?? "not connected")
+            },
+            properties: entries(interface.properties) {
+                ($0.id.rawValue, $0.displayName, NodeWidgetSpec(PropertyDefinition(
+                    id: $0.id, displayName: $0.displayName, kind: $0.kind, defaultValue: $0.defaultValue)).kind.label, nil,
+                 $0.targets.isEmpty ? "sets nothing" : "sets " + $0.targets.map { "\(name(of: $0.node)) · \($0.property.rawValue)" }.joined(separator: ", "))
+            },
+            instanceCount: instances, summary: summary)
+    }
+
+    /// The root graph when `scope` is nil, else that subgraph's inner graph, as a plain value.
+    private func graph(of scope: SubgraphID?) -> [Graph] {
+        [editor.editedGraph(in: scope) ?? editor.graph]
     }
 
     private func inspect(_ node: Node) -> NodeInspection {
@@ -111,7 +196,8 @@ extension GraphEditorModel {
             return InspectedPort(
                 definition: port,
                 typeName: port.kind == .trigger ? "Trigger" : editor.types.info(for: port.type)?.displayName ?? port.type.rawValue,
-                color: color(of: port), linkCount: links.count)
+                color: color(of: port), linkCount: links.count,
+                isExposed: port.direction == .input ? isExposed(input: address) : isExposed(output: address))
         }
         return NodeInspection(
             id: node.id, typeID: node.typeID, typeName: definition?.displayName ?? node.typeID.rawValue,
@@ -121,7 +207,8 @@ extension GraphEditorModel {
                 InspectedProperty(
                     definition: property, spec: NodeWidgetSpec(property),
                     value: node.properties[property.id] ?? property.defaultValue,
-                    isDefault: node.properties[property.id] == nil)
+                    isDefault: node.properties[property.id] == nil,
+                    isExposed: isExposed(property: PropertyTarget(node: node.id, property: property.id)))
             },
             inputs: (definition?.inputs ?? []).map(port), outputs: (definition?.outputs ?? []).map(port),
             isKnownType: definition != nil)

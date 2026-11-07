@@ -89,6 +89,13 @@ extension GraphInteractionController {
             return model.align(selection.nodes, to: edge)
         case .distribute(let axis):
             return model.distribute(selection.nodes, along: axis)
+        case .createSubgraph:
+            closeEditor(commit: true)
+            cancelAddNode()
+            return model.beginCreateSubgraph()
+        case .unpackSubgraph:
+            guard selection.nodes.count == 1, let id = selection.nodes.first else { return false }
+            return model.unpackSubgraph(instance: id)
         case .openSubgraph:
             guard selection.nodes.count == 1, let id = selection.nodes.first else { return false }
             return enterSubgraph(of: id)
@@ -134,6 +141,8 @@ extension GraphInteractionController {
             let nodes = model.graph.nodes.values.filter { model.selection.nodes.contains($0.id) }
             let modes = Set(nodes.map(\.mode))
             let opens = nodes.count == 1 && model.subgraph(of: id) != nil
+            let authoring = [CanvasMenuItem("Create Subgraph…", .createSubgraph)]
+                + (opens ? [CanvasMenuItem("Unpack Subgraph", .unpackSubgraph)] : [])
             var arrange: [CanvasMenuItem] = []
             if nodes.count >= 2 {
                 arrange.append(CanvasMenuItem("Align", submenu: AlignEdge.allCases.map { CanvasMenuItem($0.title, .align($0)) }))
@@ -154,7 +163,7 @@ extension GraphInteractionController {
                 CanvasMenuItem(
                     "Disconnect All", .disconnectSelection,
                     isEnabled: nodes.contains { !model.graph.links(attachedTo: $0.id).isEmpty }),
-            ] + (arrange.isEmpty ? [] : [.separator] + arrange) + [
+            ] + (arrange.isEmpty ? [] : [.separator] + arrange) + [.separator] + authoring + [
                 .separator,
                 CanvasMenuItem("Delete", .deleteSelection),
             ]

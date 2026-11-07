@@ -100,6 +100,9 @@ public final class GraphEditorModel {
     /// observable `graph` already changes whenever a layout could.
     @ObservationIgnored private var layoutCache: [NodeID: CachedLayout] = [:]
 
+    /// The Create Subgraph form, while it is open.
+    public var createSubgraphRequest: CreateSubgraphRequest?
+
     /// The subgraphs entered to reach the graph being edited, outermost first. Empty at the root.
     /// Each was opened from an instance of it in the one before, so this is the breadcrumb.
     public private(set) var scopePath: [SubgraphID] = []

@@ -394,3 +394,47 @@ extension GraphCommand {
         }
     }
 }
+
+/// One outside node feeding several selected ports, as when a value drives two nodes that are
+/// wrapped together.
+@Suite struct SharedInputConversionTests {
+    @Test func oneOutsideOutputFeedingTwoSelectedNodesBecomesOneInputForBoth() throws {
+        let (nodes, types) = registries()
+        let editor = GraphEditor(nodes: nodes, types: types)
+        let a = Node(typeID: "const", title: "A"), b = Node(typeID: "const", title: "B")
+        let x = Node(typeID: "add"), y = Node(typeID: "add")
+        for node in [a, b, x, y] { try editor.apply(.addNode(node: node)) }
+        func link(_ from: Node, _ to: Node, _ port: PortID) throws {
+            try editor.connect(ConnectionProposal(
+                source: PortAddress(node: from.id, port: "out", direction: .output),
+                target: PortAddress(node: to.id, port: port, direction: .input)))
+        }
+        try link(a, x, "a"); try link(a, y, "a"); try link(b, y, "b")
+
+        let conversion = try editor.convertToSubgraphCommand(nodes: [x.id, y.id], name: "Pair")
+        try editor.apply(conversion.command)
+        let definition = try #require(editor.subgraphs[conversion.subgraph])
+        // Two inputs, not three: A feeds both nodes through one.
+        #expect(definition.interface.inputs.count == 2)
+        let fromA = try #require(definition.interface.inputs.first { $0.displayName == "A" })
+        #expect(Set(fromA.targets.map(\.node)) == [x.id, y.id])
+        #expect(definition.interface.inputs.contains { $0.displayName == "B" && $0.targets.map(\.node) == [y.id] })
+        // Outside, A and B each link to the instance once.
+        #expect(editor.graph.links.count == 2)
+        #expect(editor.graph.links.values.allSatisfy { $0.target.node == conversion.instance })
+    }
+
+    @Test func anUntitledFeederFallsBackToTheInnerPortName() throws {
+        let (nodes, types) = registries()
+        let editor = GraphEditor(nodes: nodes, types: types)
+        let feeder = Node(typeID: "const"), x = Node(typeID: "add")
+        for node in [feeder, x] { try editor.apply(.addNode(node: node)) }
+        try editor.connect(ConnectionProposal(
+            source: PortAddress(node: feeder.id, port: "out", direction: .output),
+            target: PortAddress(node: x.id, port: "a", direction: .input)))
+        let conversion = try editor.convertToSubgraphCommand(nodes: [x.id], name: "One")
+        #expect(editor.subgraphs.isEmpty)
+        try editor.apply(conversion.command)
+        #expect(editor.subgraphs[conversion.subgraph]?.interface.inputs.first?.displayName == "a")
+    }
+}

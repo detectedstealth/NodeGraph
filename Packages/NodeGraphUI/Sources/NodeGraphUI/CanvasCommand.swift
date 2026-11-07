@@ -28,6 +28,10 @@ public enum CanvasCommand: Hashable, Sendable {
     case align(AlignEdge)
     /// Spaces three or more selected nodes evenly.
     case distribute(DistributeAxis)
+    /// Opens the Create Subgraph form for the selected nodes.
+    case createSubgraph
+    /// Replaces the selected subgraph instance with the nodes inside it.
+    case unpackSubgraph
     /// Opens the subgraph the single selected node is an instance of, to edit inside it.
     case openSubgraph
     /// Goes back out of the subgraph being edited.
@@ -75,6 +79,8 @@ public enum CanvasKeyMap {
             case "x" where commandKey: return .cut
             case "v" where commandKey: return .paste(at: nil)
             case "d" where commandKey: return .duplicate
+            case "g" where commandKey && modifiers.contains(.shift): return .unpackSubgraph
+            case "g" where commandKey: return .createSubgraph
             case "0" where commandKey: return .resetZoom
             case "=" where commandKey, "+" where commandKey: return .zoomIn
             case "-" where commandKey: return .zoomOut

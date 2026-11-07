@@ -88,10 +88,12 @@ final class TouchInputView: UIView, UIGestureRecognizerDelegate, UIContextMenuIn
     /// Shortcuts the system would otherwise claim. Registering them also lists them in the
     /// shortcut overlay that appears when Command is held.
     override var keyCommands: [UIKeyCommand]? {
-        func command(_ title: String, _ input: String, _ id: String) -> UIKeyCommand {
+        func command(
+            _ title: String, _ input: String, _ id: String, flags: UIKeyModifierFlags = .command
+        ) -> UIKeyCommand {
             let command = UIKeyCommand(
                 title: title, action: #selector(handleKeyCommand(_:)), input: input,
-                modifierFlags: .command, propertyList: id)
+                modifierFlags: flags, propertyList: id)
             command.wantsPriorityOverSystemBehavior = true
             return command
         }
@@ -102,6 +104,8 @@ final class TouchInputView: UIView, UIGestureRecognizerDelegate, UIContextMenuIn
             command("Zoom Out", "-", "zoomOut"),
             command("Leave Subgraph", "[", "leaveSubgraph"),
             command("Duplicate", "d", "duplicate"),
+            command("Create Subgraph", "g", "createSubgraph"),
+            command("Unpack Subgraph", "g", "unpackSubgraph", flags: [.command, .shift]),
         ]
     }
 
@@ -128,6 +132,8 @@ final class TouchInputView: UIView, UIGestureRecognizerDelegate, UIContextMenuIn
         case "zoomOut": .zoomOut
         case "leaveSubgraph": .leaveSubgraph
         case "duplicate": .duplicate
+        case "createSubgraph": .createSubgraph
+        case "unpackSubgraph": .unpackSubgraph
         default: nil
         }
         if let command { controller?.perform(command) }

@@ -42,7 +42,10 @@ extension GraphEditor {
     /// - links from one selected output to the outside become one output (feeding every node the
     ///   output fed).
     ///
-    /// Port ids come from the inner ports and are made unique with a numeric suffix. The instance
+    /// Port ids come from the inner ports and are made unique with a numeric suffix. An input is
+    /// named after the node that feeds it if that node has its own title, else after the inner
+    /// port. An outside output that feeds several selected ports becomes a single input that
+    /// delivers to all of them. The instance
     /// is placed at the centre of the selection. Applied as one batch, so undo restores the
     /// original nodes, links and positions exactly.
     ///
@@ -100,8 +103,11 @@ extension GraphEditor {
             }
             let first = port(links[0].target)
             let id = PortID(unique(links[0].target.port.rawValue, &usedInputs))
+            // Named after the node that feeds it when that node has a title of its own ("A"), which
+            // says more than the name of an inner port that may be one of several it feeds.
+            let feeder = source.nodes[outside.node]?.title
             inputs.append(SubgraphInput(
-                id: id, displayName: first?.displayName ?? id.rawValue, kind: first?.kind ?? .data,
+                id: id, displayName: feeder ?? first?.displayName ?? id.rawValue, kind: first?.kind ?? .data,
                 type: first?.type ?? .any, defaultValue: first?.defaultValue, targets: links.map(\.target)))
             inputLinks.append((outside, id))
         }

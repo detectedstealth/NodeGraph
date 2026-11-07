@@ -20,6 +20,21 @@ public enum WidgetKind: Hashable, Sendable {
     /// ``GraphEditorModel/registerWidgetRenderer(named:_:)``.
     case custom(String)
 
+    /// A short name for the kind of value, for lists.
+    public var label: String {
+        switch self {
+        case .toggle: "Toggle"
+        case .slider(_, _, _, let isInteger): isInteger ? "Integer" : "Number"
+        case .number(_, _, _, let isInteger): isInteger ? "Integer" : "Number"
+        case .text, .multilineText: "Text"
+        case .combo: "Choice"
+        case .color: "Color"
+        case .readOnly: "Vector"
+        case .button: "Button"
+        case .custom(let name): name
+        }
+    }
+
     /// How many rows of ``NodeLayoutMetrics/widgetRowHeight`` the widget takes.
     public var rowCount: Int {
         if case .multilineText = self { return 3 }
