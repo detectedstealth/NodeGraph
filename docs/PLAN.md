@@ -101,7 +101,9 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
 - [x] Add-node search and palette (double-click/tap, link release, Shift-A, menu, toolbar button): `NodeCatalog`, `AddNodeOverlay`; 196 UI tests, checked on the iPad simulator
 - [x] Inspector (selected node: title, color, mode, pin, collapse, position, size, properties, ports; several nodes, a link, a group, or the graph with its problems): `Inspection`, `InspectorActions`, `GraphInspectorView`; 214 UI tests, checked on the iPad simulator
 - [x] Breadcrumb for subgraphs (enter by double-click/tap, menu or Return, leave by breadcrumb, menu or Command-[, edit inside with undo): `GraphBreadcrumbView`, model scope, Core scoped connect and group move; 234 UI and 398 Core tests, checked on the iPad simulator
-- [ ] Copy, paste, duplicate, delete, align, distribute, collapse, pin, color
+- [ ] Copy, cut, paste, duplicate, align, distribute (delete, collapse, pin and color are done: canvas commands, menus and the inspector). Next after the subgraph breadcrumb because it makes building subgraphs easier.
+- [ ] Subgraph authoring: "Create Subgraph" from the selection (name prompt, choose properties to promote, open it afterwards), "Unpack Subgraph", from the menu, a shortcut and the inspector. Core already has `convertToSubgraphCommand` and `unpackCommand`.
+- [ ] Subgraph interface editor: add, rename, reorder and remove the exposed inputs, outputs and promoted properties of an open subgraph or an instance, with links to instances kept (`setSubgraphInterface`)
 - [ ] Mini-map; execution state overlays (running, error, progress)
 - [ ] Custom node drawing hook for domain packs
 - [ ] Accessibility: VoiceOver actions for node and link operations, Dynamic Type
@@ -117,6 +119,7 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
 ## Phase 6: Persistence and server readiness
 
 - [ ] `GraphStore` protocol; in-memory and local file stores
+- [ ] Subgraph library in the editor: publish a subgraph to a library, import from one, see update and modified status, update an instance's definition (`SubgraphLibrary` is done in Core; this is the UI and the stores for it)
 - [ ] Document-based app integration (custom UTType, autosave, versions) using the SwiftUI Document APIs
 - [ ] Revisioned save with conflict detection; command log export
 - [ ] `ng-run` headless CLI (swift-argument-parser) for running graphs
