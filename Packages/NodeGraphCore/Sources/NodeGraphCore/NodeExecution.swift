@@ -99,6 +99,12 @@ public struct NodeProgress: Hashable, Sendable {
     /// 0...1.
     public var fraction: Double
     public var message: String?
+
+    public init(node: NodeID, fraction: Double, message: String? = nil) {
+        self.node = node
+        self.fraction = fraction
+        self.message = message
+    }
 }
 
 /// Shared resources available to executors, keyed by type: a clock, an asset store, a

@@ -100,6 +100,10 @@ public final class GraphEditorModel {
     /// observable `graph` already changes whenever a layout could.
     @ObservationIgnored private var layoutCache: [NodeID: CachedLayout] = [:]
 
+    /// How the latest run went, per node, for the canvas's badges and progress bars. Fed by
+    /// ``apply(_:)`` or ``observeExecution(_:)``.
+    public internal(set) var executionState = ExecutionState()
+
     /// The Create Subgraph form, while it is open.
     public var createSubgraphRequest: CreateSubgraphRequest?
 

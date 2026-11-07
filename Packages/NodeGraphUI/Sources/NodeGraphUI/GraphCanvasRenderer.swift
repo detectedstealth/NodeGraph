@@ -219,8 +219,15 @@ struct GraphCanvasRenderer {
             context.fill(header.path(in: CGRect(layout.header)), with: .color(Color(headerColor)))
         }
         let hovered = controller?.hover == .node(node.id)
-        let border = selected ? theme.selection : hovered ? theme.selection.withAlpha(0.55) : theme.nodeBorder
-        context.stroke(shape, with: .color(Color(border)), lineWidth: max(selected || hovered ? 2 : theme.borderWidth, 1 / zoom))
+        let decoration = model.runDecoration(of: node.id)
+        var border = selected ? theme.selection : hovered ? theme.selection.withAlpha(0.55) : theme.nodeBorder
+        var borderWidth = selected || hovered ? 2.0 : theme.borderWidth
+        // A running or failed node shows it even when selected (the selection still thickens the line).
+        if let decoration, decoration.tintsBorder {
+            border = theme.color(for: decoration.badge)
+            borderWidth = max(borderWidth, 2)
+        }
+        context.stroke(shape, with: .color(Color(border)), lineWidth: max(borderWidth, 1 / zoom))
 
         if lod.drawsTitles {
             let title = node.title ?? model.definition(of: node)?.displayName ?? node.typeID.rawValue
@@ -244,6 +251,69 @@ struct GraphCanvasRenderer {
             for widget in layout.widgets { drawWidget(&context, widget, on: node) }
         }
         if selected, !layout.isCollapsed, lod.tier == .full { drawResizeHandle(&context, layout) }
+        if let decoration { drawRunDecoration(&context, decoration, layout: layout, lod: lod) }
+    }
+
+    // MARK: Execution state
+
+    private func drawRunDecoration(
+        _ context: inout GraphicsContext, _ decoration: NodeRunDecoration, layout: NodeLayout, lod: LevelOfDetail
+    ) {
+        let theme = model.theme
+        let frame = CGRect(layout.frame)
+        let color = Color(theme.color(for: decoration.badge))
+
+        // Progress runs along the bottom edge, inside the node.
+        if let progress = decoration.progress, lod.tier != .minimal {
+            let track = CGRect(x: frame.minX + 4, y: frame.maxY - 6, width: frame.width - 8, height: 3)
+            context.fill(Capsule().path(in: track), with: .color(Color(theme.background.withAlpha(0.7))))
+            var fill = track
+            fill.size.width = track.width * progress
+            if fill.width > 0 { context.fill(Capsule().path(in: fill), with: .color(color)) }
+        }
+
+        // The badge sits on the top-right corner, clear of the title and the subgraph mark. At the
+        // smallest level of detail it is enlarged, since it may be all that is readable.
+        let r = lod.tier == .minimal ? 10.0 : 6.0
+        let center = CGPoint(x: frame.maxX, y: frame.minY)
+        let disc = Path(ellipseIn: CGRect(x: center.x - r, y: center.y - r, width: 2 * r, height: 2 * r))
+        context.fill(disc, with: .color(color))
+        context.stroke(disc, with: .color(Color(theme.background)), lineWidth: 1.5)
+        if lod.tier != .minimal { drawBadgeGlyph(&context, decoration.badge, at: center, radius: r) }
+
+        // The reason a node failed, under it, where it does not cover a neighbour's ports.
+        if decoration.badge == .failed, let message = decoration.message, lod.tier == .full {
+            let text = fittedText(&context, message, width: max(frame.width, 120), color: Color(theme.failed))
+            context.draw(text, at: CGPoint(x: frame.minX + 2, y: frame.maxY + 4), anchor: .topLeading)
+        }
+    }
+
+    /// A small mark inside the badge so state does not rest on color alone.
+    private func drawBadgeGlyph(_ context: inout GraphicsContext, _ badge: NodeRunDecoration.Badge, at c: CGPoint, radius r: Double) {
+        let k = r * 0.45
+        var glyph = Path()
+        switch badge {
+        case .running:
+            glyph.move(to: CGPoint(x: c.x - k * 0.5, y: c.y - k))
+            glyph.addLine(to: CGPoint(x: c.x + k, y: c.y))
+            glyph.addLine(to: CGPoint(x: c.x - k * 0.5, y: c.y + k))
+            glyph.closeSubpath()
+            context.fill(glyph, with: .color(.white))
+            return
+        case .succeeded, .cached:
+            glyph.move(to: CGPoint(x: c.x - k, y: c.y))
+            glyph.addLine(to: CGPoint(x: c.x - k * 0.2, y: c.y + k * 0.8))
+            glyph.addLine(to: CGPoint(x: c.x + k, y: c.y - k * 0.7))
+        case .failed:
+            glyph.move(to: CGPoint(x: c.x - k * 0.8, y: c.y - k * 0.8))
+            glyph.addLine(to: CGPoint(x: c.x + k * 0.8, y: c.y + k * 0.8))
+            glyph.move(to: CGPoint(x: c.x + k * 0.8, y: c.y - k * 0.8))
+            glyph.addLine(to: CGPoint(x: c.x - k * 0.8, y: c.y + k * 0.8))
+        case .cancelled, .skipped:
+            glyph.move(to: CGPoint(x: c.x - k, y: c.y))
+            glyph.addLine(to: CGPoint(x: c.x + k, y: c.y))
+        }
+        context.stroke(glyph, with: .color(.white), style: StrokeStyle(lineWidth: 1.4, lineCap: .round, lineJoin: .round))
     }
 
     /// The title as resolved text that fits in `width`, shortened with an ellipsis if it must

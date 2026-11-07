@@ -39,6 +39,11 @@ public struct GraphCamera: Hashable, Sendable {
         origin.y -= Double(delta.height) / zoom
     }
 
+    /// Moves the view so `point` is at the center of a view of `size`, keeping the zoom.
+    public mutating func center(on point: GraphPoint, in size: CGSize) {
+        origin = GraphPoint(x: point.x - Double(size.width) / 2 / zoom, y: point.y - Double(size.height) / 2 / zoom)
+    }
+
     /// Sets the zoom (clamped to ``zoomRange``) keeping the graph point under `anchor` still.
     ///
     /// Takes an absolute zoom on purpose. A pinch should apply its total magnification to the
