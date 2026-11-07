@@ -92,7 +92,8 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
 - [x] Bridge `GraphHistory` to the platform `UndoManager` (Core stays UI-free; 59 UI tests, Core 391)
 - [x] Interaction state machine: pan, zoom (anchored, non-compounding), move, resize, marquee, connect, reconnect, shift-drag link move, snap to grid (`GraphInteractionController`; 106 UI tests). Gestures are wired for mouse drag and pinch; scroll, menus and keys are the next two items.
 
-- [ ] macOS input: scroll/trackpad, right-click menus, keyboard shortcuts, hover
+- [x] macOS input: scroll/trackpad, right-click menus, keyboard shortcuts, hover (`CanvasCommand` and key map, context menus, scroll and zoom, hover, `MacInputMonitor`; 134 UI tests). Tested through the controller; the AppKit event shim itself needs a hand check.
+
 - [ ] iPadOS input: touch, pinch, two-finger pan, long-press menus, Pencil, hardware keyboard, pointer
 - [ ] In-node widgets: slider, number, combo, toggle, text, multiline, button, color; custom widget hook
 - [ ] Add-node search (double-click/tap, link release), palette, inspector, breadcrumb for subgraphs

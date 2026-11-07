@@ -169,7 +169,8 @@ struct GraphCanvasRenderer {
         } else {
             color = theme.link
         }
-        let width = max(theme.linkWidth, 1.5 / model.camera.zoom) * (selected ? 1.5 : 1)
+        let hovered = controller?.hover == .link(link.id)
+        let width = max(theme.linkWidth, 1.5 / model.camera.zoom) * (selected ? 1.5 : hovered ? 1.35 : 1)
         context.stroke(path, with: .color(Color(color)), style: StrokeStyle(lineWidth: width, lineCap: .round, lineJoin: .round))
     }
 
@@ -198,9 +199,9 @@ struct GraphCanvasRenderer {
                     clipped.fill(Path(CGRect(layout.header)), with: .color(Color(headerColor)))
                 }
             }
-            layer.stroke(
-                shape, with: .color(Color(selected ? theme.selection : theme.nodeBorder)),
-                lineWidth: max(selected ? 2 : theme.borderWidth, 1 / zoom))
+            let hovered = controller?.hover == .node(node.id)
+            let border = selected ? theme.selection : hovered ? theme.selection.withAlpha(0.55) : theme.nodeBorder
+            layer.stroke(shape, with: .color(Color(border)), lineWidth: max(selected || hovered ? 2 : theme.borderWidth, 1 / zoom))
 
             if lod.drawsTitles {
                 let definition = model.definition(of: node)
@@ -249,6 +250,13 @@ struct GraphCanvasRenderer {
         } else {
             context.fill(shape, with: .color(Color(theme.nodeBody)))
             context.stroke(shape, with: .color(color), lineWidth: 1.5)
+        }
+
+        if controller?.hover == .port(port.address) {
+            let ring = r + 3
+            context.stroke(
+                Path(ellipseIn: CGRect(x: center.x - ring, y: center.y - ring, width: 2 * ring, height: 2 * ring)),
+                with: .color(color.opacity(0.7)), lineWidth: 1.5)
         }
 
         guard lod.drawsPortLabels, !layout.isCollapsed else { return }

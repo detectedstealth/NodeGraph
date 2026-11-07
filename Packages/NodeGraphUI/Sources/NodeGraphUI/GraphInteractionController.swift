@@ -1,4 +1,5 @@
 import CoreGraphics
+import Foundation
 import NodeGraphCore
 import Observation
 
@@ -32,6 +33,22 @@ public final class GraphInteractionController {
     public private(set) var draft: ConnectionDraft?
     /// Links the canvas should not draw because the draft stands in for them.
     public private(set) var hiddenLinks: Set<LinkID> = []
+
+    /// What the pointer is over while no drag is in progress, for highlighting.
+    public enum Hover: Hashable, Sendable {
+        case node(NodeID)
+        case port(PortAddress)
+        case link(LinkID)
+    }
+    public private(set) var hover: Hover?
+
+    /// What a right-click landed on.
+    enum Subject {
+        case node(NodeID)
+        case link(LinkID, GraphPoint)
+        case group(GroupID)
+        case empty
+    }
 
     /// Whether a drag is in progress.
     public var isDragging: Bool {
@@ -221,6 +238,47 @@ public final class GraphInteractionController {
             break
         }
         reset()
+    }
+
+    // MARK: Hover and scroll
+
+    /// Reports where the pointer is, or nil when it leaves the canvas. Ignored during a drag.
+    public func hover(at point: CGPoint?) {
+        var result: Hover?
+        if let point, !isActive {
+            switch target(at: model.camera.graphPoint(forScreen: point)) {
+            case .port(let port): result = .port(port.address)
+            case .node(let id), .nodeResize(let id): result = .node(id)
+            case .link(let id): result = .link(id)
+            case .empty, .groupTitle, .groupResize: result = nil
+            }
+        }
+        if result != hover { hover = result }
+    }
+
+    /// Handles a scroll wheel or trackpad scroll at `point`.
+    ///
+    /// A trackpad (`isPrecise`) pans the view, and zooms about the pointer while Command or
+    /// Option is held. A physical wheel zooms about the pointer, as node editors usually do.
+    public func scroll(by delta: CGSize, at point: CGPoint, modifiers: InputModifiers = [], isPrecise: Bool) {
+        if isPrecise && !modifiers.contains(.command) && !modifiers.contains(.option) {
+            pan(byScreen: delta)
+            return
+        }
+        let sensitivity = isPrecise ? 0.01 : 0.06
+        let factor = exp(Double(delta.height) * sensitivity)
+        model.camera.setZoom(model.camera.zoom * factor, anchoredAtScreen: point)
+    }
+
+    func subject(at point: CGPoint) -> Subject {
+        let graphPoint = model.camera.graphPoint(forScreen: point)
+        switch target(at: graphPoint) {
+        case .node(let id), .nodeResize(let id): return .node(id)
+        case .port(let port): return .node(port.address.node)
+        case .link(let id): return .link(id, graphPoint)
+        case .groupTitle(let id), .groupResize(let id): return .group(id)
+        case .empty: return .empty
+        }
     }
 
     // MARK: Zoom and pan
@@ -468,6 +526,7 @@ public final class GraphInteractionController {
     }
 
     private func reset() {
+        hover = nil
         state = .idle
         marquee = nil
         draft = nil

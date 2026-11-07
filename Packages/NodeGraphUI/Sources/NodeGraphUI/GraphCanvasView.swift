@@ -10,6 +10,8 @@ public struct GraphCanvasView: View {
     @State private var hasFramed = false
     @State private var isPressing = false
     @State private var viewSize = CGSize.zero
+    @FocusState private var isFocused: Bool
+    @Environment(\.undoManager) private var undoManager
 
     public init(model: GraphEditorModel) {
         self.model = model
@@ -32,11 +34,27 @@ public struct GraphCanvasView: View {
                 model.zoomToFit()
             }
         }
+        #if canImport(AppKit)
+        .background(MacInputMonitor(controller: controller))
+        #endif
+        .focusable()
+        .focusEffectDisabled()
+        .focused($isFocused)
+        .onKeyPress(phases: [.down, .repeat]) { press in handle(press) }
+        .onContinuousHover { phase in
+            switch phase {
+            case .active(let location): controller.hover(at: location)
+            case .ended: controller.hover(at: nil)
+            }
+        }
+        .onAppear { model.undoManager = undoManager }
+        .onChange(of: undoManager) { _, newValue in model.undoManager = newValue }
         .gesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { value in
                     if !isPressing {
                         isPressing = true
+                        isFocused = true
                         controller.pointerDown(at: value.startLocation, modifiers: PlatformInput.modifiers)
                     }
                     controller.pointerMoved(to: value.location, modifiers: PlatformInput.modifiers)
@@ -55,5 +73,29 @@ public struct GraphCanvasView: View {
                 }
                 .onEnded { _ in controller.endMagnify() }
         )
+    }
+
+    /// Maps a key press to a canvas command and runs it. Keys the canvas does not use are
+    /// ignored so the rest of the app still sees them.
+    private func handle(_ press: KeyPress) -> KeyPress.Result {
+        let key: CanvasKey
+        switch press.key {
+        case .delete, .deleteForward: key = .delete
+        case .escape: key = .escape
+        case .leftArrow: key = .left
+        case .rightArrow: key = .right
+        case .upArrow: key = .up
+        case .downArrow: key = .down
+        default:
+            guard let character = press.characters.first else { return .ignored }
+            key = .character(character)
+        }
+        var modifiers: InputModifiers = []
+        if press.modifiers.contains(.shift) { modifiers.insert(.shift) }
+        if press.modifiers.contains(.command) { modifiers.insert(.command) }
+        if press.modifiers.contains(.option) { modifiers.insert(.option) }
+        if press.modifiers.contains(.control) { modifiers.insert(.control) }
+        guard let command = CanvasKeyMap.command(for: key, modifiers: modifiers) else { return .ignored }
+        return controller.perform(command) ? .handled : .ignored
     }
 }
