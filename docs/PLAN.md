@@ -90,7 +90,8 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
 
 - [x] Spatial index for hit testing (`SpatialIndex`, `node(at:)`, `port(at:)`, `group(at:)`, `items(in:)`, `nodes(in:)`; 49 UI tests)
 - [x] Bridge `GraphHistory` to the platform `UndoManager` (Core stays UI-free; 59 UI tests, Core 391)
-- [ ] Interaction state machine: pan, zoom (anchored, non-compounding), move, resize, marquee, connect, reconnect, shift-drag link move, snap to grid
+- [x] Interaction state machine: pan, zoom (anchored, non-compounding), move, resize, marquee, connect, reconnect, shift-drag link move, snap to grid (`GraphInteractionController`; 106 UI tests). Gestures are wired for mouse drag and pinch; scroll, menus and keys are the next two items.
+
 - [ ] macOS input: scroll/trackpad, right-click menus, keyboard shortcuts, hover
 - [ ] iPadOS input: touch, pinch, two-finger pan, long-press menus, Pencil, hardware keyboard, pointer
 - [ ] In-node widgets: slider, number, combo, toggle, text, multiline, button, color; custom widget hook

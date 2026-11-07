@@ -14,6 +14,8 @@ extension Color {
 @MainActor
 struct GraphCanvasRenderer {
     let model: GraphEditorModel
+    /// What a drag in progress adds to the picture; nil draws the graph alone.
+    var controller: GraphInteractionController?
 
     func draw(_ context: inout GraphicsContext, size: CGSize) {
         let theme = model.theme
@@ -32,11 +34,55 @@ struct GraphCanvasRenderer {
             case .group(let id):
                 if let group = model.graph.groups[id] { drawGroup(&context, group, lod: lod) }
             case .link(let id):
-                if let link = model.graph.links[id] { drawLink(&context, link, lod: lod) }
+                if let link = model.graph.links[id], controller?.hiddenLinks.contains(id) != true {
+                    drawLink(&context, link, lod: lod)
+                }
             case .node(let id):
                 if let layout = model.layout(of: id) { drawNode(&context, layout, lod: lod) }
             }
         }
+        if let draft = controller?.draft { drawDraft(&context, draft) }
+        if let marquee = controller?.marquee { drawMarquee(&context, marquee) }
+    }
+
+    // MARK: Interaction overlay
+
+    private func drawDraft(_ context: inout GraphicsContext, _ draft: ConnectionDraft) {
+        let theme = model.theme
+        let zoom = model.camera.zoom
+        // End the draft on the candidate port when there is one, so it visibly snaps there.
+        let target = draft.candidate.flatMap { model.layout(of: $0.node)?.port($0)?.position } ?? draft.pointer
+        let route = draft.anchor.direction == .output
+            ? LinkPath(from: draft.anchorPosition, to: target, style: model.linkStyle)
+            : LinkPath(from: target, to: draft.anchorPosition, style: model.linkStyle)
+        var path = Path()
+        path.move(to: CGPoint(route.start))
+        for segment in route.segments {
+            switch segment {
+            case .line(let to): path.addLine(to: CGPoint(to))
+            case .cubic(let c1, let c2, let to): path.addCurve(to: CGPoint(to), control1: CGPoint(c1), control2: CGPoint(c2))
+            }
+        }
+        let anchorPort = model.layout(of: draft.anchor.node)?.port(draft.anchor)?.definition
+        let color = anchorPort.map { model.color(of: $0) } ?? theme.link
+        context.stroke(
+            path, with: .color(Color(color).opacity(0.85)),
+            style: StrokeStyle(lineWidth: max(theme.linkWidth, 1.5 / zoom), lineCap: .round, dash: [6, 4]))
+
+        for (address, ringColor) in [(draft.candidate, theme.selection), (draft.rejected, theme.failed)] {
+            guard let address, let position = model.layout(of: address.node)?.port(address)?.position else { continue }
+            let r = model.metrics.portRadius + 4
+            context.stroke(
+                Path(ellipseIn: CGRect(x: position.x - r, y: position.y - r, width: 2 * r, height: 2 * r)),
+                with: .color(Color(ringColor)), lineWidth: 2)
+        }
+    }
+
+    private func drawMarquee(_ context: inout GraphicsContext, _ marquee: GraphRect) {
+        let theme = model.theme
+        let path = Path(CGRect(marquee))
+        context.fill(path, with: .color(Color(theme.selection.withAlpha(0.12))))
+        context.stroke(path, with: .color(Color(theme.selection.withAlpha(0.8))), lineWidth: 1 / model.camera.zoom)
     }
 
     // MARK: Grid

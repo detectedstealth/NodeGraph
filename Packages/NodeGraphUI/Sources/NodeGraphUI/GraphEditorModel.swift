@@ -57,6 +57,9 @@ public final class GraphEditorModel {
     public var camera = GraphCamera()
     public var selection = GraphSelection()
     public var theme: GraphTheme
+    /// Whether moving and resizing snap to the theme's grid spacing. Holding Option while
+    /// dragging inverts it.
+    public var snapsToGrid = false
     /// The size of the canvas view, kept up to date by the view. Actions that depend on the
     /// visible area, such as ``zoomToFit()``, use it.
     public var viewSize = CGSize(width: 800, height: 600)
