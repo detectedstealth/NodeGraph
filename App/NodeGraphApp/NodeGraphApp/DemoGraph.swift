@@ -43,6 +43,10 @@ enum DemoGraph {
         link(a, sine)
         _ = try? model.perform(.addGroup(group: NodeGroup(
             title: "Arithmetic", bounds: GraphRect(x: 270, y: -20, width: 480, height: 300))))
+        // Turn the sum and the product into a subgraph, so there is one to open.
+        if let conversion = try? model.editor.convertToSubgraphCommand(nodes: [sum, product], name: "Sum Times Scale") {
+            _ = try? model.perform(conversion.command)
+        }
         model.history.clear()
         return model
     }

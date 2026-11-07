@@ -72,8 +72,10 @@ public final class GraphHistory {
 
     /// Connects two ports and records it. See ``GraphEditor/connect(_:)``.
     @discardableResult
-    public func connect(_ proposal: ConnectionProposal, name: String? = nil) throws -> GraphChange {
-        try perform(editor.connectCommand(for: proposal), name: name)
+    public func connect(
+        _ proposal: ConnectionProposal, name: String? = nil, in scope: SubgraphID? = nil
+    ) throws -> GraphChange {
+        try perform(editor.connectCommand(for: proposal, in: scope), name: name)
     }
 
     /// Runs `body` and records everything it performs as one undo step.

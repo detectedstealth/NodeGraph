@@ -108,6 +108,7 @@ public final class GraphInteractionController {
     /// A request to add a node, shown as the search panel, or nil.
     public private(set) var addNodeRequest: AddNodeRequest?
     private var lastEmptyClick: (point: CGPoint, time: ContinuousClock.Instant)?
+    private var lastNodeClick: (node: NodeID, time: ContinuousClock.Instant)?
     /// The last place the pointer was reported, for commands that act where it is.
     private var lastPointer: CGPoint?
 
@@ -468,7 +469,7 @@ public final class GraphInteractionController {
         case .link:
             state = .idle  // links are selected, not dragged
         case .groupTitle(let id):
-            guard let move = try? model.editor.beginGroupMove(id) else { state = .idle; return }
+            guard let move = try? model.editor.beginGroupMove(id, in: model.currentScope) else { state = .idle; return }
             state = .movingGroup(move, startGraph: press.startGraph)
         case .groupResize(let id):
             guard let group = model.graph.groups[id] else { state = .idle; return }
@@ -504,6 +505,14 @@ public final class GraphInteractionController {
         switch press.target {
         case .node(let id):
             if press.narrowsOnRelease { model.selection = GraphSelection(nodes: [id]) }
+            // A double click on a subgraph instance opens it.
+            let time = now()
+            if let last = lastNodeClick, last.node == id, time - last.time <= doubleClickInterval, model.subgraph(of: id) != nil {
+                lastNodeClick = nil
+                enterSubgraph(of: id)
+            } else {
+                lastNodeClick = (id, time)
+            }
         case .widget(let id, let widget):
             activate(widget, on: id)
         case .empty:
@@ -570,13 +579,13 @@ public final class GraphInteractionController {
         if movingLinks {
             return links.allSatisfy { link in
                 let context = ValidationContext(
-                    graph: editor.graph, nodes: editor.nodes, types: editor.types, ignoring: link.id)
+                    graph: model.graph, nodes: editor.nodes, types: editor.types, ignoring: link.id)
                 return editor.connectionValidator
                     .check(ConnectionProposal(source: port, target: link.target), in: context).isAllowed
             }
         }
         let context = ValidationContext(
-            graph: editor.graph, nodes: editor.nodes, types: editor.types, ignoring: links.first?.id)
+            graph: model.graph, nodes: editor.nodes, types: editor.types, ignoring: links.first?.id)
         return editor.connectionValidator.check(ConnectionProposal(source: anchor, target: port).oriented(), in: context).isAllowed
     }
 
@@ -625,6 +634,39 @@ public final class GraphInteractionController {
         } catch {
             // Refused after all: leave the graph as it was.
         }
+    }
+
+    // MARK: Subgraphs
+
+    /// Opens the subgraph a node is an instance of. Anything half done (a drag, an open editor
+    /// or search) is abandoned first, since it belongs to the graph being left.
+    @discardableResult
+    public func enterSubgraph(of node: NodeID) -> Bool {
+        guard model.subgraph(of: node) != nil else { return false }
+        prepareForNavigation()
+        return model.enterSubgraph(of: node)
+    }
+
+    @discardableResult
+    public func leaveSubgraph() -> Bool {
+        guard !model.scopePath.isEmpty else { return false }
+        prepareForNavigation()
+        return model.leaveSubgraph()
+    }
+
+    /// Goes to a level of the breadcrumb. See ``GraphEditorModel/navigate(toDepth:)``.
+    public func navigate(toDepth depth: Int) {
+        prepareForNavigation()
+        model.navigate(toDepth: depth)
+    }
+
+    private func prepareForNavigation() {
+        closeEditor(commit: true)
+        cancelAddNode()
+        if isActive { cancel() }
+        hover = nil
+        lastEmptyClick = nil
+        lastNodeClick = nil
     }
 
     // MARK: Adding nodes

@@ -56,7 +56,7 @@ private struct GraphSection: View {
             }
         }
         .task(id: model.revision) {
-            diagnostics = GraphValidator(connections: model.editor.connectionValidator).validate(model.editor.validationContext)
+            diagnostics = GraphValidator(connections: model.editor.connectionValidator).validate(model.editor.validationContext(in: model.currentScope) ?? model.editor.validationContext)
         }
     }
 }

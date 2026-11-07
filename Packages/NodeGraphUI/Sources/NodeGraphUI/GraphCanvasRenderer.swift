@@ -23,6 +23,11 @@ struct GraphCanvasRenderer {
         let lod = LevelOfDetail(zoom: camera.zoom)
         context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(Color(theme.background)))
 
+        // A faint wash tells you that you are inside a subgraph, not at the top level.
+        if model.currentScope != nil {
+            context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(Color(theme.selection.withAlpha(0.05))))
+        }
+
         let visible = camera.visibleRect(in: size)
         // Everything below is drawn in graph space.
         context.scaleBy(x: camera.zoom, y: camera.zoom)
@@ -223,6 +228,14 @@ struct GraphCanvasRenderer {
             context.draw(
                 text, at: CGPoint(x: layout.header.minX + 10, y: layout.header.minY + layout.header.size.height / 2),
                 anchor: .leading)
+            // Two overlapping squares mark an instance of a subgraph, which can be opened.
+            if node.typeID.subgraphID != nil {
+                let size = 9.0
+                let origin = CGPoint(x: layout.header.maxX - 24, y: layout.header.minY + layout.header.size.height / 2 - size / 2 - 1)
+                let color = Color(theme.nodeTitle.withAlpha(0.8))
+                context.stroke(RoundedRectangle(cornerRadius: 2).path(in: CGRect(x: origin.x + 4, y: origin.y - 3, width: size, height: size)), with: .color(color), lineWidth: 1.2)
+                context.stroke(RoundedRectangle(cornerRadius: 2).path(in: CGRect(x: origin.x, y: origin.y + 1, width: size, height: size)), with: .color(color), lineWidth: 1.2)
+            }
         }
         if lod.drawsPorts {
             for port in layout.inputs + layout.outputs { drawPort(&context, port, layout: layout, lod: lod) }

@@ -132,26 +132,44 @@ public final class GraphEditor {
         try apply(change.inverse, validation: .structural, adjustsPorts: false)
     }
 
-    /// Connects two ports, removing any link a single-link port gives up, as one change.
-    ///
-    /// The proposal is oriented first, so it may start on either end.
-    @discardableResult
-    public func connect(_ proposal: ConnectionProposal) throws -> GraphChange {
-        try apply(connectCommand(for: proposal))
+    /// The graph edited in `scope`: the root graph for nil, or a subgraph's inner graph. Nil if
+    /// the subgraph does not exist.
+    public func editedGraph(in scope: SubgraphID?) -> Graph? {
+        guard let scope else { return graph }
+        return subgraphs[scope]?.graph
     }
 
-    /// The command that ``connect(_:)`` would apply, without applying it. Lets ``GraphHistory``
-    /// record a connection. Throws `invalidConnection` if the rules reject the proposal.
-    public func connectCommand(for proposal: ConnectionProposal) throws -> GraphCommand {
+    /// The registries and the graph edited in `scope`, as validators see them. Nil if the
+    /// subgraph does not exist.
+    public func validationContext(in scope: SubgraphID?) -> ValidationContext? {
+        editedGraph(in: scope).map { ValidationContext(graph: $0, nodes: nodes, types: types) }
+    }
+
+    /// Connects two ports, removing any link a single-link port gives up, as one change.
+    ///
+    /// The proposal is oriented first, so it may start on either end. With `scope`, the ports
+    /// are in that subgraph's inner graph.
+    @discardableResult
+    public func connect(_ proposal: ConnectionProposal, in scope: SubgraphID? = nil) throws -> GraphChange {
+        try apply(connectCommand(for: proposal, in: scope))
+    }
+
+    /// The command that ``connect(_:in:)`` would apply, without applying it. Lets ``GraphHistory``
+    /// record a connection. Throws `invalidConnection` if the rules reject the proposal, and
+    /// `subgraphNotFound` if `scope` does not exist. In a scope the command is wrapped in
+    /// ``GraphCommand/inSubgraph(id:command:)``.
+    public func connectCommand(for proposal: ConnectionProposal, in scope: SubgraphID? = nil) throws -> GraphCommand {
+        guard let context = validationContext(in: scope) else { throw GraphEditError.subgraphNotFound(scope!) }
         let proposal = proposal.oriented()
-        let check = connectionValidator.check(proposal, in: validationContext)
+        let check = connectionValidator.check(proposal, in: context)
         guard check.isAllowed else { throw GraphEditError.invalidConnection(check.diagnostics) }
         let link = Link(
             sourceNode: proposal.source.node, sourcePort: proposal.source.port,
             targetNode: proposal.target.node, targetPort: proposal.target.port)
         let commands = check.replacedLinks.map { GraphCommand.removeLink(id: $0) }
             + [.addLink(link: link)]
-        return commands.count == 1 ? commands[0] : .batch(commands: commands)
+        let command = commands.count == 1 ? commands[0] : .batch(commands: commands)
+        return scope.map { .inSubgraph(id: $0, command: command) } ?? command
     }
 
     /// A new stream of every change applied from now on. Each call returns an independent stream.

@@ -94,6 +94,7 @@ public struct GraphCanvasView: View {
         switch press.key {
         case .delete, .deleteForward: key = .delete
         case .escape: key = .escape
+        case .return: key = .return
         case .leftArrow: key = .left
         case .rightArrow: key = .right
         case .upArrow: key = .up

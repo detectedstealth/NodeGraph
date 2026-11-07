@@ -93,6 +93,7 @@ final class TouchInputView: UIView, UIGestureRecognizerDelegate, UIContextMenuIn
             command("Actual Size", "0", "resetZoom"),
             command("Zoom In", "=", "zoomIn"),
             command("Zoom Out", "-", "zoomOut"),
+            command("Leave Subgraph", "[", "leaveSubgraph"),
         ]
     }
 
@@ -102,6 +103,7 @@ final class TouchInputView: UIView, UIGestureRecognizerDelegate, UIContextMenuIn
         case "resetZoom": .resetZoom
         case "zoomIn": .zoomIn
         case "zoomOut": .zoomOut
+        case "leaveSubgraph": .leaveSubgraph
         default: nil
         }
         if let command { controller?.perform(command) }
@@ -119,6 +121,7 @@ final class TouchInputView: UIView, UIGestureRecognizerDelegate, UIContextMenuIn
             switch key.keyCode {
             case .keyboardDeleteOrBackspace, .keyboardDeleteForward: canvasKey = .delete
             case .keyboardEscape: canvasKey = .escape
+            case .keyboardReturnOrEnter: canvasKey = .return
             case .keyboardLeftArrow: canvasKey = .left
             case .keyboardRightArrow: canvasKey = .right
             case .keyboardUpArrow: canvasKey = .up

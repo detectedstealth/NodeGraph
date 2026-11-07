@@ -18,6 +18,9 @@ struct ContentView: View {
                 .buttonStyle(.borderedProminent)
                 .padding()
             }
+            .overlay(alignment: .topLeading) {
+                GraphBreadcrumbView(controller: controller).padding()
+            }
             .inspector(isPresented: $showsInspector) {
                 GraphInspectorView(model: controller.model)
                     .inspectorColumnWidth(min: 260, ideal: 300, max: 420)

@@ -100,7 +100,7 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
 
 - [x] Add-node search and palette (double-click/tap, link release, Shift-A, menu, toolbar button): `NodeCatalog`, `AddNodeOverlay`; 196 UI tests, checked on the iPad simulator
 - [x] Inspector (selected node: title, color, mode, pin, collapse, position, size, properties, ports; several nodes, a link, a group, or the graph with its problems): `Inspection`, `InspectorActions`, `GraphInspectorView`; 214 UI tests, checked on the iPad simulator
-- [ ] Breadcrumb for subgraphs (enter, leave, edit inside)
+- [x] Breadcrumb for subgraphs (enter by double-click/tap, menu or Return, leave by breadcrumb, menu or Command-[, edit inside with undo): `GraphBreadcrumbView`, model scope, Core scoped connect and group move; 234 UI and 398 Core tests, checked on the iPad simulator
 - [ ] Copy, paste, duplicate, delete, align, distribute, collapse, pin, color
 - [ ] Mini-map; execution state overlays (running, error, progress)
 - [ ] Custom node drawing hook for domain packs

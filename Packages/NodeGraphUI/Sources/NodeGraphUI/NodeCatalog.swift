@@ -49,10 +49,11 @@ public struct NodeCatalog: Sendable {
     public let entries: [NodeCatalogEntry]
     private let types: TypeRegistry
 
-    public init(nodes: NodeRegistry, types: TypeRegistry) {
+    /// - Parameter excluding: Node types to leave out.
+    public init(nodes: NodeRegistry, types: TypeRegistry, excluding: Set<NodeTypeID> = []) {
         self.types = types
         entries = nodes.registeredDefinitions
-            .filter { !Self.hiddenCategories.contains($0.category) }
+            .filter { !Self.hiddenCategories.contains($0.category) && !excluding.contains($0.typeID) }
             .map(NodeCatalogEntry.init)
             .sorted { ($0.category, $0.displayName) < ($1.category, $1.displayName) }
     }

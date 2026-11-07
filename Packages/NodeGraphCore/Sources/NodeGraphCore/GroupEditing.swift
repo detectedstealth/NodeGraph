@@ -37,8 +37,10 @@ extension GraphEditor {
         return graph.members(of: group, frame: nodes.frame(of:))
     }
 
-    /// Starts moving a group together with its member nodes and nested groups.
-    public func beginGroupMove(_ id: GroupID) throws -> GroupMove {
+    /// Starts moving a group together with its member nodes and nested groups. With `scope`, the
+    /// group is in that subgraph's inner graph (apply the move's commands inside it).
+    public func beginGroupMove(_ id: GroupID, in scope: SubgraphID? = nil) throws -> GroupMove {
+        guard let graph = editedGraph(in: scope) else { throw GraphEditError.subgraphNotFound(scope!) }
         guard let group = graph.groups[id] else { throw GraphEditError.groupNotFound(id) }
         let members = graph.members(of: group, frame: nodes.frame(of:)).compactMap { id in
             graph.nodes[id].map { NodePlacement(node: id, position: $0.position) }

@@ -16,6 +16,10 @@ public enum CanvasCommand: Hashable, Sendable {
     case zoomIn
     case zoomOut
     case toggleSnapToGrid
+    /// Opens the subgraph the single selected node is an instance of, to edit inside it.
+    case openSubgraph
+    /// Goes back out of the subgraph being edited.
+    case leaveSubgraph
     /// Opens the add-node search at a graph-space position, or at the pointer when nil.
     case addNode(at: GraphPoint?)
     /// Collapses the selected nodes, or expands them if all are already collapsed.
@@ -33,6 +37,7 @@ public enum CanvasCommand: Hashable, Sendable {
 public enum CanvasKey: Hashable, Sendable {
     case delete
     case escape
+    case `return`
     case left, right, up, down
     case character(Character)
 }
@@ -45,6 +50,7 @@ public enum CanvasKeyMap {
         switch key {
         case .delete: return .deleteSelection
         case .escape: return .escape
+        case .return: return .openSubgraph
         case .left: return .nudge(dx: -step, dy: 0)
         case .right: return .nudge(dx: step, dy: 0)
         case .up: return .nudge(dx: 0, dy: -step)
@@ -56,6 +62,7 @@ public enum CanvasKeyMap {
             case "0" where commandKey: return .resetZoom
             case "=" where commandKey, "+" where commandKey: return .zoomIn
             case "-" where commandKey: return .zoomOut
+            case "[" where commandKey: return .leaveSubgraph
             case "a" where modifiers == .shift: return .addNode(at: nil)
             case "f" where modifiers.isDisjoint(with: [.command, .control, .option]): return .zoomToFit
             default: return nil

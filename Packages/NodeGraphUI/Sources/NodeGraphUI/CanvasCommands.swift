@@ -52,7 +52,7 @@ extension GraphInteractionController {
                 // A selected group carries the nodes inside it, so those are not moved twice.
                 var carried = Set<NodeID>()
                 for id in model.graph.groups.keys where selection.groups.contains(id) {
-                    let move = try model.editor.beginGroupMove(id)
+                    let move = try model.editor.beginGroupMove(id, in: model.currentScope)
                     carried.formUnion(move.members.map(\.node))
                     try model.perform(move.command(delta: delta))
                 }
@@ -77,6 +77,11 @@ extension GraphInteractionController {
         case .toggleSnapToGrid:
             model.snapsToGrid.toggle()
             return true
+        case .openSubgraph:
+            guard selection.nodes.count == 1, let id = selection.nodes.first else { return false }
+            return enterSubgraph(of: id)
+        case .leaveSubgraph:
+            return leaveSubgraph()
         case .addNode(let point):
             beginAddNode(at: point.map { model.camera.screenPoint(for: $0) })
             return true
@@ -116,7 +121,8 @@ extension GraphInteractionController {
             if !model.selection.nodes.contains(id) { model.selection = GraphSelection(nodes: [id]) }
             let nodes = model.graph.nodes.values.filter { model.selection.nodes.contains($0.id) }
             let modes = Set(nodes.map(\.mode))
-            return [
+            let opens = nodes.count == 1 && model.subgraph(of: id) != nil
+            return (opens ? [CanvasMenuItem("Open Subgraph", .openSubgraph), .separator] : []) + [
                 CanvasMenuItem(nodes.allSatisfy(\.isCollapsed) ? "Expand" : "Collapse", .toggleCollapsed),
                 CanvasMenuItem(nodes.allSatisfy(\.isPinned) ? "Unpin" : "Pin", .togglePinned),
                 CanvasMenuItem("Mode", submenu: NodeMode.allCases.map {
@@ -140,7 +146,7 @@ extension GraphInteractionController {
             return [CanvasMenuItem("Delete Group", .deleteSelection)]
         case .empty:
             model.clearSelection()
-            return [
+            return (model.currentScope == nil ? [] : [CanvasMenuItem("Leave Subgraph", .leaveSubgraph), .separator]) + [
                 CanvasMenuItem("Add Node…", .addNode(at: model.camera.graphPoint(forScreen: point))),
                 .separator,
                 CanvasMenuItem("Select All", .selectAll, isEnabled: !model.graph.nodes.isEmpty),

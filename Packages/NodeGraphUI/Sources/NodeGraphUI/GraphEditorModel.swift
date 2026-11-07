@@ -33,7 +33,8 @@ public final class GraphEditorModel {
     @ObservationIgnored public let editor: GraphEditor
     @ObservationIgnored public let history: GraphHistory
 
-    /// A copy of the editor's graph, replaced after every edit.
+    /// A copy of the graph being edited, replaced after every edit. It is the root graph, or the
+    /// inner graph of the subgraph named by ``currentScope``.
     public private(set) var graph: Graph
     /// Increments with every edit, including undo and redo.
     public private(set) var revision: Int
@@ -99,6 +100,14 @@ public final class GraphEditorModel {
     /// observable `graph` already changes whenever a layout could.
     @ObservationIgnored private var layoutCache: [NodeID: CachedLayout] = [:]
 
+    /// The subgraphs entered to reach the graph being edited, outermost first. Empty at the root.
+    /// Each was opened from an instance of it in the one before, so this is the breadcrumb.
+    public private(set) var scopePath: [SubgraphID] = []
+    /// The subgraph being edited, or nil at the root.
+    public var currentScope: SubgraphID? { scopePath.last }
+    /// The view of each level the user has left, so coming back finds it as they left it.
+    @ObservationIgnored private var savedCameras: [SubgraphID?: GraphCamera] = [:]
+
     public init(editor: GraphEditor, theme: GraphTheme = .dark, metrics: NodeLayoutMetrics = .standard) {
         self.editor = editor
         self.history = GraphHistory(editor: editor)
@@ -116,7 +125,7 @@ public final class GraphEditorModel {
     public func perform(
         _ command: GraphCommand, name: String? = nil, coalescing: Bool = false
     ) throws -> GraphChange {
-        let change = try history.perform(command, name: name, coalescing: coalescing)
+        let change = try history.perform(scoped(command), name: name, coalescing: coalescing)
         didEdit(affectingDefinitions: command.changesDefinitions)
         registerUndoIfStepRecorded()
         return change
@@ -125,7 +134,7 @@ public final class GraphEditorModel {
     /// Connects two ports and records it. See ``GraphHistory/connect(_:name:)``.
     @discardableResult
     public func connect(_ proposal: ConnectionProposal, name: String? = nil) throws -> GraphChange {
-        let change = try history.connect(proposal, name: name)
+        let change = try history.connect(proposal, name: name, in: currentScope)
         didEdit(affectingDefinitions: false)
         registerUndoIfStepRecorded()
         return change
@@ -216,9 +225,74 @@ public final class GraphEditorModel {
     private func didEdit(affectingDefinitions: Bool) {
         if affectingDefinitions { layoutCache.removeAll() }
         cachedSpatialIndex = nil
-        graph = editor.graph
+        // A subgraph that no longer exists (an undone creation) cannot be shown; step out to
+        // the nearest level that does.
+        if let missing = scopePath.firstIndex(where: { editor.subgraphs[$0] == nil }) {
+            scopePath.removeSubrange(missing...)
+            layoutCache.removeAll()
+            selection = GraphSelection()
+        }
+        graph = editor.editedGraph(in: currentScope) ?? editor.graph
         revision = editor.revision
         pruneSelection()
+    }
+
+    /// `command`, applied inside the subgraph being edited when there is one.
+    private func scoped(_ command: GraphCommand) -> GraphCommand {
+        currentScope.map { .inSubgraph(id: $0, command: command) } ?? command
+    }
+
+    // MARK: Subgraphs
+
+    /// The display name of a level of the breadcrumb: the subgraph's name, or "Graph" for the root.
+    public func scopeName(_ scope: SubgraphID?) -> String {
+        scope.flatMap { editor.subgraphs[$0]?.interface.name } ?? "Graph"
+    }
+
+    /// The subgraph an instance node opens, if `node` is an instance of one that exists.
+    public func subgraph(of node: NodeID) -> SubgraphID? {
+        guard let id = graph.nodes[node]?.typeID.subgraphID, editor.subgraphs[id] != nil else { return nil }
+        return id
+    }
+
+    /// Opens the subgraph a node is an instance of, for editing its inner graph. Returns whether
+    /// it did. Entering the subgraph being edited, or one that would make the path loop, is refused.
+    @discardableResult
+    public func enterSubgraph(of node: NodeID) -> Bool {
+        guard let id = subgraph(of: node), !scopePath.contains(id) else { return false }
+        move(to: scopePath + [id])
+        return true
+    }
+
+    /// Goes back out one level. Returns whether there was one to leave.
+    @discardableResult
+    public func leaveSubgraph() -> Bool {
+        guard !scopePath.isEmpty else { return false }
+        move(to: Array(scopePath.dropLast()))
+        return true
+    }
+
+    /// Goes to a level of the breadcrumb: 0 is the root, `scopePath.count` the current subgraph.
+    public func navigate(toDepth depth: Int) {
+        guard depth >= 0, depth < scopePath.count else { return }
+        move(to: Array(scopePath.prefix(depth)))
+    }
+
+    private func move(to path: [SubgraphID]) {
+        savedCameras[currentScope] = camera
+        scopePath = path
+        selection = GraphSelection()
+        layoutCache.removeAll()
+        cachedSpatialIndex = nil
+        graph = editor.editedGraph(in: currentScope) ?? editor.graph
+        if let saved = savedCameras[currentScope] {
+            camera = saved
+            autoFramedCamera = nil
+        } else {
+            autoFramedCamera = nil
+            zoomToFit()
+            autoFramedCamera = camera
+        }
     }
 
     /// Drops selected items that no longer exist, for example after a delete or an undo.
@@ -280,8 +354,25 @@ public final class GraphEditorModel {
     }
 
     /// The node types that can be added right now, as a searchable list.
+    ///
+    /// Inside a subgraph, the subgraph itself and every subgraph that contains it are left out,
+    /// since adding one would make a subgraph contain itself.
     public func makeNodeCatalog() -> NodeCatalog {
-        NodeCatalog(nodes: editor.nodes, types: editor.types)
+        var excluded = Set<SubgraphID>()
+        if let scope = currentScope {
+            excluded.insert(scope)
+            var grew = true
+            while grew {
+                grew = false
+                for definition in editor.subgraphs.values
+                where !excluded.contains(definition.id) && !definition.directDependencies.isDisjoint(with: excluded) {
+                    excluded.insert(definition.id)
+                    grew = true
+                }
+            }
+        }
+        let hidden = Set(excluded.compactMap { editor.subgraphs[$0]?.typeID })
+        return NodeCatalog(nodes: editor.nodes, types: editor.types, excluding: hidden)
     }
 
     /// The layout a new node of `typeID` would have at the origin, to place it by one of its ports.
