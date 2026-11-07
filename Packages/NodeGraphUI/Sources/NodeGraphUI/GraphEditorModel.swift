@@ -77,6 +77,19 @@ public final class GraphEditorModel {
     /// Built on demand by hit testing and dropped by every edit. Not observed.
     @ObservationIgnored var cachedSpatialIndex: SpatialIndex<CanvasItem>?
 
+    /// Adds widgets that are not properties, such as buttons. Set before the first draw, or
+    /// layouts already made are dropped.
+    public var widgetProvider: (any NodeWidgetProvider)? {
+        didSet {
+            layoutCache.removeAll()
+            cachedSpatialIndex = nil
+        }
+    }
+    /// Called when a button widget is pressed, with the node and the button's action name.
+    @ObservationIgnored public var onWidgetAction: ((NodeID, String) -> Void)?
+    /// Renderers for custom widgets, by name.
+    @ObservationIgnored public private(set) var widgetRenderers: [String: WidgetRenderer] = [:]
+
     private struct CachedLayout {
         var node: Node
         var layout: NodeLayout
@@ -232,7 +245,10 @@ public final class GraphEditorModel {
     public func layout(of id: NodeID) -> NodeLayout? {
         guard let node = graph.nodes[id] else { return nil }
         if let cached = layoutCache[id], cached.node == node { return cached.layout }
-        let layout = NodeLayout(node: node, definition: definition(of: node), metrics: metrics)
+        let definition = definition(of: node)
+        let layout = NodeLayout(
+            node: node, definition: definition, widgets: widgetSpecs(for: node, definition: definition),
+            metrics: metrics)
         layoutCache[id] = CachedLayout(node: node, layout: layout)
         return layout
     }
@@ -254,6 +270,19 @@ public final class GraphEditorModel {
     public func linkPath(of link: Link) -> LinkPath? {
         guard let ends = endpoints(of: link) else { return nil }
         return LinkPath(from: ends.source, to: ends.target, waypoints: link.waypoints, style: linkStyle)
+    }
+
+    /// The widgets in `node`'s body: one per property, then whatever ``widgetProvider`` adds.
+    public func widgetSpecs(for node: Node, definition: NodeDefinition?) -> [NodeWidgetSpec] {
+        guard let definition else { return [] }
+        return definition.properties.map(NodeWidgetSpec.init)
+            + (widgetProvider?.widgets(for: node, definition: definition) ?? [])
+    }
+
+    /// Registers the drawing for ``WidgetKind/custom(_:)`` widgets of this name. Packs call this
+    /// at setup; a custom widget with no renderer shows its value as text.
+    public func registerWidgetRenderer(named name: String, _ renderer: @escaping WidgetRenderer) {
+        widgetRenderers[name] = renderer
     }
 
     /// The color a port is drawn with.

@@ -5,30 +5,42 @@ import NodeGraphCore
 public struct NodeLayoutMetrics: Hashable, Sendable {
     public var headerHeight: Double
     public var portRowHeight: Double
+    /// Height of one row of a widget (a multiline text widget takes three).
+    public var widgetRowHeight: Double
+    /// Space between widgets, and between the port rows and the first widget.
+    public var widgetSpacing: Double
     /// Space above the first and below the last port row.
     public var portInset: Double
     public var portRadius: Double
     /// How close a pointer must come to a port's center to count as on it.
     public var portHitRadius: Double
     public var minimumWidth: Double
+    /// Space between the node's side and its widgets.
+    public var widgetInset: Double
     /// Side of the square resize handle in the bottom-right corner.
     public var resizeHandleSize: Double
 
     public init(
         headerHeight: Double = 28,
         portRowHeight: Double = 22,
+        widgetRowHeight: Double = 26,
+        widgetSpacing: Double = 4,
         portInset: Double = 8,
         portRadius: Double = 5,
         portHitRadius: Double = 12,
         minimumWidth: Double = 100,
+        widgetInset: Double = 8,
         resizeHandleSize: Double = 14
     ) {
         self.headerHeight = headerHeight
         self.portRowHeight = portRowHeight
+        self.widgetRowHeight = widgetRowHeight
+        self.widgetSpacing = widgetSpacing
         self.portInset = portInset
         self.portRadius = portRadius
         self.portHitRadius = portHitRadius
         self.minimumWidth = minimumWidth
+        self.widgetInset = widgetInset
         self.resizeHandleSize = resizeHandleSize
     }
 
@@ -44,6 +56,12 @@ public struct PortLayout: Hashable, Sendable {
     public var position: GraphPoint
 }
 
+/// Where one widget sits, in graph space.
+public struct WidgetLayout: Hashable, Sendable {
+    public var spec: NodeWidgetSpec
+    public var frame: GraphRect
+}
+
 /// The geometry of one node in graph space: the single source for drawing, hit testing and
 /// link endpoints, so they cannot disagree.
 public struct NodeLayout: Hashable, Sendable {
@@ -56,6 +74,8 @@ public struct NodeLayout: Hashable, Sendable {
     public var isCollapsed: Bool
     public var inputs: [PortLayout]
     public var outputs: [PortLayout]
+    /// The widget rows below the ports. Empty when collapsed.
+    public var widgets: [WidgetLayout]
     public var resizeHandle: GraphRect
     /// The smallest size the node can be resized to without clipping its ports.
     public var minimumSize: GraphSize
@@ -65,11 +85,16 @@ public struct NodeLayout: Hashable, Sendable {
     /// - Parameter definition: The node's definition as the node sees it, which is
     ///   ``NodeRegistry/definition(for:)-(Node)`` so dynamic ports are included. Nil for a node
     ///   whose type is not registered: it gets a frame and no ports.
-    public init(node: Node, definition: NodeDefinition?, metrics: NodeLayoutMetrics = .standard) {
+    public init(
+        node: Node, definition: NodeDefinition?, widgets widgetSpecs: [NodeWidgetSpec] = [],
+        metrics: NodeLayoutMetrics = .standard
+    ) {
         let inputPorts = definition?.inputs ?? []
         let outputPorts = definition?.outputs ?? []
         let rows = max(inputPorts.count, outputPorts.count)
-        let contentHeight = metrics.headerHeight + 2 * metrics.portInset + Double(rows) * metrics.portRowHeight
+        let portsBottom = metrics.headerHeight + metrics.portInset + Double(rows) * metrics.portRowHeight
+        let widgetsHeight = widgetSpecs.reduce(0) { $0 + Double($1.kind.rowCount) * metrics.widgetRowHeight + metrics.widgetSpacing }
+        let contentHeight = portsBottom + widgetsHeight + metrics.portInset
         let requested = node.size ?? definition?.defaultSize ?? GraphSize(width: 160, height: 80)
         let width = max(requested.width, metrics.minimumWidth)
         let height = node.isCollapsed ? metrics.headerHeight : max(requested.height, contentHeight)
@@ -97,6 +122,16 @@ public struct NodeLayout: Hashable, Sendable {
                     y: origin.y + metrics.headerHeight + metrics.portInset
                         + (Double(row) + 0.5) * metrics.portRowHeight)
         }
+        var widgetTop = origin.y + portsBottom
+        widgets = node.isCollapsed ? [] : widgetSpecs.map { spec in
+            let height = Double(spec.kind.rowCount) * metrics.widgetRowHeight
+            defer { widgetTop += height + metrics.widgetSpacing }
+            return WidgetLayout(
+                spec: spec,
+                frame: GraphRect(
+                    x: origin.x + metrics.widgetInset, y: widgetTop + metrics.widgetSpacing,
+                    width: width - 2 * metrics.widgetInset, height: height))
+        }
         inputs = inputPorts.enumerated().map { row, port in
             PortLayout(
                 address: PortAddress(node: node.id, port: port.id, direction: .input),
@@ -113,6 +148,11 @@ public struct NodeLayout: Hashable, Sendable {
     public func port(_ address: PortAddress) -> PortLayout? {
         let ports = address.direction == .input ? inputs : outputs
         return ports.first { $0.address == address }
+    }
+
+    /// The widget whose row contains `point`.
+    public func widget(at point: GraphPoint) -> WidgetLayout? {
+        widgets.first { $0.frame.contains(point) }
     }
 
     /// The port whose center is nearest `point` and within `radius`, if any.
@@ -133,4 +173,9 @@ extension GraphPoint {
         let dx = x - other.x, dy = y - other.y
         return (dx * dx + dy * dy).squareRoot()
     }
+}
+
+extension GraphRect {
+    var midX: Double { origin.x + size.width / 2 }
+    var midY: Double { origin.y + size.height / 2 }
 }

@@ -227,6 +227,9 @@ struct GraphCanvasRenderer {
         if lod.drawsPorts {
             for port in layout.inputs + layout.outputs { drawPort(&context, port, layout: layout, lod: lod) }
         }
+        if lod.tier == .full {
+            for widget in layout.widgets { drawWidget(&context, widget, on: node) }
+        }
         if selected, !layout.isCollapsed, lod.tier == .full { drawResizeHandle(&context, layout) }
     }
 
@@ -244,6 +247,117 @@ struct GraphCanvasRenderer {
         guard measured > width, width > 0 else { return full }
         let keep = max(1, Int(Double(title.count) * width / measured) - 1)
         return resolve(String(title.prefix(keep)) + "…")
+    }
+
+    // MARK: Widgets
+
+    private func drawWidget(_ context: inout GraphicsContext, _ widget: WidgetLayout, on node: Node) {
+        let theme = model.theme
+        let spec = widget.spec
+        let rect = CGRect(widget.frame)
+        let value = node.properties[spec.property ?? ""] ?? spec.property.flatMap { id in
+            model.definition(of: node)?.property(id)?.defaultValue
+        }
+        let isEditing = controller?.editor.map { $0.node == node.id && $0.spec.id == spec.id } ?? false
+        let field = RoundedRectangle(cornerRadius: 4).path(in: rect)
+        let fieldFill = Color(theme.background.withAlpha(0.7))
+        let labelColor = Color(theme.portLabel)
+        let valueColor = Color(theme.nodeTitle)
+
+        func text(_ string: String, at point: CGPoint, anchor: UnitPoint, color: Color, width: Double) {
+            guard width > 4 else { return }
+            let resolved = fittedText(&context, string, width: width, color: color)
+            context.draw(resolved, at: point, anchor: anchor)
+        }
+
+        // Label on the left, control on the right, for the rows that have both.
+        let split = rect.minX + rect.width * 0.42
+        let control = CGRect(x: split, y: rect.minY, width: rect.maxX - split, height: rect.height).insetBy(dx: 0, dy: 2)
+        func label() {
+            text(spec.title, at: CGPoint(x: rect.minX + 2, y: rect.midY), anchor: .leading, color: labelColor, width: split - rect.minX - 8)
+        }
+
+        switch spec.kind {
+        case .slider:
+            let fraction = value.flatMap { spec.kind.fraction(of: $0) } ?? 0
+            let track = rect.insetBy(dx: 0, dy: 2)
+            context.fill(RoundedRectangle(cornerRadius: 4).path(in: track), with: .color(fieldFill))
+            var fill = track
+            fill.size.width = track.width * fraction
+            if fill.width > 0 {
+                context.fill(RoundedRectangle(cornerRadius: 4).path(in: fill), with: .color(Color(theme.selection.withAlpha(0.45))))
+            }
+            text(spec.title, at: CGPoint(x: track.minX + 6, y: track.midY), anchor: .leading, color: labelColor, width: track.width * 0.55)
+            text(spec.kind.display(value), at: CGPoint(x: track.maxX - 6, y: track.midY), anchor: .trailing, color: valueColor, width: track.width * 0.4)
+
+        case .toggle:
+            label()
+            let on: Bool = if case .bool(let b)? = value { b } else { false }
+            let pill = CGRect(x: control.maxX - 32, y: control.midY - 8, width: 32, height: 16)
+            context.fill(Capsule().path(in: pill), with: .color(on ? Color(theme.selection) : Color(theme.nodeBorder)))
+            let knob = CGRect(x: on ? pill.maxX - 14 : pill.minX + 2, y: pill.minY + 2, width: 12, height: 12)
+            context.fill(Circle().path(in: knob), with: .color(.white))
+
+        case .number, .text, .readOnly:
+            label()
+            if !isEditing {
+                context.fill(RoundedRectangle(cornerRadius: 4).path(in: control), with: .color(fieldFill))
+                let isNumber: Bool = if case .number = spec.kind { true } else { false }
+                text(
+                    spec.kind.display(value), at: CGPoint(x: isNumber ? control.midX : control.minX + 6, y: control.midY),
+                    anchor: isNumber ? .center : .leading, color: valueColor, width: control.width - 12)
+            }
+
+        case .multilineText:
+            context.fill(field, with: .color(fieldFill))
+            text(spec.title, at: CGPoint(x: rect.minX + 6, y: rect.minY + 8), anchor: .leading, color: labelColor, width: rect.width - 12)
+            if !isEditing {
+                text(spec.kind.display(value), at: CGPoint(x: rect.minX + 6, y: rect.minY + 26), anchor: .leading, color: valueColor, width: rect.width - 12)
+            }
+
+        case .combo:
+            label()
+            context.fill(RoundedRectangle(cornerRadius: 4).path(in: control), with: .color(fieldFill))
+            text(spec.kind.display(value), at: CGPoint(x: control.minX + 6, y: control.midY), anchor: .leading, color: valueColor, width: control.width - 24)
+            text("▾", at: CGPoint(x: control.maxX - 8, y: control.midY), anchor: .center, color: labelColor, width: 12)
+
+        case .color:
+            label()
+            let swatch = control.insetBy(dx: 0, dy: 1)
+            if case .color(let color)? = value {
+                context.fill(RoundedRectangle(cornerRadius: 4).path(in: swatch), with: .color(Color(color)))
+                context.stroke(RoundedRectangle(cornerRadius: 4).path(in: swatch), with: .color(Color(theme.nodeBorder)), lineWidth: 1)
+            }
+
+        case .button:
+            let button = rect.insetBy(dx: 0, dy: 2)
+            context.fill(RoundedRectangle(cornerRadius: 5).path(in: button), with: .color(Color(theme.nodeHeader)))
+            context.stroke(RoundedRectangle(cornerRadius: 5).path(in: button), with: .color(Color(theme.nodeBorder)), lineWidth: 1)
+            text(spec.title, at: CGPoint(x: button.midX, y: button.midY), anchor: .center, color: valueColor, width: button.width - 12)
+
+        case .custom(let name):
+            label()
+            if let renderer = model.widgetRenderers[name] {
+                renderer(&context, control, value, theme)
+            } else {
+                text(spec.kind.display(value), at: CGPoint(x: control.minX + 6, y: control.midY), anchor: .leading, color: valueColor, width: control.width - 12)
+            }
+        }
+    }
+
+    /// `string` as resolved text no wider than `width`, shortened with an ellipsis if need be.
+    private func fittedText(
+        _ context: inout GraphicsContext, _ string: String, width: Double, color: Color
+    ) -> GraphicsContext.ResolvedText {
+        let size = model.theme.portFontSize
+        func resolve(_ value: String) -> GraphicsContext.ResolvedText {
+            context.resolve(Text(value).font(.system(size: size)).foregroundColor(color))
+        }
+        let full = resolve(string)
+        let measured = full.measure(in: CGSize(width: CGFloat.infinity, height: CGFloat.infinity)).width
+        guard measured > width, !string.isEmpty else { return full }
+        let keep = max(1, Int(Double(string.count) * width / measured) - 1)
+        return resolve(String(string.prefix(keep)) + "…")
     }
 
     private func drawPort(_ context: inout GraphicsContext, _ port: PortLayout, layout: NodeLayout, lod: LevelOfDetail) {

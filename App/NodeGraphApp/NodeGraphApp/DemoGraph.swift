@@ -32,6 +32,9 @@ enum DemoGraph {
         let product = add("math.multiply", 560, 100)
         let compare = add("logic.compare", 820, 80)
         let sine = add("math.sin", 560, -80)
+        for (id, value) in [(a, 3.0), (b, 4.0), (scale, 2.5)] {
+            _ = try? model.perform(.setNodeProperty(node: id, property: "value", value: .double(value)))
+        }
         link(a, sum, input: 0)
         link(b, sum, input: 1)
         link(sum, product, input: 0)

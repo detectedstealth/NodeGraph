@@ -96,7 +96,8 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
 
 - [x] iPadOS input: touch, pinch, two-finger pan, long-press menus, Pencil, hardware keyboard, pointer (`TouchInputOverlay`, two-finger pan and pinch, kind-aware targets, `UIContextMenuInteraction`; 143 UI tests). The controller side is tested; the UIKit recognizers need a hand check on a device or simulator.
 
-- [ ] In-node widgets: slider, number, combo, toggle, text, multiline, button, color; custom widget hook
+- [x] In-node widgets: slider, number, combo, toggle, text, multiline, button, color; custom widget hook (`NodeWidget`, `WidgetEditorOverlay`, `NodeWidgetProvider`; 175 UI tests). Slider, number, combo, toggle, text, multiline, button and color work; checked on the iPad simulator.
+
 - [ ] Add-node search (double-click/tap, link release), palette, inspector, breadcrumb for subgraphs
 - [ ] Copy, paste, duplicate, delete, align, distribute, collapse, pin, color
 - [ ] Mini-map; execution state overlays (running, error, progress)

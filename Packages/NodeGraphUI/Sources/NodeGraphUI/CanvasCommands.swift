@@ -15,6 +15,10 @@ extension GraphInteractionController {
             return true
 
         case .escape:
+            if editor != nil {
+                closeEditor(commit: false)
+                return true
+            }
             if isDragging {
                 cancel()
                 return true

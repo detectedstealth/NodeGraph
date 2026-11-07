@@ -65,6 +65,7 @@ public final class GraphInteractionController {
         case link(LinkID)
         case groupTitle(GroupID)
         case groupResize(GroupID)
+        case widget(NodeID, WidgetLayout)
     }
 
     private struct Press {
@@ -88,6 +89,8 @@ public final class GraphInteractionController {
         case marquee(start: GraphPoint, base: GraphSelection)
         case connecting(anchor: PortAddress, replacing: Link?)
         case movingLinks(source: PortAddress, links: [Link])
+        case adjustingSlider(node: NodeID, widget: WidgetLayout)
+        case scrubbing(node: NodeID, widget: WidgetLayout, start: GraphValue, startScreenX: Double)
         case magnifying(startCamera: GraphCamera)
         case multiTouch(startCamera: GraphCamera, startCentroid: CGPoint)
     }
@@ -97,6 +100,9 @@ public final class GraphInteractionController {
         var id: GroupID
         var startBounds: GraphRect
     }
+
+    /// A widget being edited in an overlay (text, number, choice, color), or nil.
+    public private(set) var editor: WidgetEditor?
 
     private var state = State.idle
     /// The kind of pointer of the press in progress, which sets how close counts as on a port.
@@ -113,6 +119,7 @@ public final class GraphInteractionController {
     public func pointerDown(
         at point: CGPoint, modifiers: InputModifiers = [], kind: PointerKind = .platformDefault
     ) {
+        closeEditor(commit: true)
         if isActive { cancel() }
         pressKind = kind
         let graphPoint = model.camera.graphPoint(forScreen: point)
@@ -122,7 +129,7 @@ public final class GraphInteractionController {
 
         // Selection changes on press, so feedback is immediate and a drag moves what was picked.
         switch press.target {
-        case .node(let id), .nodeResize(let id):
+        case .node(let id), .nodeResize(let id), .widget(let id, _):
             if modifiers.extendsSelection {
                 if model.selection.nodes.contains(id), case .node = press.target {
                     model.selection.nodes.remove(id)
@@ -146,6 +153,11 @@ public final class GraphInteractionController {
         case .port, .empty:
             break
         }
+        // A slider follows the pointer from the moment it is pressed.
+        if case .widget(let id, let widget) = press.target, case .slider = widget.spec.kind {
+            beginSlider(id, widget, atGraphX: graphPoint.x)
+            return
+        }
         state = .pressed(press)
     }
 
@@ -162,6 +174,12 @@ public final class GraphInteractionController {
             var camera = startCamera
             camera.pan(byScreen: CGSize(width: point.x - startScreen.x, height: point.y - startScreen.y))
             model.camera = camera
+        case .adjustingSlider(let id, let widget):
+            setSlider(id, widget, atGraphX: graphPoint.x)
+        case .scrubbing(let id, let widget, let start, let startScreenX):
+            if let value = widget.spec.kind.scrubbed(from: start, by: point.x - startScreenX) {
+                setValue(value, on: id, widget, coalescing: true)
+            }
         case .movingNodes(let starts, let anchor, let startGraph):
             let delta = snappedDelta(
                 GraphPoint(x: graphPoint.x - startGraph.x, y: graphPoint.y - startGraph.y),
@@ -222,7 +240,7 @@ public final class GraphInteractionController {
             break
         case .pressed(let press):
             click(press)
-        case .panning, .movingNodes, .movingGroup, .resizingNode, .resizingGroup:
+        case .panning, .movingNodes, .movingGroup, .resizingNode, .resizingGroup, .adjustingSlider, .scrubbing:
             model.endCoalescing()
         case .marquee:
             break
@@ -236,7 +254,7 @@ public final class GraphInteractionController {
     /// Abandons the drag in progress and puts everything back as it was.
     public func cancel() {
         switch state {
-        case .movingNodes, .movingGroup, .resizingNode, .resizingGroup:
+        case .movingNodes, .movingGroup, .resizingNode, .resizingGroup, .adjustingSlider, .scrubbing:
             model.endCoalescing()
             if appliedEdit { try? model.undo() }
         case .magnifying(let startCamera), .multiTouch(let startCamera, _):
@@ -257,7 +275,7 @@ public final class GraphInteractionController {
         if let point, !isActive {
             switch target(at: model.camera.graphPoint(forScreen: point)) {
             case .port(let port): result = .port(port.address)
-            case .node(let id), .nodeResize(let id): result = .node(id)
+            case .node(let id), .nodeResize(let id), .widget(let id, _): result = .node(id)
             case .link(let id): result = .link(id)
             case .empty, .groupTitle, .groupResize: result = nil
             }
@@ -282,7 +300,7 @@ public final class GraphInteractionController {
     func subject(at point: CGPoint, kind: PointerKind = .mouse) -> Subject {
         let graphPoint = model.camera.graphPoint(forScreen: point)
         switch target(at: graphPoint, kind: kind) {
-        case .node(let id), .nodeResize(let id): return .node(id)
+        case .node(let id), .nodeResize(let id), .widget(let id, _): return .node(id)
         case .port(let port): return .node(port.address.node)
         case .link(let id): return .link(id, graphPoint)
         case .groupTitle(let id), .groupResize(let id): return .group(id)
@@ -387,6 +405,7 @@ public final class GraphInteractionController {
                     width: handle.size.width + 2 * grip, height: handle.size.height + 2 * grip)
                 if inflated.contains(point), layout.frame.contains(point) { return .nodeResize(id) }
             }
+            if lod.tier == .full, let widget = model.layout(of: id)?.widget(at: point) { return .widget(id, widget) }
             return .node(id)
         }
         if let id = model.link(at: point, tolerance: linkPickDistance * reach / zoom) { return .link(id) }
@@ -430,6 +449,13 @@ public final class GraphInteractionController {
         case .nodeResize(let id):
             guard let layout = model.layout(of: id) else { state = .idle; return }
             state = .resizingNode(id, startSize: layout.frame.size, minimum: layout.minimumSize, startGraph: press.startGraph)
+        case .widget(let id, let widget):
+            // Only a number can be dragged; the other widgets act on release.
+            if case .number = widget.spec.kind, let value = currentValue(of: widget, on: id) {
+                state = .scrubbing(node: id, widget: widget, start: value, startScreenX: press.startScreen.x)
+            } else {
+                state = .idle
+            }
         case .link:
             state = .idle  // links are selected, not dragged
         case .groupTitle(let id):
@@ -469,6 +495,8 @@ public final class GraphInteractionController {
         switch press.target {
         case .node(let id):
             if press.narrowsOnRelease { model.selection = GraphSelection(nodes: [id]) }
+        case .widget(let id, let widget):
+            activate(widget, on: id)
         case .empty:
             if !press.modifiers.extendsSelection { model.clearSelection() }
         default:
@@ -580,6 +608,119 @@ public final class GraphInteractionController {
         } catch {
             // Refused after all: leave the graph as it was.
         }
+    }
+
+    // MARK: Widgets
+
+    /// A widget being edited in an overlay.
+    public struct WidgetEditor: Hashable, Sendable {
+        public var node: NodeID
+        public var spec: NodeWidgetSpec
+        /// What the text field holds while typing. Applied when the editor closes with a commit.
+        public var draftText: String
+    }
+
+    /// The edited widget's frame in graph space, following the node if it moves.
+    public var editorFrame: GraphRect? {
+        guard let editor else { return nil }
+        return model.layout(of: editor.node)?.widgets.first { $0.spec.id == editor.spec.id }?.frame
+    }
+
+    /// Records what has been typed so far.
+    public func updateDraft(_ text: String) {
+        editor?.draftText = text
+    }
+
+    /// Closes the editor. With `commit`, a text or number editor applies what was typed (a
+    /// number that does not parse is dropped); choice and color editors commit through
+    /// ``commitEditor(_:)`` instead.
+    public func closeEditor(commit: Bool) {
+        guard let editor else { return }
+        self.editor = nil
+        model.endCoalescing()
+        guard commit, let value = editor.spec.kind.value(fromText: editor.draftText),
+              let widget = model.layout(of: editor.node)?.widgets.first(where: { $0.spec.id == editor.spec.id })
+        else { return }
+        setValue(value, on: editor.node, widget, coalescing: false)
+    }
+
+    /// Applies `value` from an editor that stays open (a color picker being dragged). Repeated
+    /// calls merge into one undo step, which ends when the editor closes.
+    public func applyLive(_ value: GraphValue) {
+        guard let editor, let widget = model.layout(of: editor.node)?.widgets.first(where: { $0.spec.id == editor.spec.id }) else { return }
+        setValue(value, on: editor.node, widget, coalescing: true)
+    }
+
+    /// Applies `value` from a choice or color editor and closes it.
+    public func commitEditor(_ value: GraphValue) {
+        guard let editor, let widget = model.layout(of: editor.node)?.widgets.first(where: { $0.spec.id == editor.spec.id }) else {
+            self.editor = nil
+            return
+        }
+        self.editor = nil
+        setValue(value, on: editor.node, widget, coalescing: false)
+    }
+
+    /// The widget's property value, falling back to the property's default.
+    func currentValue(of widget: WidgetLayout, on id: NodeID) -> GraphValue? {
+        guard let node = model.graph.nodes[id], let property = widget.spec.property,
+              let definition = model.definition(of: node) else { return nil }
+        return node.value(of: property, in: definition)
+    }
+
+    /// What releasing on a widget does: flip a toggle, press a button, or open an editor.
+    private func activate(_ widget: WidgetLayout, on id: NodeID) {
+        let current = currentValue(of: widget, on: id)
+        switch widget.spec.kind {
+        case .toggle:
+            if case .bool(let on)? = current { setValue(.bool(!on), on: id, widget, coalescing: false) }
+        case .button(let action):
+            model.onWidgetAction?(id, action)
+        case .number, .text, .multilineText:
+            editor = WidgetEditor(node: id, spec: widget.spec, draftText: Self.editableText(current))
+        case .combo, .color:
+            editor = WidgetEditor(node: id, spec: widget.spec, draftText: "")
+        case .slider, .readOnly, .custom:
+            break
+        }
+    }
+
+    /// The text a text field starts with: the value without a trailing format.
+    static func editableText(_ value: GraphValue?) -> String {
+        switch value {
+        case .string(let text)?: text
+        case .int(let v)?: String(v)
+        case .double(let v)?: WidgetKind.format(v)
+        default: ""
+        }
+    }
+
+    private func beginSlider(_ id: NodeID, _ widget: WidgetLayout, atGraphX x: Double) {
+        model.endCoalescing()
+        appliedEdit = false
+        state = .adjustingSlider(node: id, widget: widget)
+        setSlider(id, widget, atGraphX: x)
+    }
+
+    private func setSlider(_ id: NodeID, _ widget: WidgetLayout, atGraphX x: Double) {
+        let frame = widget.frame
+        guard frame.size.width > 0,
+              let value = widget.spec.kind.sliderValue(atFraction: (x - frame.minX) / frame.size.width) else { return }
+        setValue(value, on: id, widget, coalescing: true)
+    }
+
+    /// Sets the widget's property, limited to its range, as an undoable edit. Does nothing if the
+    /// value would not change.
+    private func setValue(_ value: GraphValue, on id: NodeID, _ widget: WidgetLayout, coalescing: Bool) {
+        guard let property = widget.spec.property, let node = model.graph.nodes[id],
+              let definition = model.definition(of: node), let propertyDefinition = definition.property(property)
+        else { return }
+        let clamped = propertyDefinition.clamped(value)
+        guard clamped != node.value(of: property, in: definition) else { return }
+        let change = try? model.perform(
+            .setNodeProperty(node: id, property: property, value: clamped),
+            name: "Set \(widget.spec.title)", coalescing: coalescing)
+        if change != nil { appliedEdit = true }
     }
 
     private func reset() {

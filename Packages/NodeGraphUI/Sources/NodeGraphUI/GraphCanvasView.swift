@@ -81,6 +81,8 @@ public struct GraphCanvasView: View {
                 .onEnded { _ in controller.endMagnify() }
         )
         #endif
+        // Last, so the editor sits above the touch layer and the drag gesture.
+        .overlay { WidgetEditorOverlay(controller: controller) }
     }
 
     #if !canImport(UIKit)
