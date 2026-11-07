@@ -91,6 +91,9 @@ public final class GraphEditorModel {
     /// Renderers for custom widgets, by name.
     @ObservationIgnored public private(set) var widgetRenderers: [String: WidgetRenderer] = [:]
 
+    /// Custom body drawing for node types, set with ``registerContentDrawing(for:_:)``.
+    @ObservationIgnored public private(set) var contentDrawings: [NodeTypeID: NodeContentDrawing] = [:]
+
     private struct CachedLayout {
         var node: Node
         var layout: NodeLayout
@@ -332,7 +335,7 @@ public final class GraphEditorModel {
         let definition = definition(of: node)
         let layout = NodeLayout(
             node: node, definition: definition, widgets: widgetSpecs(for: node, definition: definition),
-            metrics: metrics)
+            contentHeight: contentDrawings[node.typeID]?.height ?? 0, metrics: metrics)
         layoutCache[id] = CachedLayout(node: node, layout: layout)
         return layout
     }
@@ -389,7 +392,7 @@ public final class GraphEditorModel {
     func previewLayout(of typeID: NodeTypeID) -> NodeLayout? {
         let node = Node(typeID: typeID)
         guard let definition = definition(of: node) else { return nil }
-        return NodeLayout(node: node, definition: definition, widgets: widgetSpecs(for: node, definition: definition), metrics: metrics)
+        return NodeLayout(node: node, definition: definition, widgets: widgetSpecs(for: node, definition: definition), contentHeight: contentDrawings[typeID]?.height ?? 0, metrics: metrics)
     }
 
     /// What a link dragged from `anchor` needs from a node it ends on.
@@ -401,6 +404,15 @@ public final class GraphEditorModel {
     /// at setup; a custom widget with no renderer shows its value as text.
     public func registerWidgetRenderer(named name: String, _ renderer: @escaping WidgetRenderer) {
         widgetRenderers[name] = renderer
+    }
+
+    /// Gives nodes of `typeID` an area below their widgets that `drawing` fills, for domain
+    /// visuals such as thumbnails and scopes. Packs call this at setup; a later call for the same
+    /// type replaces the earlier one.
+    public func registerContentDrawing(for typeID: NodeTypeID, _ drawing: NodeContentDrawing) {
+        contentDrawings[typeID] = drawing
+        layoutCache.removeAll()
+        cachedSpatialIndex = nil
     }
 
     /// The color a port is drawn with.

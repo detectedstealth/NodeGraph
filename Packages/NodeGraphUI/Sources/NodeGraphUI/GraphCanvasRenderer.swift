@@ -250,6 +250,17 @@ struct GraphCanvasRenderer {
         if lod.tier == .full {
             for widget in layout.widgets { drawWidget(&context, widget, on: node) }
         }
+        if lod.tier == .full, let area = layout.content, let drawing = model.contentDrawings[node.typeID] {
+            // Clipped so a drawing that overruns its area cannot cover ports or neighbours.
+            context.drawLayer { layer in
+                layer.clip(to: Path(CGRect(area)))
+                drawing.draw(
+                    &layer,
+                    NodeContentContext(
+                        node: node, definition: model.definition(of: node), rect: CGRect(area), theme: theme,
+                        zoom: zoom))
+            }
+        }
         if selected, !layout.isCollapsed, lod.tier == .full { drawResizeHandle(&context, layout) }
         if let decoration { drawRunDecoration(&context, decoration, layout: layout, lod: lod) }
     }

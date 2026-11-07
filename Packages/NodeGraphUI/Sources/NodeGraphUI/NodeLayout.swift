@@ -76,6 +76,9 @@ public struct NodeLayout: Hashable, Sendable {
     public var outputs: [PortLayout]
     /// The widget rows below the ports. Empty when collapsed.
     public var widgets: [WidgetLayout]
+    /// The area a pack's custom drawing fills, below the widgets. Nil when the node has none or
+    /// is collapsed.
+    public var content: GraphRect?
     public var resizeHandle: GraphRect
     /// The smallest size the node can be resized to without clipping its ports.
     public var minimumSize: GraphSize
@@ -85,16 +88,19 @@ public struct NodeLayout: Hashable, Sendable {
     /// - Parameter definition: The node's definition as the node sees it, which is
     ///   ``NodeRegistry/definition(for:)-(Node)`` so dynamic ports are included. Nil for a node
     ///   whose type is not registered: it gets a frame and no ports.
+    /// - Parameter contentHeight: Height reserved below the widgets for custom drawing; 0 for none.
     public init(
         node: Node, definition: NodeDefinition?, widgets widgetSpecs: [NodeWidgetSpec] = [],
-        metrics: NodeLayoutMetrics = .standard
+        contentHeight customHeight: Double = 0, metrics: NodeLayoutMetrics = .standard
     ) {
         let inputPorts = definition?.inputs ?? []
         let outputPorts = definition?.outputs ?? []
         let rows = max(inputPorts.count, outputPorts.count)
         let portsBottom = metrics.headerHeight + metrics.portInset + Double(rows) * metrics.portRowHeight
         let widgetsHeight = widgetSpecs.reduce(0) { $0 + Double($1.kind.rowCount) * metrics.widgetRowHeight + metrics.widgetSpacing }
-        let contentHeight = portsBottom + widgetsHeight + metrics.portInset
+        let customHeight = max(customHeight, 0)
+        let customBlock = customHeight > 0 ? customHeight + metrics.widgetSpacing : 0
+        let contentHeight = portsBottom + widgetsHeight + customBlock + metrics.portInset
         let requested = node.size ?? definition?.defaultSize ?? GraphSize(width: 160, height: 80)
         let width = max(requested.width, metrics.minimumWidth)
         let height = node.isCollapsed ? metrics.headerHeight : max(requested.height, contentHeight)
@@ -132,6 +138,9 @@ public struct NodeLayout: Hashable, Sendable {
                     x: origin.x + metrics.widgetInset, y: widgetTop + metrics.widgetSpacing,
                     width: width - 2 * metrics.widgetInset, height: height))
         }
+        content = node.isCollapsed || customHeight == 0 ? nil : GraphRect(
+            x: origin.x + metrics.widgetInset, y: widgetTop + metrics.widgetSpacing,
+            width: width - 2 * metrics.widgetInset, height: customHeight)
         inputs = inputPorts.enumerated().map { row, port in
             PortLayout(
                 address: PortAddress(node: node.id, port: port.id, direction: .input),

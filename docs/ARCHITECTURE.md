@@ -61,7 +61,7 @@ Native JSON, `schemaVersion` integer at the root, with migrators registered per 
 - `GraphCanvasView` renders with SwiftUI `Canvas`: grid, links, nodes, groups, with viewport culling and a spatial index (grid or R-tree) for hit testing. Link and node drawing use a single `NodeLayout` source of truth so hit testing and drawing can't disagree.
 - Input is an interaction state machine fed by a platform layer: scroll-wheel/trackpad/keyboard/right-click on macOS; touch, pinch, two-finger pan, long-press, Pencil, hardware keyboard and pointer on iPadOS.
 - Node bodies can host SwiftUI views overlaid at high zoom for rich widgets (text fields, pickers). At low zoom they render as cheap Canvas shapes (level of detail).
-- Custom node drawing is a protocol hook on `NodeDefinition` provided by packs for domain visuals (timeline thumbnails, scopes).
+- Custom node drawing is a `NodeContentDrawing` (height plus a draw closure) that a pack registers per node type on `GraphEditorModel`, for domain visuals (timeline thumbnails, scopes). It lives in UI, not on `NodeDefinition`, because Core cannot know about drawing.
 - Theme is a data type (`GraphTheme`), cross-platform; no AppKit/UIKit colors.
 - Metal is deferred. Revisit only if benchmarks at 5k nodes miss frame budget (see PLAN.md Phase 4).
 
