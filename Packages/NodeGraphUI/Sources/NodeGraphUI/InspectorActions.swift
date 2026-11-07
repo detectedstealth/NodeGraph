@@ -75,6 +75,28 @@ extension GraphEditorModel {
         return attempt(.setLinkWaypoints(link: id, waypoints: []), name: "Remove Reroute Points")
     }
 
+    /// Lines the nodes up on `edge` of the box around them, as one undoable move. Pinned nodes are
+    /// measured but stay where they are. Returns whether anything moved.
+    @discardableResult
+    public func align(_ ids: some Collection<NodeID>, to edge: AlignEdge) -> Bool {
+        arrange(ids, name: "Align \(edge.title)") { Arrangement.aligned($0, to: edge) }
+    }
+
+    /// Spaces three or more nodes evenly along an axis, keeping the outer two where they are.
+    @discardableResult
+    public func distribute(_ ids: some Collection<NodeID>, along axis: DistributeAxis) -> Bool {
+        arrange(ids, name: "Distribute \(axis.title)") { Arrangement.distributed($0, along: axis) }
+    }
+
+    private func arrange(_ ids: some Collection<NodeID>, name: String, _ compute: ([Arrangement.Item]) -> [NodePlacement]) -> Bool {
+        let items = graph.nodes.values.filter { ids.contains($0.id) }.compactMap { node in
+            layout(of: node.id).map { Arrangement.Item(node: node.id, frame: $0.frame, isPinned: node.isPinned) }
+        }
+        let placements = compute(items)
+        guard !placements.isEmpty else { return false }
+        return attempt(.setNodePositions(placements: placements), name: name)
+    }
+
     // MARK: Helpers
 
     private func attempt(_ command: GraphCommand, name: String, coalescing: Bool = false) -> Bool {

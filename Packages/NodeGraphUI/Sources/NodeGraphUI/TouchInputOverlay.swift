@@ -73,6 +73,13 @@ final class TouchInputView: UIView, UIGestureRecognizerDelegate, UIContextMenuIn
     // the focus system turns on and moves focus around the canvas, which swallowed touches.
     override var canBecomeFirstResponder: Bool { true }
 
+    /// The canvas takes hardware key presses, not typing. An empty input view stops iPadOS from
+    /// raising the software keyboard while this view is the first responder, which it did
+    /// whenever a context menu opened and then covered half the canvas.
+    private let noKeyboard = UIView(frame: .zero)
+    override var inputView: UIView? { noKeyboard }
+    override var inputAccessoryView: UIView? { nil }
+
     override func didMoveToWindow() {
         super.didMoveToWindow()
         if window != nil { becomeFirstResponder() }
@@ -94,8 +101,24 @@ final class TouchInputView: UIView, UIGestureRecognizerDelegate, UIContextMenuIn
             command("Zoom In", "=", "zoomIn"),
             command("Zoom Out", "-", "zoomOut"),
             command("Leave Subgraph", "[", "leaveSubgraph"),
+            command("Duplicate", "d", "duplicate"),
         ]
     }
+
+    // Copy, cut and paste are the standard responder actions, so Command-C and friends, the
+    // edit menu, and the system's three-finger pinch and spread gestures all reach them.
+    override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
+        guard let controller else { return false }
+        switch action {
+        case #selector(copy(_:)), #selector(cut(_:)): return !controller.model.selection.isEmpty
+        case #selector(paste(_:)): return controller.clipboard.mayHaveFragment
+        default: return super.canPerformAction(action, withSender: sender)
+        }
+    }
+
+    override func copy(_ sender: Any?) { controller?.perform(.copy) }
+    override func cut(_ sender: Any?) { controller?.perform(.cut) }
+    override func paste(_ sender: Any?) { controller?.perform(.paste(at: nil)) }
 
     @objc private func handleKeyCommand(_ sender: UIKeyCommand) {
         let command: CanvasCommand? = switch sender.propertyList as? String {
@@ -104,6 +127,7 @@ final class TouchInputView: UIView, UIGestureRecognizerDelegate, UIContextMenuIn
         case "zoomIn": .zoomIn
         case "zoomOut": .zoomOut
         case "leaveSubgraph": .leaveSubgraph
+        case "duplicate": .duplicate
         default: nil
         }
         if let command { controller?.perform(command) }

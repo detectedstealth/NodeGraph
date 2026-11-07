@@ -257,6 +257,29 @@ private struct NodesSection: View {
                 model.setColor($0, of: info.ids)
             }
         }
+
+        Section("Arrange") {
+            LabeledContent("Align") {
+                HStack {
+                    ForEach(AlignEdge.allCases, id: \.self) { edge in
+                        Button { model.align(info.ids, to: edge) } label: { Image(systemName: edge.symbol) }
+                            .help("Align \(edge.title)")
+                            .accessibilityLabel("Align \(edge.title)")
+                    }
+                }
+            }
+            LabeledContent("Distribute") {
+                HStack {
+                    ForEach(DistributeAxis.allCases, id: \.self) { axis in
+                        Button { model.distribute(info.ids, along: axis) } label: { Image(systemName: axis.symbol) }
+                            .disabled(info.ids.count < 3)
+                            .help("Distribute \(axis.title)")
+                            .accessibilityLabel("Distribute \(axis.title)")
+                    }
+                }
+            }
+        }
+        .buttonStyle(.borderless)
     }
 }
 
@@ -386,4 +409,22 @@ private struct ColorRow: View {
             }
         }
     }
+}
+
+
+private extension AlignEdge {
+    var symbol: String {
+        switch self {
+        case .left: "align.horizontal.left"
+        case .right: "align.horizontal.right"
+        case .top: "align.vertical.top"
+        case .bottom: "align.vertical.bottom"
+        case .centerX: "align.horizontal.center"
+        case .centerY: "align.vertical.center"
+        }
+    }
+}
+
+private extension DistributeAxis {
+    var symbol: String { self == .horizontal ? "distribute.horizontal.center" : "distribute.vertical.center" }
 }

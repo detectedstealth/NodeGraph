@@ -77,6 +77,18 @@ extension GraphInteractionController {
         case .toggleSnapToGrid:
             model.snapsToGrid.toggle()
             return true
+        case .copy:
+            return copySelection()
+        case .cut:
+            return cutSelection()
+        case .paste(let point):
+            return paste(at: point)
+        case .duplicate:
+            return duplicateSelection()
+        case .align(let edge):
+            return model.align(selection.nodes, to: edge)
+        case .distribute(let axis):
+            return model.distribute(selection.nodes, along: axis)
         case .openSubgraph:
             guard selection.nodes.count == 1, let id = selection.nodes.first else { return false }
             return enterSubgraph(of: id)
@@ -122,7 +134,18 @@ extension GraphInteractionController {
             let nodes = model.graph.nodes.values.filter { model.selection.nodes.contains($0.id) }
             let modes = Set(nodes.map(\.mode))
             let opens = nodes.count == 1 && model.subgraph(of: id) != nil
+            var arrange: [CanvasMenuItem] = []
+            if nodes.count >= 2 {
+                arrange.append(CanvasMenuItem("Align", submenu: AlignEdge.allCases.map { CanvasMenuItem($0.title, .align($0)) }))
+            }
+            if nodes.count >= 3 {
+                arrange.append(CanvasMenuItem("Distribute", submenu: DistributeAxis.allCases.map { CanvasMenuItem($0.title, .distribute($0)) }))
+            }
             return (opens ? [CanvasMenuItem("Open Subgraph", .openSubgraph), .separator] : []) + [
+                CanvasMenuItem("Copy", .copy),
+                CanvasMenuItem("Cut", .cut),
+                CanvasMenuItem("Duplicate", .duplicate),
+                .separator,
                 CanvasMenuItem(nodes.allSatisfy(\.isCollapsed) ? "Expand" : "Collapse", .toggleCollapsed),
                 CanvasMenuItem(nodes.allSatisfy(\.isPinned) ? "Unpin" : "Pin", .togglePinned),
                 CanvasMenuItem("Mode", submenu: NodeMode.allCases.map {
@@ -131,6 +154,7 @@ extension GraphInteractionController {
                 CanvasMenuItem(
                     "Disconnect All", .disconnectSelection,
                     isEnabled: nodes.contains { !model.graph.links(attachedTo: $0.id).isEmpty }),
+            ] + (arrange.isEmpty ? [] : [.separator] + arrange) + [
                 .separator,
                 CanvasMenuItem("Delete", .deleteSelection),
             ]
@@ -143,11 +167,18 @@ extension GraphInteractionController {
             ]
         case .group(let id):
             model.selection = GraphSelection(groups: [id])
-            return [CanvasMenuItem("Delete Group", .deleteSelection)]
+            return [
+                CanvasMenuItem("Copy", .copy),
+                CanvasMenuItem("Cut", .cut),
+                CanvasMenuItem("Duplicate", .duplicate),
+                .separator,
+                CanvasMenuItem("Delete Group", .deleteSelection),
+            ]
         case .empty:
             model.clearSelection()
             return (model.currentScope == nil ? [] : [CanvasMenuItem("Leave Subgraph", .leaveSubgraph), .separator]) + [
                 CanvasMenuItem("Add Node…", .addNode(at: model.camera.graphPoint(forScreen: point))),
+                CanvasMenuItem("Paste", .paste(at: model.camera.graphPoint(forScreen: point)), isEnabled: clipboard.mayHaveFragment),
                 .separator,
                 CanvasMenuItem("Select All", .selectAll, isEnabled: !model.graph.nodes.isEmpty),
                 .separator,

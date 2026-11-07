@@ -636,6 +636,91 @@ public final class GraphInteractionController {
         }
     }
 
+    // MARK: Clipboard
+
+    /// Where Copy and Cut put things and Paste reads them. The system clipboard by default.
+    @ObservationIgnored public var clipboard: any GraphClipboard = SystemClipboard()
+
+    /// What copying the selection takes: the selected nodes and groups, the nodes inside each
+    /// selected group, and the groups nested in it.
+    private func copyTargets() -> (nodes: [NodeID], groups: [GroupID]) {
+        var nodes = model.selection.nodes
+        var groups = model.selection.groups
+        let graph = model.graph
+        for id in model.selection.groups {
+            guard let group = graph.groups[id] else { continue }
+            nodes.formUnion(graph.members(of: group, frame: model.editor.nodes.frame(of:)))
+            groups.formUnion(graph.nestedGroups(in: group))
+        }
+        // Storage order, so a paste keeps the original stacking.
+        return (graph.nodes.keys.filter(nodes.contains), graph.groups.keys.filter(groups.contains))
+    }
+
+    /// Puts the selection on the clipboard. Returns whether there was anything to copy.
+    @discardableResult
+    public func copySelection() -> Bool {
+        let targets = copyTargets()
+        guard !targets.nodes.isEmpty || !targets.groups.isEmpty,
+              let fragment = try? model.editor.fragment(nodes: targets.nodes, groups: targets.groups, in: model.currentScope)
+        else { return false }
+        clipboard.write(fragment)
+        return true
+    }
+
+    /// Copies the selection, then removes it (a selected group goes with what is inside it).
+    @discardableResult
+    public func cutSelection() -> Bool {
+        guard copySelection() else { return false }
+        let targets = copyTargets()
+        return (try? model.group(name: "Cut") {
+            for id in targets.nodes { try model.perform(.removeNode(id: id)) }
+            for id in targets.groups { try model.perform(.removeGroup(id: id)) }
+        }) != nil
+    }
+
+    /// Pastes the clipboard centered on `point`, or on the pointer (or the middle of the view)
+    /// when nil, and selects what was pasted. Returns whether anything was pasted; a fragment
+    /// with a node type this editor does not have is refused.
+    @discardableResult
+    public func paste(at point: GraphPoint? = nil) -> Bool {
+        guard let fragment = clipboard.read(), !fragment.isEmpty,
+              let bounds = fragment.bounds(frame: model.editor.nodes.frame(of:)) else { return false }
+        let target = point ?? model.camera.graphPoint(
+            forScreen: lastPointer ?? CGPoint(x: model.viewSize.width / 2, y: model.viewSize.height / 2))
+        var delta = GraphPoint(
+            x: target.x - (bounds.minX + bounds.size.width / 2), y: target.y - (bounds.minY + bounds.size.height / 2))
+        if model.snapsToGrid {
+            let spacing = model.theme.gridSpacing
+            if spacing > 0 {
+                delta = GraphPoint(
+                    x: (( bounds.minX + delta.x) / spacing).rounded() * spacing - bounds.minX,
+                    y: ((bounds.minY + delta.y) / spacing).rounded() * spacing - bounds.minY)
+            }
+        }
+        return place(fragment, translatedBy: delta, name: "Paste")
+    }
+
+    /// Copies the selection to just beside itself and selects the copy, leaving the clipboard alone.
+    @discardableResult
+    public func duplicateSelection() -> Bool {
+        let targets = copyTargets()
+        guard !targets.nodes.isEmpty || !targets.groups.isEmpty,
+              let fragment = try? model.editor.fragment(nodes: targets.nodes, groups: targets.groups, in: model.currentScope)
+        else { return false }
+        let offset = Self.duplicateOffset
+        return place(fragment, translatedBy: GraphPoint(x: offset, y: offset), name: "Duplicate")
+    }
+
+    /// How far a duplicate sits from its original, in graph units.
+    static let duplicateOffset = 24.0
+
+    private func place(_ fragment: GraphFragment, translatedBy delta: GraphPoint, name: String) -> Bool {
+        guard let paste = try? model.editor.pasteCommand(fragment, translatedBy: delta, in: model.currentScope),
+              (try? model.perform(paste.command, name: name, isScoped: true)) != nil else { return false }
+        model.selection = GraphSelection(nodes: Set(paste.nodes), groups: Set(paste.groups))
+        return true
+    }
+
     // MARK: Subgraphs
 
     /// Opens the subgraph a node is an instance of. Anything half done (a drag, an open editor

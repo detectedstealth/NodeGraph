@@ -121,12 +121,15 @@ public final class GraphEditorModel {
 
     /// Applies and records a command. See ``GraphHistory/perform(_:name:coalescing:)``.
     /// On failure nothing changes and the error is rethrown.
+    ///
+    /// Inside a subgraph the command is applied to its inner graph. Pass `isScoped: true` for a
+    /// command that already names its scope, such as one from ``GraphEditor/pasteCommand(_:translatedBy:in:)``.
     @discardableResult
     public func perform(
-        _ command: GraphCommand, name: String? = nil, coalescing: Bool = false
+        _ command: GraphCommand, name: String? = nil, coalescing: Bool = false, isScoped: Bool = false
     ) throws -> GraphChange {
-        let change = try history.perform(scoped(command), name: name, coalescing: coalescing)
-        didEdit(affectingDefinitions: command.changesDefinitions)
+        let change = try history.perform(isScoped ? command : scoped(command), name: name, coalescing: coalescing)
+        didEdit(affectingDefinitions: command.changesDefinitions || isScoped)
         registerUndoIfStepRecorded()
         return change
     }

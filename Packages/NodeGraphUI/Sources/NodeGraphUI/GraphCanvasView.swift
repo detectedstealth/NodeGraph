@@ -44,6 +44,12 @@ public struct GraphCanvasView: View {
         .focusEffectDisabled()
         .focused($isFocused)
         .onKeyPress(phases: [.down, .repeat]) { press in handle(press) }
+        #if os(macOS)
+        // On a Mac the Delete key reaches a view as the delete command (the responder chain's
+        // deleteBackward:), not always as a key press, so Delete is also handled here. This is
+        // what Edit > Delete runs, too.
+        .onDeleteCommand { controller.perform(.deleteSelection) }
+        #endif
         .onContinuousHover { phase in
             switch phase {
             case .active(let location): controller.hover(at: location)

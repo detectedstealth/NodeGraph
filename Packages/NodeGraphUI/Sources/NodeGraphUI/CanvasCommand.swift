@@ -16,6 +16,18 @@ public enum CanvasCommand: Hashable, Sendable {
     case zoomIn
     case zoomOut
     case toggleSnapToGrid
+    /// Copies the selection (and the contents of selected groups) to the clipboard.
+    case copy
+    /// Copies, then removes.
+    case cut
+    /// Pastes the clipboard, centered on a graph-space point, or on the pointer when nil.
+    case paste(at: GraphPoint?)
+    /// Makes a copy of the selection a little way off, without touching the clipboard.
+    case duplicate
+    /// Lines the selected nodes up on an edge or center of the box around them.
+    case align(AlignEdge)
+    /// Spaces three or more selected nodes evenly.
+    case distribute(DistributeAxis)
     /// Opens the subgraph the single selected node is an instance of, to edit inside it.
     case openSubgraph
     /// Goes back out of the subgraph being edited.
@@ -59,6 +71,10 @@ public enum CanvasKeyMap {
             let commandKey = modifiers.contains(.command)
             switch character.lowercased() {
             case "a" where commandKey: return .selectAll
+            case "c" where commandKey: return .copy
+            case "x" where commandKey: return .cut
+            case "v" where commandKey: return .paste(at: nil)
+            case "d" where commandKey: return .duplicate
             case "0" where commandKey: return .resetZoom
             case "=" where commandKey, "+" where commandKey: return .zoomIn
             case "-" where commandKey: return .zoomOut

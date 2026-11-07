@@ -218,7 +218,7 @@ import NodeGraphCore
         model.select(node: b.id)
         let items = controller.contextMenu(at: CGPoint(x: 60, y: 40))
         #expect(model.selection.nodes == [a.id])
-        #expect(titles(items) == ["Collapse", "Pin", "Mode", "Disconnect All", "Delete"])
+        #expect(titles(items) == ["Copy", "Cut", "Duplicate", "Collapse", "Pin", "Mode", "Disconnect All", "Delete"])
         #expect(items.first { $0.title == "Disconnect All" }?.isEnabled == false)
     }
 
@@ -236,7 +236,7 @@ import NodeGraphCore
         let a = Node(typeID: TestKit.source, position: .zero, mode: .muted, isCollapsed: true, isPinned: true)
         try model.perform(.addNode(node: a))
         let items = controller.contextMenu(at: CGPoint(x: 60, y: 14))
-        #expect(titles(items).prefix(2) == ["Expand", "Unpin"])
+        #expect(titles(items).filter { $0 == "Expand" || $0 == "Unpin" } == ["Expand", "Unpin"])
         guard case .submenu(let modes) = try #require(items.first { $0.title == "Mode" }).kind else {
             Issue.record("expected a submenu")
             return
@@ -267,7 +267,7 @@ import NodeGraphCore
         model.snapsToGrid = true
         let items = controller.contextMenu(at: CGPoint(x: 900, y: 900))
         #expect(model.selection.isEmpty)
-        #expect(titles(items) == ["Add Node…", "Select All", "Zoom to Fit", "Actual Size", "Snap to Grid"])
+        #expect(titles(items) == ["Add Node…", "Paste", "Select All", "Zoom to Fit", "Actual Size", "Snap to Grid"])
         #expect(items.first { $0.title == "Snap to Grid" }?.isChecked == true)
     }
 
@@ -276,7 +276,7 @@ import NodeGraphCore
         try model.perform(.addGroup(group: group))
         let items = controller.contextMenu(at: CGPoint(x: 100, y: 10))
         #expect(model.selection.groups == [group.id])
-        #expect(titles(items) == ["Delete Group"])
+        #expect(titles(items) == ["Copy", "Cut", "Duplicate", "Delete Group"])
     }
 }
 
