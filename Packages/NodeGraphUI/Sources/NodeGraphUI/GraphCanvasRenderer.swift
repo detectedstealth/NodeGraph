@@ -139,7 +139,7 @@ struct GraphCanvasRenderer {
             lineWidth: max(selected ? 2 : theme.borderWidth, 1 / model.camera.zoom))
         if lod.drawsTitles {
             let title = context.resolve(
-                Text(group.title).font(.system(size: theme.titleFontSize, weight: .semibold))
+                Text(group.title).font(.system(size: theme.titleFontSize * model.textScale, weight: .semibold))
                     .foregroundColor(Color(theme.groupTitle)))
             context.draw(title, at: CGPoint(x: rect.minX + 10, y: rect.minY + 8), anchor: .topLeading)
         }
@@ -333,7 +333,7 @@ struct GraphCanvasRenderer {
         let theme = model.theme
         func resolve(_ string: String) -> GraphicsContext.ResolvedText {
             context.resolve(
-                Text(string).font(.system(size: theme.titleFontSize, weight: .semibold))
+                Text(string).font(.system(size: theme.titleFontSize * model.textScale, weight: .semibold))
                     .foregroundColor(Color(theme.nodeTitle)))
         }
         let full = resolve(title)
@@ -443,7 +443,7 @@ struct GraphCanvasRenderer {
     private func fittedText(
         _ context: inout GraphicsContext, _ string: String, width: Double, color: Color
     ) -> GraphicsContext.ResolvedText {
-        let size = model.theme.portFontSize
+        let size = model.theme.portFontSize * model.textScale
         func resolve(_ value: String) -> GraphicsContext.ResolvedText {
             context.resolve(Text(value).font(.system(size: size)).foregroundColor(color))
         }
@@ -492,7 +492,7 @@ struct GraphCanvasRenderer {
 
         guard lod.drawsPortLabels, !layout.isCollapsed else { return }
         let label = context.resolve(
-            Text(port.definition.displayName).font(.system(size: theme.portFontSize))
+            Text(port.definition.displayName).font(.system(size: theme.portFontSize * model.textScale))
                 .foregroundColor(Color(theme.portLabel)))
         if port.address.direction == .input {
             context.draw(label, at: CGPoint(x: center.x + r + 6, y: center.y), anchor: .leading)

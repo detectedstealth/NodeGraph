@@ -74,6 +74,25 @@ public final class GraphEditorModel {
             cachedSpatialIndex = nil
         }
     }
+    /// How much larger than normal the user's preferred text size is, kept up to date by the
+    /// view from Dynamic Type (see ``textScale(for:)``). Text and the rows that hold it grow by
+    /// this factor; ports and hit areas do not.
+    public var textScale = 1.0 {
+        didSet {
+            guard textScale != oldValue else { return }
+            layoutCache.removeAll()
+            cachedSpatialIndex = nil
+        }
+    }
+    /// ``metrics`` with the rows that hold text scaled by ``textScale``. Layout uses these.
+    public var layoutMetrics: NodeLayoutMetrics {
+        var scaled = metrics
+        scaled.headerHeight *= textScale
+        scaled.portRowHeight *= textScale
+        scaled.widgetRowHeight *= textScale
+        scaled.minimumWidth *= textScale
+        return scaled
+    }
 
     /// Built on demand by hit testing and dropped by every edit. Not observed.
     @ObservationIgnored var cachedSpatialIndex: SpatialIndex<CanvasItem>?
@@ -109,6 +128,10 @@ public final class GraphEditorModel {
 
     /// The Create Subgraph form, while it is open.
     public var createSubgraphRequest: CreateSubgraphRequest?
+
+    /// The port chooser for drawing a link without dragging, while it is open. See
+    /// ``beginConnection(from:)``.
+    public var connectionRequest: ConnectionRequest?
 
     /// The subgraphs entered to reach the graph being edited, outermost first. Empty at the root.
     /// Each was opened from an instance of it in the one before, so this is the breadcrumb.
@@ -335,7 +358,7 @@ public final class GraphEditorModel {
         let definition = definition(of: node)
         let layout = NodeLayout(
             node: node, definition: definition, widgets: widgetSpecs(for: node, definition: definition),
-            contentHeight: contentDrawings[node.typeID]?.height ?? 0, metrics: metrics)
+            contentHeight: contentDrawings[node.typeID]?.height ?? 0, metrics: layoutMetrics)
         layoutCache[id] = CachedLayout(node: node, layout: layout)
         return layout
     }
@@ -392,7 +415,7 @@ public final class GraphEditorModel {
     func previewLayout(of typeID: NodeTypeID) -> NodeLayout? {
         let node = Node(typeID: typeID)
         guard let definition = definition(of: node) else { return nil }
-        return NodeLayout(node: node, definition: definition, widgets: widgetSpecs(for: node, definition: definition), contentHeight: contentDrawings[typeID]?.height ?? 0, metrics: metrics)
+        return NodeLayout(node: node, definition: definition, widgets: widgetSpecs(for: node, definition: definition), contentHeight: contentDrawings[typeID]?.height ?? 0, metrics: layoutMetrics)
     }
 
     /// What a link dragged from `anchor` needs from a node it ends on.

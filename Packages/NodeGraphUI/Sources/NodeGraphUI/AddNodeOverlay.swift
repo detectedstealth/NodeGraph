@@ -48,7 +48,7 @@ private struct AddNodePanel: View {
             TextField("Add node", text: $query)
                 .textFieldStyle(.plain)
                 .focused($isFocused)
-                .font(.system(size: 14))
+                .font(.body)
                 .padding(10)
                 .onSubmit(addHighlighted)
                 #if os(iOS)
@@ -82,7 +82,7 @@ private struct AddNodePanel: View {
         let found = matches
         if found.isEmpty {
             Text(catalog == nil ? "" : "No matching nodes")
-                .font(.system(size: 12))
+                .font(.callout)
                 .foregroundStyle(Color(theme.portLabel))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
@@ -92,7 +92,7 @@ private struct AddNodePanel: View {
                         if isBrowsing, let groups = catalog?.categories {
                             ForEach(groups, id: \.name) { group in
                                 Text(group.name.uppercased())
-                                    .font(.system(size: 10, weight: .semibold))
+                                    .font(.caption2.weight(.semibold))
                                     .foregroundStyle(Color(theme.portLabel))
                                     .padding(.horizontal, 10)
                                     .padding(.top, 8)
@@ -122,16 +122,16 @@ private struct AddNodePanel: View {
             controller.addNode(match)
         } label: {
             HStack {
-                Text(match.entry.displayName).font(.system(size: 13))
+                Text(match.entry.displayName).font(.callout)
                 Spacer()
                 if let port = match.port {
-                    Text(port.displayName).font(.system(size: 11)).foregroundStyle(Color(theme.portLabel))
+                    Text(port.displayName).font(.caption).foregroundStyle(Color(theme.portLabel))
                 } else if showsCategory {
-                    Text(match.entry.category).font(.system(size: 11)).foregroundStyle(Color(theme.portLabel))
+                    Text(match.entry.category).font(.caption).foregroundStyle(Color(theme.portLabel))
                 }
             }
             .padding(.horizontal, 10)
-            .frame(height: 28)
+            .frame(minHeight: 28)
             .background(index == highlighted ? Color(theme.selection.withAlpha(0.35)) : .clear)
             .contentShape(Rectangle())
         }

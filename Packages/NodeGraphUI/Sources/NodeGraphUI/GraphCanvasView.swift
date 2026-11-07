@@ -13,6 +13,8 @@ public struct GraphCanvasView: View {
     @FocusState private var isFocused: Bool
     #endif
     @Environment(\.undoManager) private var undoManager
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
 
     public init(model: GraphEditorModel) {
         self.init(controller: GraphInteractionController(model: model))
@@ -57,7 +59,11 @@ public struct GraphCanvasView: View {
             }
         }
         #endif
-        .onAppear { model.undoManager = undoManager }
+        .onAppear {
+            model.undoManager = undoManager
+            model.textScale = GraphEditorModel.textScale(for: dynamicTypeSize)
+        }
+        .onChange(of: dynamicTypeSize) { _, newValue in model.textScale = GraphEditorModel.textScale(for: newValue) }
         .onChange(of: undoManager) { _, newValue in model.undoManager = newValue }
         #if canImport(UIKit)
         .overlay { TouchInputOverlay(controller: controller) }
@@ -87,10 +93,19 @@ public struct GraphCanvasView: View {
                 .onEnded { _ in controller.endMagnify() }
         )
         #endif
+        .accessibilityLabel("Node graph")
+        .accessibilityChildren {
+            // The canvas is one drawn view; these stand in for its nodes, links and groups. Only
+            // built while VoiceOver runs, since they are rebuilt whenever the graph or view moves.
+            if voiceOverEnabled {
+                AccessibilityElementsView(controller: controller)
+            }
+        }
         // Last, so the editor sits above the touch layer and the drag gesture.
         .overlay { WidgetEditorOverlay(controller: controller) }
         .overlay { AddNodeOverlay(controller: controller) }
         .overlay { CreateSubgraphOverlay(model: model) }
+        .overlay { ConnectionChooserOverlay(model: model) }
     }
 
     #if !canImport(UIKit)

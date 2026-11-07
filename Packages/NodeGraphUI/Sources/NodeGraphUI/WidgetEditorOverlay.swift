@@ -18,7 +18,7 @@ struct WidgetEditorOverlay: View {
             let split = row.minX + row.width * 0.42
             let control = editor.spec.kind == .multilineText
                 ? row : CGRect(x: split, y: row.minY, width: row.maxX - split, height: row.height)
-            let fontSize = min(max(controller.model.theme.portFontSize * zoom, 11), 18)
+            let fontSize = min(max(controller.model.theme.portFontSize * controller.model.textScale * zoom, 11), 18)
 
             Group {
                 switch editor.spec.kind {
@@ -164,7 +164,7 @@ private struct ColorEditor: View {
                 }
             }
             ColorPicker("Custom", selection: $color, supportsOpacity: true)
-                .font(.system(size: 12))
+                .font(.callout)
                 .foregroundStyle(Color(controller.model.theme.nodeTitle))
         }
         .padding(12)

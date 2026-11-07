@@ -801,7 +801,7 @@ public final class GraphInteractionController {
         } else {
             position = GraphPoint(
                 x: request.graphPoint.x - preview.frame.size.width / 2,
-                y: request.graphPoint.y - model.metrics.headerHeight / 2)
+                y: request.graphPoint.y - model.layoutMetrics.headerHeight / 2)
         }
         if model.snapsToGrid {
             let spacing = model.theme.gridSpacing
