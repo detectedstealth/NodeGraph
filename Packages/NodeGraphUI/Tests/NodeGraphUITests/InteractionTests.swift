@@ -235,13 +235,30 @@ private func pt(_ x: Double, _ y: Double) -> CGPoint { CGPoint(x: x, y: y) }
         #expect(rig.model.camera.origin == GraphPoint(x: -30, y: 20))
     }
 
-    @Test func pinchStartedMidDragCancelsTheDrag() throws {
+    @Test func aStrayPinchDoesNotCutADragShort() throws {
         let rig = Rig()
         let a = try rig.add(TestKit.source, x: 0, y: 0)
-        rig.controller.pointerDown(at: pt(60, 40), kind: .touch)
+        rig.controller.pointerDown(at: pt(60, 40), kind: .mouse)
         rig.controller.pointerMoved(to: pt(160, 140))
         rig.controller.magnify(totalScale: 1.2, anchor: pt(100, 100))
-        #expect(rig.position(a) == .zero)
+        #expect(rig.model.camera.zoom == 1)
+        rig.controller.pointerMoved(to: pt(260, 240))
+        rig.controller.pointerUp(at: pt(260, 240))
+        #expect(rig.position(a) == GraphPoint(x: 200, y: 200))
+    }
+
+    @Test func aScrollDuringAPinchIsKept() throws {
+        let rig = Rig()
+        let anchor = pt(300, 200)
+        rig.controller.magnify(totalScale: 1.5, anchor: anchor)
+        rig.controller.pan(byScreen: CGSize(width: 40, height: 0))
+        let panned = rig.model.camera.origin
+        rig.controller.magnify(totalScale: 1.6, anchor: anchor)
+        #expect(rig.model.camera.zoom == 1.6)
+        // The pan is still there: only the zoom about the anchor moved the origin.
+        var expected = GraphCamera(origin: panned, zoom: 1.5)
+        expected.setZoom(1.6, anchoredAtScreen: anchor)
+        #expect(rig.model.camera.origin == expected.origin)
     }
 }
 

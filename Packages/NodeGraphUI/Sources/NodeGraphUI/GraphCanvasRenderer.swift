@@ -178,6 +178,21 @@ struct GraphCanvasRenderer {
 
     private func drawNode(_ context: inout GraphicsContext, _ layout: NodeLayout, lod: LevelOfDetail) {
         guard let node = model.graph.nodes[layout.node] else { return }
+        // Only a dimmed node needs an offscreen layer, to fade the node as one piece. Layers are
+        // costly (each is a canvas-sized buffer), so every other node is drawn straight on.
+        if node.mode == .never || node.mode == .muted || node.mode == .bypassed {
+            context.drawLayer { layer in
+                layer.opacity = model.theme.inactiveOpacity
+                drawNodeContents(&layer, node, layout, lod: lod)
+            }
+        } else {
+            drawNodeContents(&context, node, layout, lod: lod)
+        }
+    }
+
+    private func drawNodeContents(
+        _ context: inout GraphicsContext, _ node: Node, _ layout: NodeLayout, lod: LevelOfDetail
+    ) {
         let theme = model.theme
         let zoom = model.camera.zoom
         let frame = CGRect(layout.frame)
@@ -185,42 +200,50 @@ struct GraphCanvasRenderer {
         let radius = lod.drawsRoundedCorners ? theme.cornerRadius : 0
         let shape = Path(roundedRect: frame, cornerRadius: radius)
         let headerColor = node.color ?? theme.nodeHeader
-        let dimmed = node.mode == .never || node.mode == .muted || node.mode == .bypassed
 
-        context.drawLayer { layer in
-            if dimmed { layer.opacity = theme.inactiveOpacity }
-
-            if lod.tier == .minimal {
-                layer.fill(shape, with: .color(Color(headerColor)))
-            } else {
-                layer.fill(shape, with: .color(Color(theme.nodeBody)))
-                layer.drawLayer { clipped in
-                    clipped.clip(to: shape)
-                    clipped.fill(Path(CGRect(layout.header)), with: .color(Color(headerColor)))
-                }
-            }
-            let hovered = controller?.hover == .node(node.id)
-            let border = selected ? theme.selection : hovered ? theme.selection.withAlpha(0.55) : theme.nodeBorder
-            layer.stroke(shape, with: .color(Color(border)), lineWidth: max(selected || hovered ? 2 : theme.borderWidth, 1 / zoom))
-
-            if lod.drawsTitles {
-                let definition = model.definition(of: node)
-                let title = node.title ?? definition?.displayName ?? node.typeID.rawValue
-                let text = layer.resolve(
-                    Text(title).font(.system(size: theme.titleFontSize, weight: .semibold))
-                        .foregroundColor(Color(theme.nodeTitle)))
-                layer.drawLayer { clipped in
-                    clipped.clip(to: Path(CGRect(layout.header).insetBy(dx: 6, dy: 0)))
-                    clipped.draw(
-                        text, at: CGPoint(x: layout.header.minX + 10, y: layout.header.minY + layout.header.size.height / 2),
-                        anchor: .leading)
-                }
-            }
-            if lod.drawsPorts {
-                for port in layout.inputs + layout.outputs { drawPort(&layer, port, layout: layout, lod: lod) }
-            }
-            if selected, !layout.isCollapsed, lod.tier == .full { drawResizeHandle(&layer, layout) }
+        if lod.tier == .minimal {
+            context.fill(shape, with: .color(Color(headerColor)))
+        } else {
+            context.fill(shape, with: .color(Color(theme.nodeBody)))
+            // The header is the top of the node, so only its top corners are rounded (all of
+            // them when the node is collapsed to just a header). That matches the body's outline
+            // without clipping.
+            let header = UnevenRoundedRectangle(
+                topLeadingRadius: radius, bottomLeadingRadius: layout.isCollapsed ? radius : 0,
+                bottomTrailingRadius: layout.isCollapsed ? radius : 0, topTrailingRadius: radius)
+            context.fill(header.path(in: CGRect(layout.header)), with: .color(Color(headerColor)))
         }
+        let hovered = controller?.hover == .node(node.id)
+        let border = selected ? theme.selection : hovered ? theme.selection.withAlpha(0.55) : theme.nodeBorder
+        context.stroke(shape, with: .color(Color(border)), lineWidth: max(selected || hovered ? 2 : theme.borderWidth, 1 / zoom))
+
+        if lod.drawsTitles {
+            let title = node.title ?? model.definition(of: node)?.displayName ?? node.typeID.rawValue
+            let text = fittedTitle(&context, title, width: layout.header.size.width - 20)
+            context.draw(
+                text, at: CGPoint(x: layout.header.minX + 10, y: layout.header.minY + layout.header.size.height / 2),
+                anchor: .leading)
+        }
+        if lod.drawsPorts {
+            for port in layout.inputs + layout.outputs { drawPort(&context, port, layout: layout, lod: lod) }
+        }
+        if selected, !layout.isCollapsed, lod.tier == .full { drawResizeHandle(&context, layout) }
+    }
+
+    /// The title as resolved text that fits in `width`, shortened with an ellipsis if it must
+    /// be. Cutting the text is much cheaper than clipping it.
+    private func fittedTitle(_ context: inout GraphicsContext, _ title: String, width: Double) -> GraphicsContext.ResolvedText {
+        let theme = model.theme
+        func resolve(_ string: String) -> GraphicsContext.ResolvedText {
+            context.resolve(
+                Text(string).font(.system(size: theme.titleFontSize, weight: .semibold))
+                    .foregroundColor(Color(theme.nodeTitle)))
+        }
+        let full = resolve(title)
+        let measured = full.measure(in: CGSize(width: CGFloat.infinity, height: CGFloat.infinity)).width
+        guard measured > width, width > 0 else { return full }
+        let keep = max(1, Int(Double(title.count) * width / measured) - 1)
+        return resolve(String(title.prefix(keep)) + "…")
     }
 
     private func drawPort(_ context: inout GraphicsContext, _ port: PortLayout, layout: NodeLayout, lod: LevelOfDetail) {

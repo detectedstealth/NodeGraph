@@ -94,7 +94,8 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
 
 - [x] macOS input: scroll/trackpad, right-click menus, keyboard shortcuts, hover (`CanvasCommand` and key map, context menus, scroll and zoom, hover, `MacInputMonitor`; 134 UI tests). Tested through the controller; the AppKit event shim itself needs a hand check.
 
-- [ ] iPadOS input: touch, pinch, two-finger pan, long-press menus, Pencil, hardware keyboard, pointer
+- [x] iPadOS input: touch, pinch, two-finger pan, long-press menus, Pencil, hardware keyboard, pointer (`TouchInputOverlay`, two-finger pan and pinch, kind-aware targets, `UIContextMenuInteraction`; 143 UI tests). The controller side is tested; the UIKit recognizers need a hand check on a device or simulator.
+
 - [ ] In-node widgets: slider, number, combo, toggle, text, multiline, button, color; custom widget hook
 - [ ] Add-node search (double-click/tap, link release), palette, inspector, breadcrumb for subgraphs
 - [ ] Copy, paste, duplicate, delete, align, distribute, collapse, pin, color

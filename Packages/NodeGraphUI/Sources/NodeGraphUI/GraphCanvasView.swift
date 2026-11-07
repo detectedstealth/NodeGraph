@@ -10,7 +10,9 @@ public struct GraphCanvasView: View {
     @State private var hasFramed = false
     @State private var isPressing = false
     @State private var viewSize = CGSize.zero
+    #if !canImport(UIKit)
     @FocusState private var isFocused: Bool
+    #endif
     @Environment(\.undoManager) private var undoManager
 
     public init(model: GraphEditorModel) {
@@ -37,6 +39,7 @@ public struct GraphCanvasView: View {
         #if canImport(AppKit)
         .background(MacInputMonitor(controller: controller))
         #endif
+        #if !canImport(UIKit)
         .focusable()
         .focusEffectDisabled()
         .focused($isFocused)
@@ -47,8 +50,12 @@ public struct GraphCanvasView: View {
             case .ended: controller.hover(at: nil)
             }
         }
+        #endif
         .onAppear { model.undoManager = undoManager }
         .onChange(of: undoManager) { _, newValue in model.undoManager = newValue }
+        #if canImport(UIKit)
+        .overlay { TouchInputOverlay(controller: controller) }
+        #else
         .gesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { value in
@@ -73,8 +80,10 @@ public struct GraphCanvasView: View {
                 }
                 .onEnded { _ in controller.endMagnify() }
         )
+        #endif
     }
 
+    #if !canImport(UIKit)
     /// Maps a key press to a canvas command and runs it. Keys the canvas does not use are
     /// ignored so the rest of the app still sees them.
     private func handle(_ press: KeyPress) -> KeyPress.Result {
@@ -98,4 +107,5 @@ public struct GraphCanvasView: View {
         guard let command = CanvasKeyMap.command(for: key, modifiers: modifiers) else { return .ignored }
         return controller.perform(command) ? .handled : .ignored
     }
+    #endif
 }

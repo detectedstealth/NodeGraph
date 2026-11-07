@@ -89,6 +89,7 @@ public final class GraphInteractionController {
         case connecting(anchor: PortAddress, replacing: Link?)
         case movingLinks(source: PortAddress, links: [Link])
         case magnifying(startCamera: GraphCamera)
+        case multiTouch(startCamera: GraphCamera, startCentroid: CGPoint)
     }
 
     /// A group with the bounds it had when its resize began.
@@ -98,6 +99,8 @@ public final class GraphInteractionController {
     }
 
     private var state = State.idle
+    /// The kind of pointer of the press in progress, which sets how close counts as on a port.
+    private var pressKind = PointerKind.mouse
     /// Whether the drag in progress has applied an edit, so cancelling knows to undo one.
     private var appliedEdit = false
 
@@ -111,9 +114,10 @@ public final class GraphInteractionController {
         at point: CGPoint, modifiers: InputModifiers = [], kind: PointerKind = .platformDefault
     ) {
         if isActive { cancel() }
+        pressKind = kind
         let graphPoint = model.camera.graphPoint(forScreen: point)
         var press = Press(
-            target: target(at: graphPoint), startScreen: point, startGraph: graphPoint,
+            target: target(at: graphPoint, kind: kind), startScreen: point, startGraph: graphPoint,
             modifiers: modifiers, kind: kind)
 
         // Selection changes on press, so feedback is immediate and a drag moves what was picked.
@@ -152,7 +156,7 @@ public final class GraphInteractionController {
         }
         let graphPoint = model.camera.graphPoint(forScreen: point)
         switch state {
-        case .idle, .pressed, .magnifying:
+        case .idle, .pressed, .magnifying, .multiTouch:
             break
         case .panning(let startCamera, let startScreen):
             var camera = startCamera
@@ -206,10 +210,15 @@ public final class GraphInteractionController {
     }
 
     public func pointerUp(at point: CGPoint) {
+        // A finger lifting while two are driving the camera is not the end of that gesture.
+        switch state {
+        case .multiTouch, .magnifying: return
+        default: break
+        }
         let graphPoint = model.camera.graphPoint(forScreen: point)
         defer { reset() }
         switch state {
-        case .idle, .magnifying:
+        case .idle, .magnifying, .multiTouch:
             break
         case .pressed(let press):
             click(press)
@@ -230,7 +239,7 @@ public final class GraphInteractionController {
         case .movingNodes, .movingGroup, .resizingNode, .resizingGroup:
             model.endCoalescing()
             if appliedEdit { try? model.undo() }
-        case .magnifying(let startCamera):
+        case .magnifying(let startCamera), .multiTouch(let startCamera, _):
             model.camera = startCamera
         case .panning(let startCamera, _):
             model.camera = startCamera
@@ -270,9 +279,9 @@ public final class GraphInteractionController {
         model.camera.setZoom(model.camera.zoom * factor, anchoredAtScreen: point)
     }
 
-    func subject(at point: CGPoint) -> Subject {
+    func subject(at point: CGPoint, kind: PointerKind = .mouse) -> Subject {
         let graphPoint = model.camera.graphPoint(forScreen: point)
-        switch target(at: graphPoint) {
+        switch target(at: graphPoint, kind: kind) {
         case .node(let id), .nodeResize(let id): return .node(id)
         case .port(let port): return .node(port.address.node)
         case .link(let id): return .link(id, graphPoint)
@@ -292,23 +301,61 @@ public final class GraphInteractionController {
     /// Pass the gesture's total magnification each time, not the change since the last call:
     /// that is what keeps repeated updates from compounding.
     public func magnify(totalScale: Double, anchor: CGPoint) {
-        let start: GraphCamera
+        let startZoom: Double
         if case .magnifying(let startCamera) = state {
-            start = startCamera
+            startZoom = startCamera.zoom
+        } else if isPointerDown || isMultiTouch {
+            // A pointer button or fingers already own the input. A trackpad can report a stray
+            // pinch while it is being clicked or dragged, and that must not cut the drag short.
+            return
         } else {
-            if isActive { cancel() }
-            start = model.camera
-            state = .magnifying(startCamera: start)
+            startZoom = model.camera.zoom
+            state = .magnifying(startCamera: model.camera)
         }
-        var camera = start
-        // The anchor's graph point must stay under the anchor at the start camera's position,
-        // so the pinch is measured from where it began.
-        camera.setZoom(start.zoom * totalScale, anchoredAtScreen: anchor)
-        model.camera = camera
+        // Applied to the camera as it is now, not as it was at the start, so a scroll that pans
+        // during the pinch is kept. The zoom itself is absolute from the start, so it cannot
+        // compound.
+        model.camera.setZoom(startZoom * totalScale, anchoredAtScreen: anchor)
     }
 
     public func endMagnify() {
         if case .magnifying = state { reset() }
+    }
+
+    /// Whether a pointer or finger is pressed, from the press to its release.
+    public var isPointerDown: Bool {
+        switch state {
+        case .idle, .magnifying, .multiTouch: false
+        default: true
+        }
+    }
+
+    /// Whether two or more fingers are down and driving the camera.
+    public var isMultiTouch: Bool {
+        if case .multiTouch = state { return true }
+        return false
+    }
+
+    /// Two fingers came down: abandon whatever one finger was doing and start driving the camera.
+    public func multiTouchBegan(centroid: CGPoint) {
+        if isActive { cancel() }
+        state = .multiTouch(startCamera: model.camera, startCentroid: centroid)
+    }
+
+    /// The fingers moved. `centroid` is where their midpoint is now and `scale` how far apart
+    /// they are relative to when they came down. Both are totals since the start, so the zoom
+    /// cannot compound, and the graph point under the fingers' midpoint follows it: pinching
+    /// zooms about the fingers and dragging both pans.
+    public func multiTouchMoved(centroid: CGPoint, scale: Double) {
+        guard case .multiTouch(let startCamera, let startCentroid) = state else { return }
+        var camera = startCamera
+        camera.setZoom(startCamera.zoom * scale, anchoredAtScreen: startCentroid)
+        camera.pan(byScreen: CGSize(width: centroid.x - startCentroid.x, height: centroid.y - startCentroid.y))
+        model.camera = camera
+    }
+
+    public func multiTouchEnded() {
+        if case .multiTouch = state { reset() }
     }
 
     // MARK: Press targets
@@ -318,13 +365,22 @@ public final class GraphInteractionController {
         return true
     }
 
-    private func target(at point: GraphPoint) -> Target {
+    /// How much bigger targets are for a pointer kind: a fingertip is far less precise than a
+    /// mouse or a pencil tip.
+    static func reach(of kind: PointerKind) -> Double {
+        kind == .touch ? 2 : 1
+    }
+
+    private func target(at point: GraphPoint, kind: PointerKind = .mouse) -> Target {
         let lod = LevelOfDetail(zoom: model.camera.zoom)
         let zoom = model.camera.zoom
-        if lod.drawsPorts, let port = model.port(at: point) { return .port(port) }
+        let reach = Self.reach(of: kind)
+        if lod.drawsPorts, let port = model.port(at: point, radius: model.metrics.portHitRadius * reach) {
+            return .port(port)
+        }
         if let id = model.node(at: point) {
             if let layout = model.layout(of: id), !layout.isCollapsed {
-                let grip = Self.gripSlop / zoom
+                let grip = Self.gripSlop * reach / zoom
                 let handle = layout.resizeHandle
                 let inflated = GraphRect(
                     x: handle.minX - grip, y: handle.minY - grip,
@@ -333,7 +389,7 @@ public final class GraphInteractionController {
             }
             return .node(id)
         }
-        if let id = model.link(at: point, tolerance: linkPickDistance / zoom) { return .link(id) }
+        if let id = model.link(at: point, tolerance: linkPickDistance * reach / zoom) { return .link(id) }
         if let id = model.group(at: point), let group = model.graph.groups[id] {
             let corner = Self.groupHandleSize
             if point.x >= group.bounds.maxX - corner, point.y >= group.bounds.maxY - corner { return .groupResize(id) }
@@ -449,7 +505,8 @@ public final class GraphInteractionController {
     ) {
         guard let anchorLayout = model.layout(of: anchor.node)?.port(anchor) else { return }
         var draft = ConnectionDraft(anchor: anchor, anchorPosition: anchorLayout.position, pointer: pointer)
-        if let port = model.port(at: pointer)?.address, port != anchor {
+        let reach = model.metrics.portHitRadius * Self.reach(of: pressKind)
+        if let port = model.port(at: pointer, radius: reach)?.address, port != anchor {
             // Moving links wants another output; connecting wants the opposite end.
             let wanted = movingLinks ? anchor.direction : (anchor.direction == .output ? .input : .output)
             if port.direction == wanted {
@@ -526,7 +583,8 @@ public final class GraphInteractionController {
     }
 
     private func reset() {
-        hover = nil
+        // Observation treats every assignment as a change, so only assign when it is one.
+        if hover != nil { hover = nil }
         state = .idle
         marquee = nil
         draft = nil

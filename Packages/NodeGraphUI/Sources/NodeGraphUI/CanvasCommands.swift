@@ -99,8 +99,8 @@ extension GraphInteractionController {
     /// The context menu for a right-click at `point`, after selecting what is under it the way
     /// a right-click should: an unselected node, link or group becomes the selection, and
     /// empty canvas keeps nothing selected.
-    public func contextMenu(at point: CGPoint) -> [CanvasMenuItem] {
-        switch subject(at: point) {
+    public func contextMenu(at point: CGPoint, kind: PointerKind = .mouse) -> [CanvasMenuItem] {
+        switch subject(at: point, kind: kind) {
         case .node(let id):
             if !model.selection.nodes.contains(id) { model.selection = GraphSelection(nodes: [id]) }
             let nodes = model.graph.nodes.values.filter { model.selection.nodes.contains($0.id) }

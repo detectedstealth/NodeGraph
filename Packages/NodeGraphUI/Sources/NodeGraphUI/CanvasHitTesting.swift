@@ -29,9 +29,10 @@ extension GraphEditorModel {
         return nil
     }
 
-    /// The port nearest `point` within the metrics' hit radius, on the topmost node that has one.
-    public func port(at point: GraphPoint) -> PortLayout? {
-        let radius = metrics.portHitRadius
+    /// The port nearest `point` within `radius` (the metrics' hit radius by default), on the
+    /// topmost node that has one.
+    public func port(at point: GraphPoint, radius: Double? = nil) -> PortLayout? {
+        let radius = radius ?? metrics.portHitRadius
         for item in spatialIndex.ids(at: point, radius: radius).reversed() {
             if case .node(let id) = item, let port = layout(of: id)?.port(at: point, radius: radius) {
                 return port
