@@ -26,8 +26,16 @@ public struct ValidationContext: Sendable {
     /// added, so the check does not collide with itself. Use the link queries below, which
     /// honour it, instead of reading `graph.links` directly in a rule.
     public var ignoredLink: LinkID?
+    /// The names of the variables the document declares (they live on the root graph, so a
+    /// subgraph's context needs them passed in). Nil when unknown, which skips the check that a
+    /// node's ``PropertyKind/variable`` property names a declared variable.
+    public var variableNames: Set<String>?
 
-    public init(graph: Graph, nodes: NodeRegistry, types: TypeRegistry, ignoring ignoredLink: LinkID? = nil) {
+    public init(
+        graph: Graph, nodes: NodeRegistry, types: TypeRegistry, ignoring ignoredLink: LinkID? = nil,
+        variableNames: Set<String>? = nil
+    ) {
+        self.variableNames = variableNames
         self.graph = graph
         self.nodes = nodes
         self.types = types

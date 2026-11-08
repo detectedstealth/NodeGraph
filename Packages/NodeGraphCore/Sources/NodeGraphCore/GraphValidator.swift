@@ -90,6 +90,20 @@ public struct GraphValidator: Sendable {
                     message: "Port group \"\(group)\" has \(count) ports, outside its limits.", node: node.id))
             }
         }
+        // A variable name that no variable has makes the node fail when it runs. Blank only means
+        // none was picked yet, so that is a warning.
+        if let declared = context.variableNames {
+            for property in definition.properties where property.kind == .variable {
+                guard let name = node.value(of: property.id, in: definition)?.stringValue,
+                      !declared.contains(name) else { continue }
+                found.append(GraphDiagnostic(
+                    severity: name.isEmpty ? .warning : .error, code: .undeclaredVariable,
+                    message: name.isEmpty
+                        ? "Property \"\(property.displayName)\" has no variable chosen."
+                        : "The graph has no variable named \"\(name)\".",
+                    node: node.id))
+            }
+        }
         for (id, value) in node.properties.sorted(by: { $0.key < $1.key }) {
             guard let property = definition.property(id) else {
                 found.append(GraphDiagnostic(

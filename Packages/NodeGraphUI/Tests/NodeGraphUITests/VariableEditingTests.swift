@@ -1,3 +1,4 @@
+import CoreGraphics
 import Testing
 import NodeGraphCore
 @testable import NodeGraphUI
@@ -78,6 +79,31 @@ import NodeGraphCore
         }
         #expect(withMissing.map(\.value) == ["gain", "old"])
         #expect(withMissing.last?.label == "old (not declared)")
+    }
+
+    @Test func aReaderNodeIsAddedBoundToTheVariableAndSelected() throws {
+        let model = TestKit.makeModel()
+        model.addVariable(named: "gain", kind: .number)
+        #expect(model.variableReaderType == TestKit.reader)
+        let id = try #require(model.addVariableReader(for: "gain"))
+        #expect(model.graph.nodes[id]?.typeID == TestKit.reader)
+        #expect(model.graph.nodes[id]?.properties["name"] == .string("gain"))
+        #expect(model.selection.nodes == [id])
+        // In the middle of the view: the node's center is where the view's center is.
+        let frame = try #require(model.layout(of: id)?.frame)
+        let middle = model.camera.graphPoint(forScreen: CGPoint(x: model.viewSize.width / 2, y: model.viewSize.height / 2))
+        #expect(abs(frame.origin.x + frame.size.width / 2 - middle.x) < 1)
+        try model.undo()
+        #expect(model.graph.nodes[id] == nil)
+        #expect(model.addVariableReader(for: "nope") == nil)
+    }
+
+    @Test func noReaderIsAddedWithoutAPackThatHasOneOrOnAReadOnlyCanvas() throws {
+        let model = TestKit.makeModel()
+        model.addVariable(named: "gain", kind: .number)
+        model.isEditable = false
+        #expect(model.addVariableReader(for: "gain") == nil)
+        #expect(model.graph.nodes.isEmpty)
     }
 
     @Test func insideASubgraphTheRootsVariablesCannotBeEdited() throws {

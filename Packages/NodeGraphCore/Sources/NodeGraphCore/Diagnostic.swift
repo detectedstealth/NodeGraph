@@ -26,6 +26,7 @@ public struct DiagnosticCode: StringIdentifier {
     public static let unknownProperty: DiagnosticCode = "node.unknownProperty"
     public static let invalidProperty: DiagnosticCode = "node.invalidProperty"
     public static let invalidPortCount: DiagnosticCode = "node.invalidPortCount"
+    public static let undeclaredVariable: DiagnosticCode = "node.undeclaredVariable"
 }
 
 /// One problem found while validating a connection or graph.

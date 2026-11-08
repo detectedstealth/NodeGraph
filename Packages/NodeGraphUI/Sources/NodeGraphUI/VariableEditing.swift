@@ -58,6 +58,34 @@ extension GraphEditorModel {
             .updateVariable(variable: variable), name: "Set Variable", coalescing: coalescing, isScoped: true)) != nil
     }
 
+    /// The type of node that reads a variable: a registered type with a property of kind
+    /// ``PropertyKind/variable`` and no inputs. Nil if no pack provides one. If several do, the
+    /// first by name, so the answer does not depend on registration order.
+    public var variableReaderType: NodeTypeID? {
+        editor.nodes.registeredDefinitions
+            .filter { $0.properties.contains { $0.kind == .variable } && $0.inputs.isEmpty }
+            .min { $0.typeID.rawValue < $1.typeID.rawValue }?.typeID
+    }
+
+    /// Adds a node that reads variable `name`, in the middle of the view, and selects it. Returns
+    /// its id, or nil if there is no such variable, no pack provides a reader
+    /// (``variableReaderType``), or the canvas is read-only. It works inside a subgraph too, since
+    /// nodes there read the root's variables.
+    @discardableResult
+    public func addVariableReader(for name: String) -> NodeID? {
+        guard editor.graph.variables[name] != nil, let type = variableReaderType,
+              let definition = editor.nodes.definition(for: type),
+              let property = definition.properties.first(where: { $0.kind == .variable }) else { return nil }
+        let center = camera.graphPoint(forScreen: CGPoint(x: viewSize.width / 2, y: viewSize.height / 2))
+        let size = definition.defaultSize
+        let node = Node(
+            typeID: type, position: GraphPoint(x: center.x - size.width / 2, y: center.y - size.height / 2),
+            properties: [property.id: .string(name)])
+        guard (try? perform(.addNode(node: node), name: "Add Variable Node")) != nil else { return nil }
+        select(node: node.id)
+        return node.id
+    }
+
     /// Renames a variable, and every Variable node (in any graph or subgraph) that reads it, as one
     /// undo step. Fails, changing nothing, for a blank name, a name another variable has, or an
     /// unknown variable; a name that is unchanged (after trimming) is not a rename.

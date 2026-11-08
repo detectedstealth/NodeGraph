@@ -176,7 +176,9 @@ public final class GraphEditor {
     /// The registries and the graph edited in `scope`, as validators see them. Nil if the
     /// subgraph does not exist.
     public func validationContext(in scope: SubgraphID?) -> ValidationContext? {
-        editedGraph(in: scope).map { ValidationContext(graph: $0, nodes: nodes, types: types) }
+        editedGraph(in: scope).map {
+            ValidationContext(graph: $0, nodes: nodes, types: types, variableNames: Set(graph.variables.keys))
+        }
     }
 
     /// Connects two ports, removing any link a single-link port gives up, as one change.

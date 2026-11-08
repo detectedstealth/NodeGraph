@@ -77,7 +77,7 @@ private struct VariablesSection: View {
         Section("Variables") {
             let variables = Array(model.graph.variables.values)
             if variables.isEmpty {
-                Text("None. Add one, then read it with a Variable node and pick it by name.").foregroundStyle(.secondary)
+                Text("None. Add one, then use its add-node button to read it.").foregroundStyle(.secondary)
             }
             ForEach(variables, id: \.name) { variable in
                 HStack {
@@ -88,6 +88,10 @@ private struct VariablesSection: View {
                     }
                     Spacer(minLength: 8)
                     VariableValueField(model: model, variable: variable)
+                    if model.variableReaderType != nil {
+                        IconButton(systemName: "plus.square") { model.addVariableReader(for: variable.name) }
+                            .accessibilityLabel("Add a node that reads \(variable.name)")
+                    }
                     IconButton(systemName: "trash") { model.removeVariable(variable.name) }
                 }
             }

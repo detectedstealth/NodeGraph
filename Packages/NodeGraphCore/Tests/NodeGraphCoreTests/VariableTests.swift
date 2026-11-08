@@ -288,3 +288,58 @@ private let gain = GraphVariable(name: "gain", type: "number", value: .double(2)
         #expect(await runner.step().outputs(of: doubler.id) == ["out": .double(20)])
     }
 }
+
+@Suite struct UndeclaredVariableDiagnosticTests {
+    private func validate(_ editor: GraphEditor, in scope: SubgraphID? = nil) throws -> [GraphDiagnostic] {
+        GraphValidator().validate(try #require(editor.validationContext(in: scope)))
+    }
+
+    @Test func aNodeNamingAVariableNobodyDeclaredIsAnErrorAndABlankOneAWarning() throws {
+        let editor = GraphEditor(nodes: registry(), types: TypeRegistry())
+        try editor.apply(.addVariable(variable: gain))
+        let good = Node(typeID: "read", properties: ["name": "gain"])
+        let bad = Node(typeID: "read", properties: ["name": "gian"])
+        let blank = Node(typeID: "read", properties: ["name": ""])
+        for node in [good, bad, blank] { try editor.apply(.addNode(node: node)) }
+
+        let found = try validate(editor).filter { $0.code == .undeclaredVariable }
+        #expect(found.map(\.node) == [bad.id, blank.id])
+        #expect(found[0].severity == .error)
+        #expect(found[0].message == "The graph has no variable named \"gian\".")
+        #expect(found[1].severity == .warning)
+    }
+
+    @Test func theDefaultValueIsCheckedToo() throws {
+        // The test node's default name is "x"; nothing declares it.
+        let editor = GraphEditor(nodes: registry(), types: TypeRegistry())
+        let node = Node(typeID: "read")
+        try editor.apply(.addNode(node: node))
+        #expect(try validate(editor).contains { $0.code == .undeclaredVariable && $0.node == node.id })
+    }
+
+    @Test func declaringTheVariableOrRenamingItClearsTheProblem() throws {
+        let editor = GraphEditor(nodes: registry(), types: TypeRegistry())
+        try editor.apply(.addNode(node: Node(typeID: "read", properties: ["name": "gain"])))
+        #expect(try validate(editor).contains { $0.code == .undeclaredVariable })
+        try editor.apply(.addVariable(variable: gain))
+        #expect(try validate(editor).filter { $0.code == .undeclaredVariable }.isEmpty)
+        try editor.apply(try editor.renameVariableCommand(from: "gain", to: "volume"))
+        #expect(try validate(editor).filter { $0.code == .undeclaredVariable }.isEmpty, "a rename keeps readers valid")
+    }
+
+    @Test func insideASubgraphTheRootsVariablesCount() throws {
+        let editor = GraphEditor(nodes: registry(), types: TypeRegistry())
+        try editor.apply(.addVariable(variable: gain))
+        let definition = SubgraphDefinition(interface: SubgraphInterface(name: "Inner"), graph: Graph())
+        try editor.apply(.addSubgraph(definition: definition))
+        try editor.apply(.inSubgraph(id: definition.id, command: .addNode(node: Node(typeID: "read", properties: ["name": "gain"]))))
+        #expect(try validate(editor, in: definition.id).filter { $0.code == .undeclaredVariable }.isEmpty)
+    }
+
+    @Test func aContextWithoutVariableNamesSkipsTheCheck() throws {
+        let editor = GraphEditor(nodes: registry(), types: TypeRegistry())
+        try editor.apply(.addNode(node: Node(typeID: "read", properties: ["name": "nope"])))
+        let context = ValidationContext(graph: editor.graph, nodes: editor.nodes, types: editor.types)
+        #expect(GraphValidator().validate(context).isEmpty)
+    }
+}
