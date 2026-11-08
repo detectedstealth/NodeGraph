@@ -86,7 +86,7 @@ Status: **Done** (implemented), **Partial**, **Gap** (in scope, not built), **De
 | Double-click empty canvas for search | Done | |
 | Search box with type filters, keyboard navigation | Partial | Search and keyboard done; filter by the slot type when released from a link `?` |
 | Release link on empty space shows menu | Done | opens add-node with the port as filter |
-| Middle-click a slot adds a default node | Gap | `slot_types_default_in/out`: per type "default node" suggestions. Small |
+| Middle-click a slot adds a default node | Partial | Per-type defaults and a port context menu item (decision 197); no middle-click gesture |
 | Click-to-break link, shift-click output to move links | Done | reconnect and shift-drag move |
 | Incompatible slots dim while dragging a link | `?` | |
 | Collapse by title click | Partial | Collapse command exists; click gesture `?` |

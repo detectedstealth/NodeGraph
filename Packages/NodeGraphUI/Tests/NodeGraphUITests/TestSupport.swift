@@ -50,7 +50,8 @@ enum TestKit {
             defaultSize: GraphSize(width: 220, height: 80)))
         var types = TypeRegistry()
         types.register(PortTypeInfo(
-            type: "number", displayName: "Number", color: RGBAColor(red: 0.2, green: 0.4, blue: 0.9)))
+            type: "number", displayName: "Number", color: RGBAColor(red: 0.2, green: 0.4, blue: 0.9),
+            defaultProducer: source, defaultConsumer: sink))
         return (nodes, types)
     }
 

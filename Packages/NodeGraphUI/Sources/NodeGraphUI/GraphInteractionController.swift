@@ -46,6 +46,7 @@ public final class GraphInteractionController {
     /// What a right-click landed on.
     enum Subject {
         case node(NodeID)
+        case port(PortAddress)
         case link(LinkID, GraphPoint)
         case group(GroupID)
         case empty
@@ -311,7 +312,7 @@ public final class GraphInteractionController {
         let graphPoint = model.camera.graphPoint(forScreen: point)
         switch target(at: graphPoint, kind: kind) {
         case .node(let id), .nodeResize(let id), .widget(let id, _): return .node(id)
-        case .port(let port): return .node(port.address.node)
+        case .port(let port): return .port(port.address)
         case .link(let id): return .link(id, graphPoint)
         case .groupTitle(let id), .groupResize(let id): return .group(id)
         case .empty: return .empty
@@ -836,6 +837,38 @@ public final class GraphInteractionController {
         guard added else { return nil }
         model.select(node: node.id)
         return node.id
+    }
+
+    /// The node type that ``addDefaultNode(for:)`` would add for `port`, from its port type's
+    /// ``PortTypeInfo/defaultProducer`` (inputs) or ``PortTypeInfo/defaultConsumer`` (outputs).
+    /// Nil for trigger ports, types with no default, and an input that already has a link.
+    public func defaultNodeType(for port: PortAddress) -> NodeTypeID? {
+        guard let layout = model.layout(of: port.node)?.port(port), layout.definition.kind == .data,
+              let info = model.editor.types.info(for: layout.definition.type) else { return nil }
+        if port.direction == .input {
+            guard model.graph.links(into: port).isEmpty || layout.definition.allowsMultipleLinks else { return nil }
+            return info.defaultProducer
+        }
+        return info.defaultConsumer
+    }
+
+    /// Adds the default node for a port's type beside it, linked to it, as one undo step, and
+    /// selects it. Returns the new node, or nil if there is no default or the edit is refused.
+    @discardableResult
+    public func addDefaultNode(for port: PortAddress) -> NodeID? {
+        guard model.isEditable, let typeID = defaultNodeType(for: port),
+              let layout = model.layout(of: port.node)?.port(port) else { return nil }
+        let catalog = NodeCatalog(nodes: model.editor.nodes, types: model.editor.types)
+        guard let match = catalog.search("", connecting: PortFilter(layout.definition)).first(where: { $0.entry.id == typeID })
+        else { return nil }
+        // The new node's matching port lands this far out from the port, on its free side.
+        let gap = 80.0
+        let point = GraphPoint(x: layout.position.x + (port.direction == .input ? -gap : gap), y: layout.position.y)
+        closeEditor(commit: true)
+        addNodeRequest = AddNodeRequest(
+            screenPoint: model.camera.screenPoint(for: point), graphPoint: point, anchor: port,
+            filter: PortFilter(layout.definition))
+        return addNode(match)
     }
 
     // MARK: Widgets

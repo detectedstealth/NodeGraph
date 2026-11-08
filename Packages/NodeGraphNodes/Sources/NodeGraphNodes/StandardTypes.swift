@@ -14,18 +14,24 @@ extension PortType {
 
 /// The port types the built-in packs use.
 public enum StandardTypes {
-    /// Registers `number`, `bool`, `string`, `array` and `object`.
+    /// Registers `number`, `bool`, `string`, `array` and `object`, with the constant and Watch
+    /// nodes as their default nodes (arrays and objects have no constant).
     public static func register(in types: inout TypeRegistry) {
         types.register(PortTypeInfo(
-            type: .number, displayName: "Number", color: RGBAColor(red: 0.35, green: 0.62, blue: 0.95)))
+            type: .number, displayName: "Number", color: RGBAColor(red: 0.35, green: 0.62, blue: 0.95),
+            defaultProducer: "util.number", defaultConsumer: "util.watch"))
         types.register(PortTypeInfo(
-            type: .bool, displayName: "Boolean", color: RGBAColor(red: 0.90, green: 0.40, blue: 0.40)))
+            type: .bool, displayName: "Boolean", color: RGBAColor(red: 0.90, green: 0.40, blue: 0.40),
+            defaultProducer: "util.bool", defaultConsumer: "util.watch"))
         types.register(PortTypeInfo(
-            type: .string, displayName: "String", color: RGBAColor(red: 0.45, green: 0.78, blue: 0.50)))
+            type: .string, displayName: "String", color: RGBAColor(red: 0.45, green: 0.78, blue: 0.50),
+            defaultProducer: "util.string", defaultConsumer: "util.watch"))
         types.register(PortTypeInfo(
-            type: .array, displayName: "Array", color: RGBAColor(red: 0.90, green: 0.70, blue: 0.30), shape: .grid))
+            type: .array, displayName: "Array", color: RGBAColor(red: 0.90, green: 0.70, blue: 0.30), shape: .grid,
+            defaultConsumer: "util.watch"))
         types.register(PortTypeInfo(
-            type: .object, displayName: "Object", color: RGBAColor(red: 0.70, green: 0.50, blue: 0.85), shape: .square))
+            type: .object, displayName: "Object", color: RGBAColor(red: 0.70, green: 0.50, blue: 0.85), shape: .square,
+            defaultConsumer: "util.watch"))
     }
 }
 

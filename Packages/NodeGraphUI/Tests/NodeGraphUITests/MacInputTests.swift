@@ -132,6 +132,61 @@ import NodeGraphCore
         #expect(model.graph.nodes.keys.elements == [source.id] && model.graph.links.isEmpty)
     }
 
+    @Test func addDefaultNodeBuildsTheTypesDefaultBesideTheInputAndLinksIt() throws {
+        let sink = try add(TestKit.sink, x: 400)
+        let input = PortAddress(node: sink.id, port: "a", direction: .input)
+        #expect(controller.defaultNodeType(for: input) == TestKit.source)
+        let before = model.history.undoStack.count
+        let added = try #require(controller.addDefaultNode(for: input))
+        #expect(model.graph.nodes[added]?.typeID == TestKit.source)
+        let link = try #require(model.graph.links.values.first)
+        #expect(link.source.node == added && link.target == input)
+        let frame = try #require(model.layout(of: added)).frame
+        #expect(frame.maxX < 400, "the new node sits to the left of the input")
+        #expect(model.selection.nodes == [added])
+        #expect(model.history.undoStack.count == before + 1)
+        try model.undo()
+        #expect(model.graph.nodes.count == 1 && model.graph.links.isEmpty)
+
+        // An input that is already linked is not replaced behind the user's back.
+        let other = try add(TestKit.source, x: 0, y: 300)
+        try connect(other, sink)
+        #expect(controller.defaultNodeType(for: input) == nil)
+        #expect(controller.addDefaultNode(for: input) == nil)
+    }
+
+    @Test func addDefaultNodeForAnOutputAddsTheConsumerOnItsRight() throws {
+        let source = try add(TestKit.source, x: 0)
+        let output = PortAddress(node: source.id, port: "out", direction: .output)
+        let added = try #require(controller.addDefaultNode(for: output))
+        #expect(model.graph.nodes[added]?.typeID == TestKit.sink)
+        #expect(model.graph.links.values.first?.source == output)
+        #expect(try #require(model.layout(of: added)).frame.minX > 0)
+        // The output of a source can feed any number of nodes, so asking again adds another.
+        #expect(controller.addDefaultNode(for: output) != nil)
+        #expect(model.graph.nodes.count == 3)
+    }
+
+    @Test func aPortMenuLeadsWithTheDefaultNodeItem() throws {
+        let sink = try add(TestKit.sink, x: 400)
+        let layout = try #require(model.layout(of: sink.id))
+        let port = try #require(layout.inputs.first { $0.address.port == "a" })
+        let screen = model.camera.screenPoint(for: port.position)
+        let items = controller.contextMenu(at: screen)
+        #expect(items.first?.title == "Add Source Node")
+        #expect(items.first?.kind == CanvasMenuItem.Kind.command(.addDefaultNode(for: port.address)))
+        // The rest is the node's own menu.
+        #expect(items.contains { $0.title == "Delete" })
+    }
+
+    @Test func addDefaultNodeIsAnEditSoAReadOnlyCanvasRefusesIt() throws {
+        let sink = try add(TestKit.sink, x: 400)
+        model.isEditable = false
+        let input = PortAddress(node: sink.id, port: "a", direction: .input)
+        #expect(controller.addDefaultNode(for: input) == nil)
+        #expect(!controller.perform(.addDefaultNode(for: input)))
+    }
+
     @Test func deleteWithNothingSelectedDoesNothing() {
         #expect(!controller.perform(.deleteSelection))
     }

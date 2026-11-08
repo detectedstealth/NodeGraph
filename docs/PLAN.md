@@ -124,7 +124,8 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
   - [ ] Small editor aids, one at a time:
     - [x] Delete with bridge: `bridgeProposals`, `CanvasCommand.deleteAndReconnect` (decision 195). Core 452, UI 355 tests. Not checked by eye
     - [x] Paste keeping connections: `GraphFragment.inputLinks`, `keepingConnections`, `CanvasCommand.pasteWithConnections` (decision 196). Core 455, UI 356 tests. Not checked by eye
-    - [ ] Default node per slot type, node help text
+    - [x] Default node per slot type: `PortTypeInfo.defaultProducer`/`defaultConsumer`, `addDefaultNode(for:)`, port context menu (decision 197). Core 455, Nodes 64, UI 360 tests. Not checked by eye; no middle-click yet
+    - [ ] Node help text
   - [ ] Auto-arrange; display extras. Vertical slot layout and vector types wait for a domain that needs them
 
 ## Phase 6: Persistence and server readiness

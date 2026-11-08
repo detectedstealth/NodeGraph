@@ -44,6 +44,8 @@ public enum CanvasCommand: Hashable, Sendable {
     case leaveSubgraph
     /// Opens the add-node search at a graph-space position, or at the pointer when nil.
     case addNode(at: GraphPoint?)
+    /// Adds the default node for a port's type beside it, linked to it.
+    case addDefaultNode(for: PortAddress)
     /// Collapses the selected nodes, or expands them if all are already collapsed.
     case toggleCollapsed
     /// Pins the selected nodes, or unpins them if all are already pinned.
@@ -65,7 +67,7 @@ extension CanvasCommand {
     public var isEdit: Bool {
         switch self {
         case .deleteSelection, .deleteAndReconnect, .nudge, .cut, .paste, .pasteWithConnections, .duplicate, .align, .distribute, .createSubgraph,
-             .unpackSubgraph, .addNode, .toggleCollapsed, .togglePinned, .setMode, .setShape, .setTitleMode,
+             .unpackSubgraph, .addNode, .addDefaultNode, .toggleCollapsed, .togglePinned, .setMode, .setShape, .setTitleMode,
              .disconnectSelection,
              .addWaypoint:
             true

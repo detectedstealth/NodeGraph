@@ -872,3 +872,24 @@ private func every(_ interval: Int64, in rig: Rig) throws -> NodeID {
     await runner.reset()
     #expect(await runner.step().outputs(of: counter)?["count"] == .int(1))
 }
+
+// MARK: Default nodes
+
+@Test func everyDefaultNodeOfAStandardTypeExistsAndHasAMatchingPort() throws {
+    let (nodes, types) = standardRegistries()
+    var seen = 0
+    for type in [PortType.number, .bool, .string, .array, .object] {
+        let info = try #require(types.info(for: type))
+        if let producer = info.defaultProducer {
+            let definition = try #require(nodes.definition(for: producer))
+            #expect(definition.outputs.contains { $0.type == type }, "\(producer) outputs \(type)")
+            seen += 1
+        }
+        if let consumer = info.defaultConsumer {
+            let definition = try #require(nodes.definition(for: consumer))
+            #expect(definition.inputs.contains { types.connectability(from: type, to: $0.type).isConnectable })
+            seen += 1
+        }
+    }
+    #expect(seen == 8)
+}

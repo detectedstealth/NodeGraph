@@ -25,15 +25,23 @@ public struct PortTypeInfo: Hashable, Sendable, Codable {
     public var acceptsFrom: Set<PortType>
     /// The mark ports of this type are drawn with, unless a port sets its own. Nil is a circle.
     public var shape: PortShape?
+    /// The node type to add to feed an input of this type: a constant, say. Nil offers none.
+    public var defaultProducer: NodeTypeID?
+    /// The node type to add to receive an output of this type: a display, say. Nil offers none.
+    public var defaultConsumer: NodeTypeID?
 
     public init(
         type: PortType,
         displayName: String,
         color: RGBAColor,
         acceptsFrom: Set<PortType> = [],
-        shape: PortShape? = nil
+        shape: PortShape? = nil,
+        defaultProducer: NodeTypeID? = nil,
+        defaultConsumer: NodeTypeID? = nil
     ) {
         self.shape = shape
+        self.defaultProducer = defaultProducer
+        self.defaultConsumer = defaultConsumer
         self.type = type
         self.displayName = displayName
         self.color = color
