@@ -212,7 +212,13 @@ private struct PortRow: View {
             } label: {
                 HStack(spacing: 6) {
                     Circle().fill(Color(port.color)).frame(width: 9, height: 9)
-                    Text(port.definition.displayName)
+                    // Blank puts the type's own name back.
+                    CommitTextField(text: port.definition.displayName, placeholder: port.defaultName) { text in
+                        model.setPortLabel(
+                            PortAddress(node: node, port: port.definition.id, direction: port.definition.direction),
+                            to: text)
+                        return true
+                    }
                 }
             }
             if let exposed = port.isExposed {

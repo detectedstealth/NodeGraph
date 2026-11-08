@@ -84,6 +84,10 @@ public indirect enum GraphCommand: Hashable, Sendable, Codable {
     /// links to the ports that go away; undo puts them back. Growing and shrinking happen from the
     /// end, so the numbers of the remaining ports never change.
     case setPortCount(node: NodeID, group: String, count: Int)
+    /// Sets the name a node shows for one of its ports, or goes back to the definition's name when
+    /// `label` is nil or only whitespace. Only the shown name changes; the port id, and so every
+    /// link, stays the same.
+    case setPortLabel(node: NodeID, port: PortID, direction: PortDirection, label: String?)
     case addLink(link: Link, index: Int? = nil)
     case removeLink(id: LinkID)
     /// Replaces the points a link is drawn through. Empty makes it a straight run between its ends.
@@ -132,6 +136,8 @@ extension GraphCommand {
             n1 == n2 && g1 == g2 ? next : nil
         case (.setNodeProperty(let n1, let p1, _), .setNodeProperty(let n2, let p2, _)):
             n1 == n2 && p1 == p2 ? next : nil
+        case (.setPortLabel(let n1, let p1, let d1, _), .setPortLabel(let n2, let p2, let d2, _)):
+            n1 == n2 && p1 == p2 && d1 == d2 ? next : nil
         case (.setLinkWaypoints(let l1, _), .setLinkWaypoints(let l2, _)):
             l1 == l2 ? next : nil
         case (.updateGroup(let a), .updateGroup(let b)):
@@ -196,6 +202,8 @@ public enum GraphEditError: Error, Hashable, Sendable {
     case invalidGeometry
     /// The node's type has no dynamic port group with this id.
     case unknownPortGroup(String)
+    /// The node has no port with this id and direction, so it cannot be given a label.
+    case portNotFound(node: NodeID, port: PortID, direction: PortDirection)
     /// The count is outside the group's limits.
     case portCountOutOfRange(group: String, count: Int)
     case subgraphNotFound(SubgraphID)

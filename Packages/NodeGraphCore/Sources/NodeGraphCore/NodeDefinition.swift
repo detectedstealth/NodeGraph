@@ -177,15 +177,25 @@ public struct NodeDefinition: Hashable, Sendable, Codable {
 
     /// The definition as one instance sees it: the fixed ports followed by each dynamic group's
     /// ports, as many as that instance's ``Node/portCounts`` asks for (within the group's limits).
-    /// A definition without dynamic ports is returned as is.
+    /// The node's own port labels (``Node/portLabels``) replace the ports' display names, so
+    /// everything that reads a resolved definition shows what the user chose. A definition with
+    /// neither dynamic ports nor labels is returned as is.
     public func resolved(for node: Node) -> NodeDefinition {
-        guard !dynamicPorts.isEmpty else { return self }
+        guard !dynamicPorts.isEmpty || !node.portLabels.isEmpty else { return self }
         var copy = self
-        copy.ports = ports.filter { $0.group == nil }
-            + dynamicPorts.flatMap { group -> [PortDefinition] in
-                let count = group.clamped(node.portCounts[group.id])
-                return count > 0 ? (1...count).map(group.port) : []
+        if !dynamicPorts.isEmpty {
+            copy.ports = ports.filter { $0.group == nil }
+                + dynamicPorts.flatMap { group -> [PortDefinition] in
+                    let count = group.clamped(node.portCounts[group.id])
+                    return count > 0 ? (1...count).map(group.port) : []
+                }
+        }
+        for index in copy.ports.indices {
+            let port = copy.ports[index]
+            if let label = node.portLabels[Node.portLabelKey(port.id, direction: port.direction)] {
+                copy.ports[index].displayName = label
             }
+        }
         return copy
     }
 

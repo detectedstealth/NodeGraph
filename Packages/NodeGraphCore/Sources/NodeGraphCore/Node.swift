@@ -39,6 +39,17 @@ public struct Node: Hashable, Sendable {
     /// listed have their initial count. Change it with ``GraphCommand/setPortCount(node:group:count:)``,
     /// which keeps this canonical by leaving out counts equal to the initial one.
     public var portCounts: [String: Int]
+    /// Names this node shows for its ports instead of the definition's, keyed by
+    /// ``portLabelKey(_:direction:)``. Only the shown name changes: links and execution use the port
+    /// id. Change it with ``GraphCommand/setPortLabel(node:port:direction:label:)``. A label for a
+    /// port that does not exist now (a dynamic port that was removed) is kept and shows again if
+    /// the port returns.
+    public var portLabels: [String: String]
+
+    /// The key of a port's entry in ``portLabels``.
+    public static func portLabelKey(_ port: PortID, direction: PortDirection) -> String {
+        "\(direction.rawValue):\(port.rawValue)"
+    }
 
     public init(
         id: NodeID = NodeID(),
@@ -53,8 +64,10 @@ public struct Node: Hashable, Sendable {
         properties: [PropertyID: GraphValue] = [:],
         portCounts: [String: Int] = [:],
         shape: NodeShape? = nil,
-        titleMode: NodeTitleMode? = nil
+        titleMode: NodeTitleMode? = nil,
+        portLabels: [String: String] = [:]
     ) {
+        self.portLabels = portLabels
         self.shape = shape
         self.titleMode = titleMode
         self.portCounts = portCounts
@@ -102,7 +115,7 @@ public struct Node: Hashable, Sendable {
 /// string-backed type would otherwise encode as a flat key/value array in unspecified order.
 extension Node: Codable {
     private enum CodingKeys: String, CodingKey {
-        case id, typeID, position, size, title, color, mode, isCollapsed, isPinned, properties, portCounts, shape, titleMode
+        case id, typeID, position, size, title, color, mode, isCollapsed, isPinned, properties, portCounts, shape, titleMode, portLabels
     }
 
     public init(from decoder: any Decoder) throws {
@@ -123,7 +136,8 @@ extension Node: Codable {
                     .map { (PropertyID($0.key), $0.value) }),
             portCounts: try container.decodeIfPresent([String: Int].self, forKey: .portCounts) ?? [:],
             shape: try container.decodeIfPresent(NodeShape.self, forKey: .shape),
-            titleMode: try container.decodeIfPresent(NodeTitleMode.self, forKey: .titleMode)
+            titleMode: try container.decodeIfPresent(NodeTitleMode.self, forKey: .titleMode),
+            portLabels: try container.decodeIfPresent([String: String].self, forKey: .portLabels) ?? [:]
         )
     }
 
@@ -144,5 +158,6 @@ extension Node: Codable {
         if !portCounts.isEmpty { try container.encode(portCounts, forKey: .portCounts) }
         try container.encodeIfPresent(shape, forKey: .shape)
         try container.encodeIfPresent(titleMode, forKey: .titleMode)
+        if !portLabels.isEmpty { try container.encode(portLabels, forKey: .portLabels) }
     }
 }

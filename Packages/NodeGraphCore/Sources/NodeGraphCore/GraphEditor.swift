@@ -264,6 +264,18 @@ public final class GraphEditor {
             graph.updateNode(id) { attribute.apply(to: &$0) }
             return .setNodeAttribute(node: id, attribute: previous)
 
+        case .setPortLabel(let id, let port, let direction, let label):
+            guard let node = graph.nodes[id] else { throw GraphEditError.nodeNotFound(id) }
+            // A node of an unregistered type keeps whatever labels it has but takes no new ones.
+            guard nodes.definition(for: node)?.port(port, direction: direction) != nil else {
+                throw GraphEditError.portNotFound(node: id, port: port, direction: direction)
+            }
+            let key = Node.portLabelKey(port, direction: direction)
+            let previous = node.portLabels[key]
+            let trimmed = label?.trimmingCharacters(in: .whitespacesAndNewlines)
+            graph.updateNode(id) { $0.portLabels[key] = trimmed?.isEmpty == false ? trimmed : nil }
+            return .setPortLabel(node: id, port: port, direction: direction, label: previous)
+
         case .setNodeProperty(let id, let property, let value):
             guard let node = graph.nodes[id] else { throw GraphEditError.nodeNotFound(id) }
             if validation == .full, let value {

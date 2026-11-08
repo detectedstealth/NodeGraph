@@ -23,6 +23,11 @@ public struct InspectedPort: Hashable, Sendable, Identifiable {
     public var linkCount: Int
     /// Inside a subgraph: whether the subgraph exposes this port. Nil at the root.
     public var isExposed: Bool?
+    /// The name the node's type gives the port, shown when the node has no label of its own for it.
+    /// ``definition`` carries the label when there is one.
+    public var defaultName: String = ""
+    /// Whether the node shows its own label for this port.
+    public var isRelabeled: Bool { definition.displayName != defaultName }
 }
 
 /// Everything the inspector shows for one selected node.
@@ -196,6 +201,10 @@ extension GraphEditorModel {
     private func inspect(_ node: Node) -> NodeInspection {
         let definition = definition(of: node)
         let size = layout(of: node.id)?.frame.size ?? node.size ?? GraphSize(width: 0, height: 0)
+        // The node as its type declares it, to tell a port's own name from the user's label.
+        var unlabeled = node
+        unlabeled.portLabels = [:]
+        let declared = editor.nodes.definition(for: unlabeled)
         func port(_ port: PortDefinition) -> InspectedPort {
             let address = PortAddress(node: node.id, port: port.id, direction: port.direction)
             let links = port.direction == .input ? graph.links(into: address) : graph.links(from: address)
@@ -203,7 +212,8 @@ extension GraphEditorModel {
                 definition: port,
                 typeName: port.kind == .trigger ? "Trigger" : editor.types.info(for: port.type)?.displayName ?? port.type.rawValue,
                 color: color(of: port), linkCount: links.count,
-                isExposed: port.direction == .input ? isExposed(input: address) : isExposed(output: address))
+                isExposed: port.direction == .input ? isExposed(input: address) : isExposed(output: address),
+                defaultName: declared?.port(port.id, direction: port.direction)?.displayName ?? port.displayName)
         }
         return NodeInspection(
             id: node.id, typeID: node.typeID, typeName: definition?.displayName ?? node.typeID.rawValue,
