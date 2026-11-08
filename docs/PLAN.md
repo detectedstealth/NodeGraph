@@ -135,7 +135,7 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
 
 - [x] `GraphStore` protocol; in-memory and local file stores: `GraphStore`, `InMemoryGraphStore`, `FileGraphStore` in NodeGraphSync (decision 204; Sync 5 tests). Saves are numbered but there is no conflict check or change feed yet (the revisioned-save item)
 - [x] Subgraph library in the editor: publish a subgraph to a library, import from one, see update and modified status, update an instance's definition: `SubgraphLibraryEditing` (model), Libraries and Library inspector sections, `SubgraphLibraryStore` with in-memory and file stores in Sync, wired in the demo app (decision 205). UI 410, Sync 8 tests; iOS builds. Not checked by eye. Not built: update from a selected instance node, removing a library entry or library from the UI, a diff before updating
-- [ ] Document-based app integration (custom UTType, autosave, versions) using the SwiftUI Document APIs
+- [x] Document-based app integration (custom UTType, autosave, versions) using the SwiftUI Document APIs: `NodeGraphDocument` (`.nodegraph`, plain `GraphDocument` JSON), `DocumentGroup` app, undo manager handed to the model, shared library storage (decision 206). Builds on macOS and iOS. Checked by hand on macOS: save, reopen and autosave write the file. Open: the title bar keeps showing "Edited" after an autosave, and the UI tests need `-DemoWindow` (the app now opens to a document panel) and fail to take focus on this Mac. Not checked on iPad
 - [ ] Revisioned save with conflict detection; command log export
 - [ ] `ng-run` headless CLI (swift-argument-parser) for running graphs
 - [ ] Server decision (Hummingbird vs Vapor) and API sketch; record in DECISIONS.md

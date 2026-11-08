@@ -3,13 +3,13 @@ import NodeGraphCore
 
 /// A ``GraphStore`` that keeps one file per graph in a folder.
 ///
-/// Each graph is `<id>.nodegraph`: JSON holding the name, revision and modification time beside the
+/// Each graph is `<id>.nodegraphrecord`: JSON holding the name, revision and modification time beside the
 /// document, written atomically so a crash leaves the old file or the new one. The folder is
 /// created on the first save. Files whose names are not a graph id are ignored, and `list` skips
 /// files it cannot read (`load` reports them as ``GraphStoreError/corrupt(_:)``).
 public actor FileGraphStore: GraphStore {
     /// File extension of a stored graph.
-    public static let fileExtension = "nodegraph"
+    public static let fileExtension = "nodegraphrecord"
 
     private static let formatVersion = 1
 

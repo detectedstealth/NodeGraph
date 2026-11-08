@@ -91,9 +91,9 @@ private func exerciseStore(_ store: some GraphStore) async throws {
     let store = FileGraphStore(directory: directory, now: { stamp })
     let good = GraphID(), bad = GraphID()
     _ = try await store.save(GraphDocument(), as: good, name: "Good")
-    try Data("not json".utf8).write(to: directory.appendingPathComponent("\(bad).nodegraph"))
+    try Data("not json".utf8).write(to: directory.appendingPathComponent("\(bad).nodegraphrecord"))
     try Data("{}".utf8).write(to: directory.appendingPathComponent("notes.txt"))
-    try Data("{}".utf8).write(to: directory.appendingPathComponent("readme.nodegraph"))
+    try Data("{}".utf8).write(to: directory.appendingPathComponent("readme.nodegraphrecord"))
 
     #expect(try await store.list().map(\.id) == [good])
     await #expect(throws: GraphStoreError.corrupt(bad)) { try await store.load(bad) }

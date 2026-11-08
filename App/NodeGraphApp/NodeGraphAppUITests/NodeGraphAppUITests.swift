@@ -11,8 +11,11 @@ final class NodeGraphAppUITests: XCTestCase {
     override func setUp() async throws {
         continueAfterFailure = false
         app = XCUIApplication()
-        app.launchArguments += ["-ExposeCanvasElements"]
+        app.launchArguments += ["-DemoWindow", "-ExposeCanvasElements"]
         app.launch()
+        // A launch from the test runner can leave the app behind other windows, and a background app
+        // has no keyboard focus, so bring it forward before touching it.
+        app.activate()
         XCTAssertTrue(node("A").waitForExistence(timeout: 10), "The demo graph did not appear")
     }
 
@@ -149,6 +152,7 @@ final class NodeGraphAppUITests: XCTestCase {
         let search = app.textFields["Add node"]
         XCTAssertTrue(search.waitForExistence(timeout: 3), "The add-node search did not open")
         // The field is focused in code, but UI automation needs it focused by the pointer too.
+        app.activate()
         activate(search)
         search.typeText("Sine\n")
         XCTAssertTrue(waitForCount(of: "Sine", toBe: 2), "The new node was not added")
