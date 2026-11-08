@@ -503,6 +503,8 @@ private struct NodesSection: View {
                     }
                 }
             }
+            ActionButton("Auto-Arrange") { model.autoArrange(info.ids) }
+                .disabled(info.ids.count < 2)
             LabeledContent("Distribute") {
                 HStack {
                     ForEach(DistributeAxis.allCases, id: \.self) { axis in

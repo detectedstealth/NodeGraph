@@ -77,6 +77,91 @@ import NodeGraphCore
     }
 }
 
+@Suite struct AutoArrangeTests {
+    private func item(_ x: Double, _ y: Double, w: Double = 100, h: Double = 50, pinned: Bool = false) -> Arrangement.Item {
+        Arrangement.Item(node: NodeID(), frame: GraphRect(x: x, y: y, width: w, height: h), isPinned: pinned)
+    }
+
+    private func position(_ node: NodeID, in placements: [NodePlacement]) -> GraphPoint? {
+        placements.first { $0.node == node }?.position
+    }
+
+    private let spacing = GraphSize(width: 80, height: 40)
+
+    @Test func aChainBecomesColumnsLeftToRight() {
+        let a = item(500, 300), b = item(0, 0), c = item(200, 900)
+        let edges = [Arrangement.Edge(from: a.node, to: b.node), Arrangement.Edge(from: b.node, to: c.node)]
+        let placements = Arrangement.layered([a, b, c], links: edges, spacing: spacing)
+        // The box's top-left (0, 0) stays; each column is a width plus the gap further right.
+        #expect(position(a.node, in: placements) == GraphPoint(x: 0, y: 0))
+        #expect(position(b.node, in: placements) == GraphPoint(x: 180, y: 0))
+        #expect(position(c.node, in: placements) == GraphPoint(x: 360, y: 0))
+    }
+
+    @Test func aNodeSitsAfterItsFurthestInput() {
+        let a = item(0, 0), b = item(0, 100), c = item(0, 200)
+        let edges = [
+            Arrangement.Edge(from: a.node, to: b.node), Arrangement.Edge(from: b.node, to: c.node),
+            Arrangement.Edge(from: a.node, to: c.node),
+        ]
+        let placements = Arrangement.layered([a, b, c], links: edges, spacing: spacing)
+        #expect(position(c.node, in: placements)?.x == 360)
+    }
+
+    @Test func nodesInOneColumnStackWithAGapAndTheShorterColumnIsCentered() {
+        let source = item(0, 0), top = item(0, 0), bottom = item(0, 100)
+        let edges = [Arrangement.Edge(from: source.node, to: top.node), Arrangement.Edge(from: source.node, to: bottom.node)]
+        let placements = Arrangement.layered([source, top, bottom], links: edges, spacing: spacing)
+        // The right column is 50 + 40 + 50 = 140 tall; the lone source is centered on it.
+        #expect(position(source.node, in: placements) == GraphPoint(x: 0, y: 45))
+        #expect(position(top.node, in: placements) == GraphPoint(x: 180, y: 0))
+        #expect(position(bottom.node, in: placements) == GraphPoint(x: 180, y: 90))
+    }
+
+    @Test func columnsKeepLinkedNodesInTheSameOrderToAvoidCrossings() {
+        // The first source is lower on screen but feeds the lower target, so nothing should cross.
+        let s1 = item(0, 200), s2 = item(0, 0), t1 = item(300, 0), t2 = item(300, 200)
+        let edges = [Arrangement.Edge(from: s1.node, to: t2.node), Arrangement.Edge(from: s2.node, to: t1.node)]
+        let placements = Arrangement.layered([s1, s2, t1, t2], links: edges, spacing: spacing)
+        // A node that does not move has no placement, so fall back to where it already is.
+        func y(_ item: Arrangement.Item) -> Double { position(item.node, in: placements)?.y ?? item.frame.minY }
+        let sourceOrder = y(s1) < y(s2)
+        let targetOrder = y(t2) < y(t1)
+        #expect(sourceOrder == targetOrder)
+    }
+
+    @Test func aLoopStillGetsDistinctColumns() {
+        let a = item(0, 0), b = item(0, 100)
+        let edges = [Arrangement.Edge(from: a.node, to: b.node), Arrangement.Edge(from: b.node, to: a.node)]
+        let placements = Arrangement.layered([a, b], links: edges, spacing: spacing)
+        #expect(position(a.node, in: placements) != position(b.node, in: placements))
+        #expect(position(b.node, in: placements)?.x == 180)
+    }
+
+    @Test func linksOutsideTheItemsAndSelfLinksAreIgnored() {
+        let a = item(0, 0), b = item(0, 100)
+        let edges = [Arrangement.Edge(from: a.node, to: a.node), Arrangement.Edge(from: NodeID(), to: b.node)]
+        let placements = Arrangement.layered([a, b], links: edges, spacing: spacing)
+        #expect(position(b.node, in: placements) == GraphPoint(x: 0, y: 90))  // both in column 0
+    }
+
+    @Test func aPinnedNodeIsNotMoved() {
+        let a = item(0, 0), pinned = item(400, 400, pinned: true)
+        let placements = Arrangement.layered([a, pinned], links: [Arrangement.Edge(from: a.node, to: pinned.node)], spacing: spacing)
+        #expect(position(pinned.node, in: placements) == nil)
+    }
+
+    @Test func fewerThanTwoItemsDoNothing() {
+        #expect(Arrangement.layered([item(5, 5)], links: []).isEmpty)
+    }
+
+    @Test func laidOutTwiceGivesTheSameResult() {
+        let a = item(30, 10), b = item(10, 60), c = item(90, 20)
+        let edges = [Arrangement.Edge(from: a.node, to: c.node)]
+        #expect(Arrangement.layered([a, b, c], links: edges) == Arrangement.layered([c, b, a], links: edges))
+    }
+}
+
 @MainActor
 @Suite struct ClipboardInteractionTests {
     let model = TestKit.makeModel()
@@ -309,8 +394,8 @@ import NodeGraphCore
         controller = GraphInteractionController(model: model)
     }
 
-    private func add(x: Double, y: Double, pinned: Bool = false) throws -> Node {
-        let node = Node(typeID: TestKit.source, position: GraphPoint(x: x, y: y), isPinned: pinned)
+    private func add(x: Double, y: Double, pinned: Bool = false, type: NodeTypeID = TestKit.source) throws -> Node {
+        let node = Node(typeID: type, position: GraphPoint(x: x, y: y), isPinned: pinned)
         try model.perform(.addNode(node: node))
         return node
     }
@@ -374,5 +459,41 @@ import NodeGraphCore
         #expect(titles().contains("Align") && titles().contains("Distribute"))
         model.selection = GraphSelection(nodes: [a.id])
         #expect(!titles().contains("Align"))
+    }
+
+    @Test func autoArrangeLaysTheSelectionOutByDataFlowAsOneUndoStep() throws {
+        let a = try add(x: 700, y: 300)
+        let b = try add(x: 0, y: 0, type: TestKit.sink)
+        try model.connect(ConnectionProposal(
+            source: PortAddress(node: a.id, port: "out", direction: .output),
+            target: PortAddress(node: b.id, port: "a", direction: .input)))
+        model.selection = GraphSelection(nodes: [a.id, b.id])
+        let before = model.history.undoStack.count
+        #expect(controller.perform(.autoArrange))
+        let left = model.graph.nodes[a.id]!.position.x, right = model.graph.nodes[b.id]!.position.x
+        #expect(left < right)
+        #expect(model.history.undoStack.count == before + 1)
+        try model.undo()
+        #expect(model.graph.nodes[a.id]?.position == GraphPoint(x: 700, y: 300))
+    }
+
+    @Test func autoArrangeWithNothingSelectedArrangesEveryNode() throws {
+        let a = try add(x: 900, y: 0)
+        let b = try add(x: 0, y: 500, type: TestKit.sink)
+        try model.connect(ConnectionProposal(
+            source: PortAddress(node: a.id, port: "out", direction: .output),
+            target: PortAddress(node: b.id, port: "a", direction: .input)))
+        model.clearSelection()
+        #expect(controller.perform(.autoArrange))
+        #expect(model.graph.nodes[a.id]!.position.x < model.graph.nodes[b.id]!.position.x)
+    }
+
+    @Test func autoArrangeLeavesPinnedNodesAndSingleNodesAlone() throws {
+        let a = try add(x: 0, y: 0, pinned: true)
+        #expect(!controller.perform(.autoArrange))  // one node in the graph
+        let b = try add(x: 400, y: 100, pinned: true)
+        model.selection = GraphSelection(nodes: [a.id, b.id])
+        #expect(!controller.perform(.autoArrange))
+        #expect(model.graph.nodes[b.id]?.position == GraphPoint(x: 400, y: 100))
     }
 }

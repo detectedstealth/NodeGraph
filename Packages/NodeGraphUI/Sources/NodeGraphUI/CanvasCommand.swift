@@ -34,6 +34,8 @@ public enum CanvasCommand: Hashable, Sendable {
     case align(AlignEdge)
     /// Spaces three or more selected nodes evenly.
     case distribute(DistributeAxis)
+    /// Lays the selection out in columns by data flow, or every node when fewer than two are selected.
+    case autoArrange
     /// Opens the Create Subgraph form for the selected nodes.
     case createSubgraph
     /// Replaces the selected subgraph instance with the nodes inside it.
@@ -66,7 +68,7 @@ extension CanvasCommand {
     /// false) refuses these and keeps the rest: selecting, copying, zooming and navigating.
     public var isEdit: Bool {
         switch self {
-        case .deleteSelection, .deleteAndReconnect, .nudge, .cut, .paste, .pasteWithConnections, .duplicate, .align, .distribute, .createSubgraph,
+        case .deleteSelection, .deleteAndReconnect, .nudge, .cut, .paste, .pasteWithConnections, .duplicate, .align, .distribute, .autoArrange, .createSubgraph,
              .unpackSubgraph, .addNode, .addDefaultNode, .toggleCollapsed, .togglePinned, .setMode, .setShape, .setTitleMode,
              .disconnectSelection,
              .addWaypoint:

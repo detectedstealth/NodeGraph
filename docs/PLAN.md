@@ -126,7 +126,8 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
     - [x] Paste keeping connections: `GraphFragment.inputLinks`, `keepingConnections`, `CanvasCommand.pasteWithConnections` (decision 196). Core 455, UI 356 tests. Not checked by eye
     - [x] Default node per slot type: `PortTypeInfo.defaultProducer`/`defaultConsumer`, `addDefaultNode(for:)`, port context menu (decision 197). Core 455, Nodes 64, UI 360 tests. Not checked by eye; no middle-click yet
     - [x] Node help text: `NodeDefinition.help`, `NodeHelp`, palette caption and inspector (decision 198). Core 456, Nodes 65, UI 361 tests. Not checked by eye; no canvas hover tooltip yet
-  - [ ] Auto-arrange; display extras. Vertical slot layout and vector types wait for a domain that needs them
+  - [x] Auto-arrange: `Arrangement.layered` (columns by data flow, loops tolerated, barycenter ordering), `GraphEditorModel.autoArrange`, `CanvasCommand.autoArrange`, node and canvas menus, inspector button (decision 199). UI 373 tests. Not checked by eye
+  - [ ] Display extras: execution order overlay, stats overlay, export to image, link arrows. Vertical slot layout and vector types wait for a domain that needs them
 
 ## Phase 6: Persistence and server readiness
 

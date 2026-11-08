@@ -100,6 +100,16 @@ extension GraphEditorModel {
         arrange(ids, name: "Distribute \(axis.title)") { Arrangement.distributed($0, along: axis) }
     }
 
+    /// Lays the nodes out in columns from the nodes that feed them to the ones they feed, as one
+    /// undoable move. The box around them keeps its top-left corner. Returns whether anything moved.
+    @discardableResult
+    public func autoArrange(_ ids: some Collection<NodeID>) -> Bool {
+        let set = Set(ids)
+        let edges = graph.links.values.map { Arrangement.Edge(from: $0.source.node, to: $0.target.node) }
+            .filter { set.contains($0.from) && set.contains($0.to) }
+        return arrange(ids, name: "Auto-Arrange") { Arrangement.layered($0, links: edges) }
+    }
+
     private func arrange(_ ids: some Collection<NodeID>, name: String, _ compute: ([Arrangement.Item]) -> [NodePlacement]) -> Bool {
         let items = graph.nodes.values.filter { ids.contains($0.id) }.compactMap { node in
             layout(of: node.id).map { Arrangement.Item(node: node.id, frame: $0.frame, isPinned: node.isPinned) }

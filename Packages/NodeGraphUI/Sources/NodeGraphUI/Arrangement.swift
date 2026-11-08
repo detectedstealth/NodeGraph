@@ -89,6 +89,124 @@ public enum Arrangement {
         return placements
     }
 
+    /// A link between two items, for ``layered(_:links:spacing:)``.
+    public struct Edge: Hashable, Sendable {
+        public var from: NodeID
+        public var to: NodeID
+
+        public init(from: NodeID, to: NodeID) {
+            self.from = from
+            self.to = to
+        }
+    }
+
+    /// Positions for a left-to-right layered layout: a node sits one column right of the furthest
+    /// node feeding it, and nodes in a column are ordered to keep links short. The box around the
+    /// items keeps its top-left corner. Links that close a loop are ignored for layering, and links
+    /// to nodes outside `items` are skipped. Pinned nodes are placed in the layout but never moved.
+    public static func layered(
+        _ items: [Item], links: [Edge], spacing: GraphSize = GraphSize(width: 80, height: 40)
+    ) -> [NodePlacement] {
+        guard items.count >= 2 else { return [] }
+        // A stable starting order, so the same graph always gives the same layout.
+        let sorted = items.sorted {
+            ($0.frame.minX, $0.frame.minY, $0.node) < ($1.frame.minX, $1.frame.minY, $1.node)
+        }
+        var index: [NodeID: Int] = [:]
+        for (i, item) in sorted.enumerated() { index[item.node] = i }
+        var successors = [[Int]](repeating: [], count: sorted.count)
+        var seen = Set<Edge>()
+        for link in links where link.from != link.to && seen.insert(link).inserted {
+            if let from = index[link.from], let to = index[link.to] { successors[from].append(to) }
+        }
+
+        let layer = layers(successors)
+        var columns = [[Int]](repeating: [], count: (layer.max() ?? 0) + 1)
+        for i in sorted.indices { columns[layer[i]].append(i) }  // already ordered by current y within x
+        orderColumns(&columns, successors: successors)
+
+        let minX = sorted.map(\.frame.minX).min()!, minY = sorted.map(\.frame.minY).min()!
+        let heights = columns.map { column in
+            column.reduce(0) { $0 + sorted[$1].frame.size.height } + spacing.height * Double(max(column.count - 1, 0))
+        }
+        let tallest = heights.max() ?? 0
+        var placements: [NodePlacement] = []
+        var x = minX
+        for (c, column) in columns.enumerated() {
+            var y = minY + (tallest - heights[c]) / 2
+            for i in column {
+                let item = sorted[i]
+                if !item.isPinned, let placement = moved(item, to: GraphPoint(x: x, y: y)) { placements.append(placement) }
+                y += item.frame.size.height + spacing.height
+            }
+            x += column.map { sorted[$0].frame.size.width }.max()! + spacing.width
+        }
+        return placements
+    }
+
+    /// Longest-path layer of every node. Back edges found by a depth-first walk are dropped first,
+    /// so a loop still gets a layer for each of its nodes.
+    private static func layers(_ successors: [[Int]]) -> [Int] {
+        let count = successors.count
+        var acyclic = [[Int]](repeating: [], count: count)
+        var state = [UInt8](repeating: 0, count: count)  // 0 new, 1 on the walk, 2 done
+        for root in 0..<count where state[root] == 0 {
+            var work: [(node: Int, next: Int)] = [(root, 0)]
+            state[root] = 1
+            while let (node, next) = work.last {
+                if next < successors[node].count {
+                    work[work.count - 1].next += 1
+                    let target = successors[node][next]
+                    if state[target] == 1 { continue }  // closes a loop
+                    acyclic[node].append(target)
+                    if state[target] == 0 {
+                        state[target] = 1
+                        work.append((target, 0))
+                    }
+                } else {
+                    state[node] = 2
+                    work.removeLast()
+                }
+            }
+        }
+        var incoming = [Int](repeating: 0, count: count)
+        for targets in acyclic { for target in targets { incoming[target] += 1 } }
+        var layer = [Int](repeating: 0, count: count)
+        var ready = (0..<count).filter { incoming[$0] == 0 }
+        while let node = ready.popLast() {
+            for target in acyclic[node] {
+                layer[target] = max(layer[target], layer[node] + 1)
+                incoming[target] -= 1
+                if incoming[target] == 0 { ready.append(target) }
+            }
+        }
+        return layer
+    }
+
+    /// Reorders each column by the average row of its neighbours in the column before (then
+    /// after), a few sweeps, which removes most crossings. Nodes with no neighbours stay put.
+    private static func orderColumns(_ columns: inout [[Int]], successors: [[Int]]) {
+        var predecessors = [[Int]](repeating: [], count: successors.count)
+        for (from, targets) in successors.enumerated() { for to in targets { predecessors[to].append(from) } }
+        func sweep(_ order: [Int], neighbours: [[Int]]) {
+            var row: [Int: Double] = [:]
+            for column in columns { for (r, node) in column.enumerated() { row[node] = Double(r) } }
+            for c in order {
+                var keys: [Int: Double] = [:]
+                for node in columns[c] {
+                    let rows = neighbours[node].compactMap { row[$0] }
+                    keys[node] = rows.isEmpty ? row[node] : rows.reduce(0, +) / Double(rows.count)
+                }
+                columns[c].sort { (keys[$0] ?? 0, row[$0] ?? 0) < (keys[$1] ?? 0, row[$1] ?? 0) }
+                for (r, node) in columns[c].enumerated() { row[node] = Double(r) }
+            }
+        }
+        for _ in 0..<4 {
+            sweep(Array(columns.indices.dropFirst()), neighbours: predecessors)
+            sweep(Array(columns.indices.dropLast().reversed()), neighbours: successors)
+        }
+    }
+
     private static func moved(_ item: Item, to origin: GraphPoint) -> NodePlacement? {
         let old = item.frame.origin
         guard abs(old.x - origin.x) > 1e-9 || abs(old.y - origin.y) > 1e-9 else { return nil }

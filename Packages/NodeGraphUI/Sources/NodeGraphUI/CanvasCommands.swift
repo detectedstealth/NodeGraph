@@ -99,6 +99,8 @@ extension GraphInteractionController {
             return model.align(selection.nodes, to: edge)
         case .distribute(let axis):
             return model.distribute(selection.nodes, along: axis)
+        case .autoArrange:
+            return model.autoArrange(selection.nodes.count >= 2 ? selection.nodes : Set(model.graph.nodes.keys))
         case .createSubgraph:
             closeEditor(commit: true)
             cancelAddNode()
@@ -182,6 +184,7 @@ extension GraphInteractionController {
             if nodes.count >= 2 {
                 arrange.append(CanvasMenuItem("Align", submenu: AlignEdge.allCases.map { CanvasMenuItem($0.title, .align($0)) }))
             }
+            if nodes.count >= 2 { arrange.append(CanvasMenuItem("Auto-Arrange", .autoArrange)) }
             if nodes.count >= 3 {
                 arrange.append(CanvasMenuItem("Distribute", submenu: DistributeAxis.allCases.map { CanvasMenuItem($0.title, .distribute($0)) }))
             }
@@ -237,6 +240,7 @@ extension GraphInteractionController {
                     isEnabled: clipboard.mayHaveFragment),
                 .separator,
                 CanvasMenuItem("Select All", .selectAll, isEnabled: !model.graph.nodes.isEmpty),
+                CanvasMenuItem("Auto-Arrange All", .autoArrange, isEnabled: model.graph.nodes.count >= 2),
                 .separator,
                 CanvasMenuItem("Zoom to Fit", .zoomToFit, isEnabled: !model.graph.nodes.isEmpty),
                 CanvasMenuItem("Actual Size", .resetZoom),
