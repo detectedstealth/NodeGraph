@@ -1,0 +1,625 @@
+{
+  "graph" : {
+    "groups" : [
+      {
+        "bounds" : {
+          "origin" : {
+            "x" : -30,
+            "y" : 380
+          },
+          "size" : {
+            "height" : 375.1768915420023,
+            "width" : 1351.881976409666
+          }
+        },
+        "id" : "7641ED9B-551F-4D3F-B485-210643A5D683",
+        "title" : "Control loop"
+      },
+      {
+        "bounds" : {
+          "origin" : {
+            "x" : 270,
+            "y" : -20
+          },
+          "size" : {
+            "height" : 350.063830552359,
+            "width" : 518.1946202531647
+          }
+        },
+        "id" : "4C72002E-B1FC-42CB-A36B-1209AF06004C",
+        "title" : "Arithmetic"
+      }
+    ],
+    "links" : [
+      {
+        "id" : "C231C24E-88BD-4BA7-8BE2-CDEAE85A6523",
+        "source" : {
+          "direction" : "output",
+          "node" : "A8D71DCF-CD6B-40DD-8413-D63D1D8BF057",
+          "port" : "value"
+        },
+        "target" : {
+          "direction" : "input",
+          "node" : "4480D79D-C404-4569-9564-37CD1835AB2E",
+          "port" : "value"
+        }
+      },
+      {
+        "id" : "1143B2BF-1B26-4A30-8B5B-740A0D704DEC",
+        "source" : {
+          "direction" : "output",
+          "node" : "4480D79D-C404-4569-9564-37CD1835AB2E",
+          "port" : "result"
+        },
+        "target" : {
+          "direction" : "input",
+          "node" : "15E136F4-7A47-400A-A43A-A1A4DFA71C42",
+          "port" : "value"
+        }
+      },
+      {
+        "id" : "611295D7-E1C8-4ADC-9D9B-6AD3EC3D4266",
+        "source" : {
+          "direction" : "output",
+          "node" : "0059049C-DCBF-42D6-B85B-8335B64C1F88",
+          "port" : "elapsed"
+        },
+        "target" : {
+          "direction" : "input",
+          "node" : "44072D6A-B473-40B9-89E4-A900B94F5EB7",
+          "port" : "value"
+        }
+      },
+      {
+        "id" : "2499935D-10DA-4134-8FCE-3F634FC439B6",
+        "source" : {
+          "direction" : "output",
+          "node" : "2CF53FEA-B242-4FFE-B8E3-84F8B1EA7773",
+          "port" : "value"
+        },
+        "target" : {
+          "direction" : "input",
+          "node" : "8C4EFDD5-7856-4E22-B263-62CA93B7828C",
+          "port" : "value"
+        }
+      },
+      {
+        "id" : "5AF194F0-B3B7-493D-B144-1849191B5C2D",
+        "source" : {
+          "direction" : "output",
+          "node" : "F3EC3501-3F52-4C4C-988F-1111801F73B8",
+          "port" : "value"
+        },
+        "target" : {
+          "direction" : "input",
+          "node" : "7BC10EAD-C5D9-48F1-81C6-3D062E54D6BF",
+          "port" : "setpoint"
+        }
+      },
+      {
+        "id" : "B38FBBFD-3219-40E2-9F6A-AC06CAE525A0",
+        "source" : {
+          "direction" : "output",
+          "node" : "7BC10EAD-C5D9-48F1-81C6-3D062E54D6BF",
+          "port" : "output"
+        },
+        "target" : {
+          "direction" : "input",
+          "node" : "64D20978-4B39-4B10-A6FD-582FB1F43F39",
+          "port" : "command"
+        }
+      },
+      {
+        "id" : "2DC98CB1-4237-4AB9-9214-DD9707315132",
+        "source" : {
+          "direction" : "output",
+          "node" : "64D20978-4B39-4B10-A6FD-582FB1F43F39",
+          "port" : "applied"
+        },
+        "target" : {
+          "direction" : "input",
+          "node" : "857D90DC-CB46-4DFD-8B30-51398DDC3858",
+          "port" : "input"
+        }
+      },
+      {
+        "id" : "00B73A1B-8456-4298-8481-04AD389C787F",
+        "source" : {
+          "direction" : "output",
+          "node" : "857D90DC-CB46-4DFD-8B30-51398DDC3858",
+          "port" : "output"
+        },
+        "target" : {
+          "direction" : "input",
+          "node" : "7BC10EAD-C5D9-48F1-81C6-3D062E54D6BF",
+          "port" : "measurement"
+        }
+      },
+      {
+        "id" : "8DBD28B1-1C1B-43C8-8504-1CD9215B6205",
+        "source" : {
+          "direction" : "output",
+          "node" : "857D90DC-CB46-4DFD-8B30-51398DDC3858",
+          "port" : "output"
+        },
+        "target" : {
+          "direction" : "input",
+          "node" : "03FD31A7-3668-436D-B3CD-EC3756159CC9",
+          "port" : "value"
+        }
+      },
+      {
+        "id" : "F51E530C-2CAF-4E06-B830-04F9824FE3BB",
+        "source" : {
+          "direction" : "output",
+          "node" : "A8D71DCF-CD6B-40DD-8413-D63D1D8BF057",
+          "port" : "value"
+        },
+        "target" : {
+          "direction" : "input",
+          "node" : "3097E1B7-B85C-4A53-A143-07AA77648452",
+          "port" : "a"
+        }
+      },
+      {
+        "id" : "07596935-CC43-49CF-BD05-B4B293567C8F",
+        "source" : {
+          "direction" : "output",
+          "node" : "7A8FADD1-F726-4625-986B-FED905B82484",
+          "port" : "value"
+        },
+        "target" : {
+          "direction" : "input",
+          "node" : "3097E1B7-B85C-4A53-A143-07AA77648452",
+          "port" : "b"
+        }
+      },
+      {
+        "id" : "E68639DC-B0A1-4228-8951-17DA983076F0",
+        "source" : {
+          "direction" : "output",
+          "node" : "18AE7515-AE02-430E-8120-1AB2A0AC837C",
+          "port" : "value"
+        },
+        "target" : {
+          "direction" : "input",
+          "node" : "3097E1B7-B85C-4A53-A143-07AA77648452",
+          "port" : "b_2"
+        }
+      },
+      {
+        "id" : "FE334306-4623-4EA7-9190-A540A9025303",
+        "source" : {
+          "direction" : "output",
+          "node" : "3097E1B7-B85C-4A53-A143-07AA77648452",
+          "port" : "result"
+        },
+        "target" : {
+          "direction" : "input",
+          "node" : "79C0D17B-C076-4C25-92F9-4AAFE7A331F5",
+          "port" : "a"
+        }
+      }
+    ],
+    "nodes" : [
+      {
+        "id" : "A8D71DCF-CD6B-40DD-8413-D63D1D8BF057",
+        "isCollapsed" : false,
+        "isPinned" : false,
+        "mode" : "always",
+        "position" : {
+          "x" : 0,
+          "y" : 0
+        },
+        "properties" : {
+          "value" : {
+            "type" : "double",
+            "value" : 3
+          }
+        },
+        "title" : "A",
+        "typeID" : "util.number"
+      },
+      {
+        "id" : "7A8FADD1-F726-4625-986B-FED905B82484",
+        "isCollapsed" : false,
+        "isPinned" : false,
+        "mode" : "always",
+        "position" : {
+          "x" : 0,
+          "y" : 140
+        },
+        "properties" : {
+          "value" : {
+            "type" : "double",
+            "value" : 4
+          }
+        },
+        "title" : "B",
+        "typeID" : "util.number"
+      },
+      {
+        "id" : "18AE7515-AE02-430E-8120-1AB2A0AC837C",
+        "isCollapsed" : false,
+        "isPinned" : false,
+        "mode" : "always",
+        "position" : {
+          "x" : 300,
+          "y" : 200
+        },
+        "properties" : {
+          "value" : {
+            "type" : "double",
+            "value" : 2.5
+          }
+        },
+        "title" : "Scale",
+        "typeID" : "util.number"
+      },
+      {
+        "id" : "79C0D17B-C076-4C25-92F9-4AAFE7A331F5",
+        "isCollapsed" : false,
+        "isPinned" : false,
+        "mode" : "always",
+        "position" : {
+          "x" : 820,
+          "y" : 80
+        },
+        "properties" : {
+
+        },
+        "shape" : "card",
+        "typeID" : "logic.compare"
+      },
+      {
+        "id" : "4480D79D-C404-4569-9564-37CD1835AB2E",
+        "isCollapsed" : false,
+        "isPinned" : false,
+        "mode" : "always",
+        "position" : {
+          "x" : 560,
+          "y" : -80
+        },
+        "properties" : {
+
+        },
+        "typeID" : "math.sin"
+      },
+      {
+        "id" : "15E136F4-7A47-400A-A43A-A1A4DFA71C42",
+        "isCollapsed" : false,
+        "isPinned" : false,
+        "mode" : "always",
+        "position" : {
+          "x" : 820,
+          "y" : -80
+        },
+        "properties" : {
+
+        },
+        "titleMode" : "autohide",
+        "typeID" : "util.watch"
+      },
+      {
+        "id" : "0059049C-DCBF-42D6-B85B-8335B64C1F88",
+        "isCollapsed" : false,
+        "isPinned" : false,
+        "mode" : "always",
+        "position" : {
+          "x" : 0,
+          "y" : -200
+        },
+        "properties" : {
+
+        },
+        "typeID" : "util.time"
+      },
+      {
+        "id" : "44072D6A-B473-40B9-89E4-A900B94F5EB7",
+        "isCollapsed" : false,
+        "isPinned" : false,
+        "mode" : "always",
+        "position" : {
+          "x" : 300,
+          "y" : -200
+        },
+        "properties" : {
+
+        },
+        "shape" : "box",
+        "title" : "Elapsed",
+        "titleMode" : "transparent",
+        "typeID" : "util.watch"
+      },
+      {
+        "id" : "2CF53FEA-B242-4FFE-B8E3-84F8B1EA7773",
+        "isCollapsed" : false,
+        "isPinned" : false,
+        "mode" : "always",
+        "position" : {
+          "x" : 560,
+          "y" : -260
+        },
+        "properties" : {
+          "name" : {
+            "type" : "string",
+            "value" : "gain"
+          }
+        },
+        "title" : "Gain",
+        "typeID" : "util.variable"
+      },
+      {
+        "id" : "8C4EFDD5-7856-4E22-B263-62CA93B7828C",
+        "isCollapsed" : false,
+        "isPinned" : false,
+        "mode" : "always",
+        "position" : {
+          "x" : 820,
+          "y" : -260
+        },
+        "properties" : {
+
+        },
+        "typeID" : "util.watch"
+      },
+      {
+        "id" : "F3EC3501-3F52-4C4C-988F-1111801F73B8",
+        "isCollapsed" : false,
+        "isPinned" : false,
+        "mode" : "always",
+        "position" : {
+          "x" : 0,
+          "y" : 420
+        },
+        "properties" : {
+          "waveform" : {
+            "type" : "string",
+            "value" : "constant"
+          }
+        },
+        "title" : "Setpoint",
+        "typeID" : "robotics.signal"
+      },
+      {
+        "id" : "7BC10EAD-C5D9-48F1-81C6-3D062E54D6BF",
+        "isCollapsed" : false,
+        "isPinned" : false,
+        "mode" : "always",
+        "position" : {
+          "x" : 300,
+          "y" : 420
+        },
+        "properties" : {
+          "ki" : {
+            "type" : "double",
+            "value" : 4
+          },
+          "kp" : {
+            "type" : "double",
+            "value" : 4
+          },
+          "max" : {
+            "type" : "double",
+            "value" : 5
+          },
+          "min" : {
+            "type" : "double",
+            "value" : -5
+          }
+        },
+        "typeID" : "robotics.pid"
+      },
+      {
+        "id" : "64D20978-4B39-4B10-A6FD-582FB1F43F39",
+        "isCollapsed" : false,
+        "isPinned" : false,
+        "mode" : "always",
+        "position" : {
+          "x" : 560,
+          "y" : 420
+        },
+        "properties" : {
+          "max" : {
+            "type" : "double",
+            "value" : 2
+          },
+          "min" : {
+            "type" : "double",
+            "value" : -2
+          }
+        },
+        "typeID" : "robotics.actuator"
+      },
+      {
+        "id" : "857D90DC-CB46-4DFD-8B30-51398DDC3858",
+        "isCollapsed" : false,
+        "isPinned" : false,
+        "mode" : "always",
+        "position" : {
+          "x" : 820,
+          "y" : 420
+        },
+        "properties" : {
+
+        },
+        "typeID" : "robotics.plant"
+      },
+      {
+        "id" : "03FD31A7-3668-436D-B3CD-EC3756159CC9",
+        "isCollapsed" : false,
+        "isPinned" : false,
+        "mode" : "always",
+        "position" : {
+          "x" : 1080,
+          "y" : 420
+        },
+        "properties" : {
+
+        },
+        "title" : "Reading",
+        "typeID" : "util.watch"
+      },
+      {
+        "id" : "3097E1B7-B85C-4A53-A143-07AA77648452",
+        "isCollapsed" : false,
+        "isPinned" : false,
+        "mode" : "always",
+        "position" : {
+          "x" : 430,
+          "y" : 70
+        },
+        "properties" : {
+
+        },
+        "typeID" : "subgraph.65E30736-B657-432B-B360-702D1A118C9E"
+      }
+    ],
+    "variables" : [
+      {
+        "name" : "gain",
+        "summary" : "",
+        "type" : "any",
+        "value" : {
+          "type" : "double",
+          "value" : 2.5
+        }
+      }
+    ]
+  },
+  "metadata" : {
+
+  },
+  "schemaVersion" : 1,
+  "subgraphs" : [
+    {
+      "graph" : {
+        "groups" : [
+
+        ],
+        "links" : [
+          {
+            "id" : "2EA3328C-C9C0-4EFF-9345-9AD338D34770",
+            "source" : {
+              "direction" : "output",
+              "node" : "D114F9DE-0587-4E49-89F4-A70454C3B73E",
+              "port" : "result"
+            },
+            "target" : {
+              "direction" : "input",
+              "node" : "16D4E2AF-14ED-45D7-881B-DCC53C26E802",
+              "port" : "a"
+            }
+          }
+        ],
+        "nodes" : [
+          {
+            "id" : "D114F9DE-0587-4E49-89F4-A70454C3B73E",
+            "isCollapsed" : false,
+            "isPinned" : false,
+            "mode" : "always",
+            "position" : {
+              "x" : 300,
+              "y" : 40
+            },
+            "properties" : {
+
+            },
+            "typeID" : "math.add"
+          },
+          {
+            "id" : "16D4E2AF-14ED-45D7-881B-DCC53C26E802",
+            "isCollapsed" : false,
+            "isPinned" : false,
+            "mode" : "always",
+            "position" : {
+              "x" : 560,
+              "y" : 100
+            },
+            "properties" : {
+
+            },
+            "typeID" : "math.multiply"
+          }
+        ]
+      },
+      "id" : "65E30736-B657-432B-B360-702D1A118C9E",
+      "interface" : {
+        "category" : "Subgraph",
+        "inputs" : [
+          {
+            "allowsMultipleLinks" : false,
+            "defaultValue" : {
+              "type" : "double",
+              "value" : 0
+            },
+            "displayName" : "A",
+            "id" : "a",
+            "kind" : "data",
+            "targets" : [
+              {
+                "direction" : "input",
+                "node" : "D114F9DE-0587-4E49-89F4-A70454C3B73E",
+                "port" : "a"
+              }
+            ],
+            "type" : "number"
+          },
+          {
+            "allowsMultipleLinks" : false,
+            "defaultValue" : {
+              "type" : "double",
+              "value" : 0
+            },
+            "displayName" : "B",
+            "id" : "b",
+            "kind" : "data",
+            "targets" : [
+              {
+                "direction" : "input",
+                "node" : "D114F9DE-0587-4E49-89F4-A70454C3B73E",
+                "port" : "b"
+              }
+            ],
+            "type" : "number"
+          },
+          {
+            "allowsMultipleLinks" : false,
+            "defaultValue" : {
+              "type" : "double",
+              "value" : 1
+            },
+            "displayName" : "Scale",
+            "id" : "b_2",
+            "kind" : "data",
+            "targets" : [
+              {
+                "direction" : "input",
+                "node" : "16D4E2AF-14ED-45D7-881B-DCC53C26E802",
+                "port" : "b"
+              }
+            ],
+            "type" : "number"
+          }
+        ],
+        "name" : "Sum Times Scale",
+        "outputs" : [
+          {
+            "displayName" : "result",
+            "id" : "result",
+            "kind" : "data",
+            "source" : {
+              "direction" : "output",
+              "node" : "16D4E2AF-14ED-45D7-881B-DCC53C26E802",
+              "port" : "result"
+            },
+            "type" : "number"
+          }
+        ],
+        "properties" : [
+
+        ]
+      }
+    }
+  ]
+}
