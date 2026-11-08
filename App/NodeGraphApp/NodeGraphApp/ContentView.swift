@@ -1,4 +1,5 @@
 import NodeGraphCore
+import NodeGraphSync
 import NodeGraphUI
 import SwiftUI
 import UniformTypeIdentifiers
@@ -62,11 +63,29 @@ struct ContentView: View {
                     exportedImage = GraphImageDocument(data: data)
                     showsExporter = true
                 }
+                connectLibraries()
             }
     }
 }
 
 extension ContentView {
+    /// Subgraph libraries live in the app's Application Support folder: loaded now, and each
+    /// change the editor makes to one is saved as it happens.
+    private func connectLibraries() {
+        let model = controller.model
+        guard let support = try? FileManager.default.url(
+            for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+        else { return }
+        let store = FileSubgraphLibraryStore(directory: support.appendingPathComponent("NodeGraph/Libraries"))
+        model.onLibraryChange = { library in
+            Task { try? await store.save(library) }
+        }
+        Task {
+            let libraries = (try? await store.libraries()) ?? []
+            model.setLibraries(libraries.sorted { $0.name < $1.name })
+        }
+    }
+
     /// Runs the root graph once and shows each node's progress and result on the canvas.
     private func runOnce() {
         let model = controller.model

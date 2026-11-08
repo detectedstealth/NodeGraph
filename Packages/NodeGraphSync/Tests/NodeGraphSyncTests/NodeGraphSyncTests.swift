@@ -98,3 +98,46 @@ private func exerciseStore(_ store: some GraphStore) async throws {
     #expect(try await store.list().map(\.id) == [good])
     await #expect(throws: GraphStoreError.corrupt(bad)) { try await store.load(bad) }
 }
+
+// MARK: - Library stores
+
+private func sampleLibrary(_ id: String, name: String) throws -> SubgraphLibrary {
+    var library = SubgraphLibrary(id: LibraryID(id), name: name)
+    try library.publish([SubgraphDefinition(interface: SubgraphInterface(name: "Wrapper"))])
+    return library
+}
+
+private func exerciseLibraryStore(_ store: some SubgraphLibraryStore) async throws {
+    #expect(try await store.libraries().isEmpty)
+    let a = try sampleLibrary("team/a", name: "A"), b = try sampleLibrary("b", name: "B")
+    try await store.save(a)
+    try await store.save(b)
+    var renamed = a
+    renamed.name = "A2"
+    try await store.save(renamed)
+    let loaded = try await store.libraries()
+    #expect(Set(loaded.map(\.name)) == ["A2", "B"])
+    #expect(loaded.first { $0.id == a.id } == renamed)   // entries survive
+    try await store.delete(a.id)
+    try await store.delete(a.id)   // not stored: nothing happens
+    #expect(try await store.libraries().map(\.name) == ["B"])
+}
+
+@Test func inMemoryLibraryStore() async throws {
+    try await exerciseLibraryStore(InMemorySubgraphLibraryStore())
+}
+
+@Test func fileLibraryStore() async throws {
+    let directory = temporaryDirectory()
+    defer { try? FileManager.default.removeItem(at: directory) }
+    try await exerciseLibraryStore(FileSubgraphLibraryStore(directory: directory))
+}
+
+@Test func fileLibraryStoreSkipsDamagedFiles() async throws {
+    let directory = temporaryDirectory()
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let store = FileSubgraphLibraryStore(directory: directory)
+    try await store.save(try sampleLibrary("ok", name: "Ok"))
+    try Data("nope".utf8).write(to: directory.appendingPathComponent("bad.nodegraphlib"))
+    #expect(try await store.libraries().map(\.name) == ["Ok"])
+}

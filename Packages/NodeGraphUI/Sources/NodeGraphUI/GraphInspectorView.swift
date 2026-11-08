@@ -44,6 +44,7 @@ private struct GraphSection: View {
             LabeledContent("Groups", value: "\(summary.groupCount)")
         }
         VariablesSection(model: model)
+        LibrariesSection(model: model)
         Section("Problems") {
             if diagnostics.isEmpty {
                 Text("None").foregroundStyle(.secondary)
@@ -62,6 +63,95 @@ private struct GraphSection: View {
         }
         .task(id: model.revision) {
             diagnostics = GraphValidator(connections: model.editor.connectionValidator).validate(model.editor.validationContext(in: model.currentScope) ?? model.editor.validationContext)
+        }
+    }
+}
+
+// MARK: - Libraries
+
+/// The subgraph libraries: each one's name and entries, with Import for an entry the document
+/// does not have and Update for one that has a newer revision. Publishing is done from inside the
+/// subgraph (see `SubgraphLibrarySection`).
+private struct LibrariesSection: View {
+    let model: GraphEditorModel
+
+    var body: some View {
+        Section("Libraries") {
+            if model.libraries.isEmpty {
+                Text("None. Create one, then publish a subgraph to it.").font(.callout).foregroundStyle(.secondary)
+            }
+            ForEach(model.libraries, id: \.id) { library in
+                CommitTextField(text: library.name, placeholder: "Library") { text in
+                    guard let text, text != library.name else { return true }
+                    return model.renameLibrary(library.id, to: text)
+                }
+                if library.entries.isEmpty {
+                    Text("Empty").font(.callout).foregroundStyle(.secondary)
+                }
+                ForEach(Array(library.entries.values), id: \.definition.id) { entry in
+                    LibraryEntryRow(model: model, library: library, entry: entry)
+                }
+            }
+            ActionButton("New Library") { model.createLibrary() }
+        }
+    }
+}
+
+private struct LibraryEntryRow: View {
+    let model: GraphEditorModel
+    let library: SubgraphLibrary
+    let entry: LibraryEntry
+
+    var body: some View {
+        let id = entry.definition.id
+        let local = model.editor.subgraphs[id]
+        HStack {
+            VStack(alignment: .leading) {
+                Text(entry.definition.interface.name)
+                Text(detail(local)).font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer()
+            if local == nil {
+                ActionButton("Import") { model.importSubgraphs([id], from: library.id) }
+            } else if local?.origin?.library == library.id, model.libraryStatus(of: id).hasUpdate {
+                ActionButton("Update") { model.updateSubgraphFromLibrary(id) }
+            }
+        }
+    }
+
+    private func detail(_ local: SubgraphDefinition?) -> String {
+        var text = "Revision \(entry.revision)"
+        if !entry.summary.isEmpty { text += " · " + entry.summary }
+        guard let local else { return text }
+        let status = local.origin?.library == library.id ? model.libraryStatus(of: entry.definition.id).title : "In the document, from elsewhere"
+        return text + " · " + status
+    }
+}
+
+/// Inside a subgraph: where it came from, an update button when its library has a newer version,
+/// and publishing to a library (existing or new).
+private struct SubgraphLibrarySection: View {
+    let model: GraphEditorModel
+    let subgraph: SubgraphID
+
+    var body: some View {
+        let status = model.libraryStatus(of: subgraph)
+        Section("Library") {
+            if let library = model.originLibrary(of: subgraph) {
+                LabeledContent("From", value: library.name)
+            }
+            LabeledContent("Status", value: status.title)
+            if status.hasUpdate {
+                ActionButton("Update from Library") { model.updateSubgraphFromLibrary(subgraph) }
+            }
+            Menu("Publish to Library") {
+                ForEach(model.libraries, id: \.id) { library in
+                    Button(library.name) { model.publishSubgraph(subgraph, to: library.id) }
+                }
+                Button("New Library") {
+                    model.publishSubgraph(subgraph, to: model.createLibrary())
+                }
+            }
         }
     }
 }
@@ -425,6 +515,8 @@ private struct SubgraphSections: View {
             LabeledContent("Used by", value: info.instanceCount == 1 ? "1 node" : "\(info.instanceCount) nodes")
             ActionButton("Leave Subgraph") { model.leaveSubgraph() }
         }
+
+        SubgraphLibrarySection(model: model, subgraph: info.id)
 
         InterfaceSection(
             title: "Inputs", empty: "None. Select a node inside and expose one of its inputs.", entries: info.inputs,

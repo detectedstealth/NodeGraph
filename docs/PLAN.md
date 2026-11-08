@@ -134,7 +134,7 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
 ## Phase 6: Persistence and server readiness
 
 - [x] `GraphStore` protocol; in-memory and local file stores: `GraphStore`, `InMemoryGraphStore`, `FileGraphStore` in NodeGraphSync (decision 204; Sync 5 tests). Saves are numbered but there is no conflict check or change feed yet (the revisioned-save item)
-- [ ] Subgraph library in the editor: publish a subgraph to a library, import from one, see update and modified status, update an instance's definition (`SubgraphLibrary` is done in Core; this is the UI and the stores for it)
+- [x] Subgraph library in the editor: publish a subgraph to a library, import from one, see update and modified status, update an instance's definition: `SubgraphLibraryEditing` (model), Libraries and Library inspector sections, `SubgraphLibraryStore` with in-memory and file stores in Sync, wired in the demo app (decision 205). UI 410, Sync 8 tests; iOS builds. Not checked by eye. Not built: update from a selected instance node, removing a library entry or library from the UI, a diff before updating
 - [ ] Document-based app integration (custom UTType, autosave, versions) using the SwiftUI Document APIs
 - [ ] Revisioned save with conflict detection; command log export
 - [ ] `ng-run` headless CLI (swift-argument-parser) for running graphs

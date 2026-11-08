@@ -165,6 +165,14 @@ public final class GraphEditorModel {
     /// ``beginConnection(from:)``.
     public var connectionRequest: ConnectionRequest?
 
+    /// The subgraph libraries the host has loaded, for publishing to and importing from. See
+    /// ``publishSubgraph(_:to:summary:)``. Not part of the graph, history or undo.
+    public internal(set) var libraries: [SubgraphLibrary] = []
+
+    /// Called with a library after the editor changed it (a publish, a new library, a rename), so
+    /// the host can store it.
+    @ObservationIgnored public var onLibraryChange: ((SubgraphLibrary) -> Void)?
+
     /// The subgraphs entered to reach the graph being edited, outermost first. Empty at the root.
     /// Each was opened from an instance of it in the one before, so this is the breadcrumb.
     public private(set) var scopePath: [SubgraphID] = []
