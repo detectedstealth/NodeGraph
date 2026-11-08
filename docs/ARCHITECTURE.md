@@ -71,7 +71,7 @@ A `SubgraphLibrary` is a versioned file of reusable `SubgraphDefinition`s. Docum
 
 ## Sync and server (later)
 
-`GraphStore` protocol: `list`, `load`, `save(revision:)`, `delete`, `changes(since:)`. First implementations: in-memory and local file. A server implementation consumes the same `GraphCommand` log with revision numbers and conflict detection. Core types already satisfy the wire requirements (`Codable`, `Sendable`).
+`GraphStore` protocol: `list`, `load`, `save`, `delete` (built, decision 204); `save(revision:)` conflict checks and `changes(since:)` come next. First implementations: in-memory and local file. A server implementation consumes the same `GraphCommand` log with revision numbers and conflict detection. Core types already satisfy the wire requirements (`Codable`, `Sendable`).
 
 ## Domain packs
 
