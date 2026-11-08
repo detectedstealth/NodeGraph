@@ -91,6 +91,8 @@ extension GraphInteractionController {
             return cutSelection()
         case .paste(let point):
             return paste(at: point)
+        case .pasteWithConnections(let point):
+            return paste(at: point, keepingConnections: true)
         case .duplicate:
             return duplicateSelection()
         case .align(let edge):
@@ -217,6 +219,9 @@ extension GraphInteractionController {
             return (model.currentScope == nil ? [] : [CanvasMenuItem("Leave Subgraph", .leaveSubgraph), .separator]) + [
                 CanvasMenuItem("Add Node…", .addNode(at: model.camera.graphPoint(forScreen: point))),
                 CanvasMenuItem("Paste", .paste(at: model.camera.graphPoint(forScreen: point)), isEnabled: clipboard.mayHaveFragment),
+                CanvasMenuItem(
+                    "Paste with Connections", .pasteWithConnections(at: model.camera.graphPoint(forScreen: point)),
+                    isEnabled: clipboard.mayHaveFragment),
                 .separator,
                 CanvasMenuItem("Select All", .selectAll, isEnabled: !model.graph.nodes.isEmpty),
                 .separator,

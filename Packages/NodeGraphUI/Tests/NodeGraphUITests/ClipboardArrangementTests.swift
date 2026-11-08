@@ -112,6 +112,24 @@ import NodeGraphCore
         #expect(clipboard.fragment?.nodes.count == 2 && clipboard.fragment?.links.count == 1)
     }
 
+    @Test func pasteWithConnectionsLinksTheCopyToTheOriginalsSources() throws {
+        let a = try add(TestKit.source, x: 0)
+        let b = try add(TestKit.sink, x: 300)
+        try link(a, b)
+        model.select(node: b.id)
+        controller.perform(.copy)
+        let before = model.history.undoStack.count
+        #expect(controller.perform(.pasteWithConnections(at: GraphPoint(x: 300, y: 400))))
+        let copy = try #require(model.selection.nodes.first)
+        #expect(model.graph.links.values.contains { $0.source.node == a.id && $0.target.node == copy && $0.target.port == "a" })
+        #expect(model.history.undoStack.count == before + 1)
+        try model.undo()
+        #expect(model.graph.links.count == 1, "one undo removes the copy and its links")
+
+        #expect(controller.perform(.paste(at: GraphPoint(x: 300, y: 400))))
+        #expect(model.graph.links.count == 1, "a plain paste adds no link")
+    }
+
     @Test func copyWithNothingSelectedDoesNothing() {
         #expect(!controller.perform(.copy))
         #expect(clipboard.fragment == nil)

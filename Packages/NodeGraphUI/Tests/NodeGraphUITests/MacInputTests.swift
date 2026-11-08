@@ -299,7 +299,7 @@ import NodeGraphCore
         model.snapsToGrid = true
         let items = controller.contextMenu(at: CGPoint(x: 900, y: 900))
         #expect(model.selection.isEmpty)
-        #expect(titles(items) == ["Add Node…", "Paste", "Select All", "Zoom to Fit", "Actual Size", "Snap to Grid"])
+        #expect(titles(items) == ["Add Node…", "Paste", "Paste with Connections", "Select All", "Zoom to Fit", "Actual Size", "Snap to Grid"])
         #expect(items.first { $0.title == "Snap to Grid" }?.isChecked == true)
     }
 

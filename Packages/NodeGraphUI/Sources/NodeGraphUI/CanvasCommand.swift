@@ -25,6 +25,9 @@ public enum CanvasCommand: Hashable, Sendable {
     case cut
     /// Pastes the clipboard, centered on a graph-space point, or on the pointer when nil.
     case paste(at: GraphPoint?)
+    /// Pastes like ``paste(at:)``, and links each pasted node again to the nodes outside the copy
+    /// that fed the original, where they still exist and the rules allow it.
+    case pasteWithConnections(at: GraphPoint?)
     /// Makes a copy of the selection a little way off, without touching the clipboard.
     case duplicate
     /// Lines the selected nodes up on an edge or center of the box around them.
@@ -61,7 +64,7 @@ extension CanvasCommand {
     /// false) refuses these and keeps the rest: selecting, copying, zooming and navigating.
     public var isEdit: Bool {
         switch self {
-        case .deleteSelection, .deleteAndReconnect, .nudge, .cut, .paste, .duplicate, .align, .distribute, .createSubgraph,
+        case .deleteSelection, .deleteAndReconnect, .nudge, .cut, .paste, .pasteWithConnections, .duplicate, .align, .distribute, .createSubgraph,
              .unpackSubgraph, .addNode, .toggleCollapsed, .togglePinned, .setMode, .setShape, .setTitleMode,
              .disconnectSelection,
              .addWaypoint:
@@ -101,6 +104,7 @@ public enum CanvasKeyMap {
             case "a" where commandKey: return .selectAll
             case "c" where commandKey: return .copy
             case "x" where commandKey: return .cut
+            case "v" where commandKey && modifiers.contains(.shift): return .pasteWithConnections(at: nil)
             case "v" where commandKey: return .paste(at: nil)
             case "d" where commandKey: return .duplicate
             case "g" where commandKey && modifiers.contains(.shift): return .unpackSubgraph

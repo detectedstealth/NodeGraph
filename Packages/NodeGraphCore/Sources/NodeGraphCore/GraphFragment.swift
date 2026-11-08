@@ -15,17 +15,23 @@ public struct GraphFragment: Hashable, Sendable, Codable {
     public var nodes: [Node]
     /// Links with both ends among ``nodes``.
     public var links: [Link]
+    /// Links that fed ``nodes`` from nodes outside the fragment, as they were in the graph it was
+    /// cut from. Only ``GraphEditor/pasteCommand(_:translatedBy:in:keepingConnections:)`` with
+    /// `keepingConnections` uses them, and only for sources that exist where it pastes.
+    public var inputLinks: [Link]
     public var groups: [NodeGroup]
     /// Definitions of the subgraphs that ``nodes`` are instances of, and of the subgraphs those
     /// contain, each after the ones it depends on.
     public var subgraphs: [SubgraphDefinition]
 
     public init(
-        nodes: [Node] = [], links: [Link] = [], groups: [NodeGroup] = [], subgraphs: [SubgraphDefinition] = []
+        nodes: [Node] = [], links: [Link] = [], inputLinks: [Link] = [], groups: [NodeGroup] = [],
+        subgraphs: [SubgraphDefinition] = []
     ) {
         schemaVersion = Self.currentVersion
         self.nodes = nodes
         self.links = links
+        self.inputLinks = inputLinks
         self.groups = groups
         self.subgraphs = subgraphs
     }
@@ -48,7 +54,7 @@ public struct GraphFragment: Hashable, Sendable, Codable {
     // MARK: File form
 
     private enum CodingKeys: String, CodingKey {
-        case kind, schemaVersion, nodes, links, groups, subgraphs
+        case kind, schemaVersion, nodes, links, inputLinks, groups, subgraphs
     }
 
     public init(from decoder: any Decoder) throws {
@@ -65,6 +71,7 @@ public struct GraphFragment: Hashable, Sendable, Codable {
         }
         nodes = try container.decode([Node].self, forKey: .nodes)
         links = try container.decodeIfPresent([Link].self, forKey: .links) ?? []
+        inputLinks = try container.decodeIfPresent([Link].self, forKey: .inputLinks) ?? []
         groups = try container.decodeIfPresent([NodeGroup].self, forKey: .groups) ?? []
         subgraphs = try container.decodeIfPresent([SubgraphDefinition].self, forKey: .subgraphs) ?? []
     }
@@ -75,6 +82,7 @@ public struct GraphFragment: Hashable, Sendable, Codable {
         try container.encode(schemaVersion, forKey: .schemaVersion)
         try container.encode(nodes, forKey: .nodes)
         try container.encode(links, forKey: .links)
+        if !inputLinks.isEmpty { try container.encode(inputLinks, forKey: .inputLinks) }
         try container.encode(groups, forKey: .groups)
         if !subgraphs.isEmpty { try container.encode(subgraphs, forKey: .subgraphs) }
     }
@@ -113,10 +121,11 @@ extension GraphEditor {
         for node in source.nodes.values where wanted.contains(node.id) { nodes.append(node) }
         if let missing = wanted.subtracting(nodes.map(\.id)).first { throw GraphEditError.nodeNotFound(missing) }
         let links = source.links.values.filter { wanted.contains($0.source.node) && wanted.contains($0.target.node) }
+        let inputLinks = source.links.values.filter { wanted.contains($0.target.node) && !wanted.contains($0.source.node) }
         let wantedGroups = Set(groupIDs)
         let groups = source.groups.values.filter { wantedGroups.contains($0.id) }
         if let missing = wantedGroups.subtracting(groups.map(\.id)).first { throw GraphEditError.groupNotFound(missing) }
-        return GraphFragment(nodes: nodes, links: Array(links), groups: Array(groups), subgraphs: definitions(used: nodes))
+        return GraphFragment(nodes: nodes, links: Array(links), inputLinks: Array(inputLinks), groups: Array(groups), subgraphs: definitions(used: nodes))
     }
 
     /// The definitions of the subgraphs `nodes` are instances of, and of those they contain, with
@@ -152,8 +161,13 @@ extension GraphEditor {
     /// The command is complete as it is: it already places the paste inside `scope`, so apply it
     /// as it comes, not wrapped in ``GraphCommand/inSubgraph(id:command:)`` again. Throws
     /// `unknownNodeType` if the fragment has a node this editor cannot create.
+    ///
+    /// With `keepingConnections`, each pasted node is also linked again to the outside nodes that
+    /// fed the original, where those nodes exist in `scope` and the connection rules allow it;
+    /// the others are left unlinked.
     public func pasteCommand(
-        _ fragment: GraphFragment, translatedBy delta: GraphPoint = .zero, in scope: SubgraphID? = nil
+        _ fragment: GraphFragment, translatedBy delta: GraphPoint = .zero, in scope: SubgraphID? = nil,
+        keepingConnections: Bool = false
     ) throws -> GraphPaste {
         guard editedGraph(in: scope) != nil else { throw GraphEditError.subgraphNotFound(scope!) }
         if let missing = missingNodeTypes(in: fragment).first { throw GraphEditError.unknownNodeType(missing) }
@@ -174,6 +188,25 @@ extension GraphEditor {
                 sourceNode: source, sourcePort: link.source.port, targetNode: target, targetPort: link.target.port,
                 waypoints: link.waypoints.map(moved))
             inner.append(.addLink(link: link))
+        }
+        if keepingConnections, var scratch = editedGraph(in: scope) {
+            // Check against a copy holding the paste so far, so two restored links to one
+            // single-link port, or one that closes a cycle, are caught.
+            for case .addNode(let node, _) in inner { scratch.insert(node) }
+            for case .addLink(let link, _) in inner { scratch.insert(link) }
+            for old in fragment.inputLinks {
+                guard let target = nodeIDs[old.target.node], scratch.nodes[old.source.node] != nil else { continue }
+                let proposal = ConnectionProposal(
+                    source: old.source, target: PortAddress(node: target, port: old.target.port, direction: .input))
+                let check = connectionValidator.check(
+                    proposal, in: ValidationContext(graph: scratch, nodes: nodes, types: types))
+                guard check.isAllowed, check.replacedLinks.isEmpty else { continue }
+                let link = Link(
+                    sourceNode: old.source.node, sourcePort: old.source.port,
+                    targetNode: target, targetPort: old.target.port, waypoints: [])
+                scratch.insert(link)
+                inner.append(.addLink(link: link))
+            }
         }
         var groupIDs: [GroupID] = []
         for var group in fragment.groups {

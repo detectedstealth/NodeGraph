@@ -123,7 +123,8 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
   - [x] Graph variables: read-only parameters on the root graph, `util.variable`, run overrides, inspector editing (decisions 189-192; owner chose read-only over writable). `extra` metadata already existed as `GraphDocument.metadata`. Core 443, Nodes 56, UI 353 tests; 76 node types. Demo app has a `gain` variable; not checked by eye
   - [ ] Small editor aids, one at a time:
     - [x] Delete with bridge: `bridgeProposals`, `CanvasCommand.deleteAndReconnect` (decision 195). Core 452, UI 355 tests. Not checked by eye
-    - [ ] Paste keeping connections, default node per slot type, node help text
+    - [x] Paste keeping connections: `GraphFragment.inputLinks`, `keepingConnections`, `CanvasCommand.pasteWithConnections` (decision 196). Core 455, UI 356 tests. Not checked by eye
+    - [ ] Default node per slot type, node help text
   - [ ] Auto-arrange; display extras. Vertical slot layout and vector types wait for a domain that needs them
 
 ## Phase 6: Persistence and server readiness

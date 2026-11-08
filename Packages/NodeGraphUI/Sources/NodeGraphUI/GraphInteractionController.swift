@@ -689,9 +689,10 @@ public final class GraphInteractionController {
 
     /// Pastes the clipboard centered on `point`, or on the pointer (or the middle of the view)
     /// when nil, and selects what was pasted. Returns whether anything was pasted; a fragment
-    /// with a node type this editor does not have is refused.
+    /// with a node type this editor does not have is refused. With `keepingConnections`, pasted
+    /// nodes are linked again to the outside nodes that fed the originals.
     @discardableResult
-    public func paste(at point: GraphPoint? = nil) -> Bool {
+    public func paste(at point: GraphPoint? = nil, keepingConnections: Bool = false) -> Bool {
         guard let fragment = clipboard.read(), !fragment.isEmpty,
               let bounds = fragment.bounds(frame: model.editor.nodes.frame(of:)) else { return false }
         let target = point ?? model.camera.graphPoint(
@@ -706,7 +707,7 @@ public final class GraphInteractionController {
                     y: ((bounds.minY + delta.y) / spacing).rounded() * spacing - bounds.minY)
             }
         }
-        return place(fragment, translatedBy: delta, name: "Paste")
+        return place(fragment, translatedBy: delta, name: "Paste", keepingConnections: keepingConnections)
     }
 
     /// Copies the selection to just beside itself and selects the copy, leaving the clipboard alone.
@@ -723,8 +724,11 @@ public final class GraphInteractionController {
     /// How far a duplicate sits from its original, in graph units.
     static let duplicateOffset = 24.0
 
-    private func place(_ fragment: GraphFragment, translatedBy delta: GraphPoint, name: String) -> Bool {
-        guard let paste = try? model.editor.pasteCommand(fragment, translatedBy: delta, in: model.currentScope),
+    private func place(
+        _ fragment: GraphFragment, translatedBy delta: GraphPoint, name: String, keepingConnections: Bool = false
+    ) -> Bool {
+        guard let paste = try? model.editor.pasteCommand(
+                fragment, translatedBy: delta, in: model.currentScope, keepingConnections: keepingConnections),
               (try? model.perform(paste.command, name: name, isScoped: true)) != nil else { return false }
         model.selection = GraphSelection(nodes: Set(paste.nodes), groups: Set(paste.groups))
         return true

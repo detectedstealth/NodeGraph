@@ -29,6 +29,42 @@ import Testing
         #expect(fragment.nodes.first?.properties["value"] == 4.0)
     }
 
+    @Test func aFragmentRemembersWhatFedItFromOutside() throws {
+        let (editor, a, b, c) = try makeEditor()
+        let fragment = try editor.fragment(nodes: [b.id])
+        #expect(Set(fragment.inputLinks.map(\.source.node)) == [a.id, c.id])
+        #expect(fragment.links.isEmpty)
+        #expect(try GraphFragment.decode(from: fragment.encoded()) == fragment)
+        #expect(try editor.fragment(nodes: [a.id]).inputLinks.isEmpty)
+    }
+
+    @Test func pastingKeepingConnectionsLinksTheCopyToTheOriginalsSources() throws {
+        let (editor, a, b, c) = try makeEditor()
+        let fragment = try editor.fragment(nodes: [b.id])
+
+        let plain = try editor.pasteCommand(fragment, translatedBy: GraphPoint(x: 0, y: 200))
+        try editor.apply(plain.command)
+        #expect(editor.graph.links.count == 2, "a plain paste adds no links to the outside")
+
+        let kept = try editor.pasteCommand(fragment, translatedBy: GraphPoint(x: 0, y: 400), keepingConnections: true)
+        try editor.apply(kept.command)
+        let copy = try #require(kept.nodes.first)
+        let feeding = editor.graph.links.values.filter { $0.target.node == copy }
+        #expect(Set(feeding.map(\.source.node)) == [a.id, c.id])
+        #expect(Set(feeding.map(\.target.port)) == ["a", "b"])
+        #expect(editor.graph.links.values.filter { $0.source.node == a.id }.count == 2, "the source fans out to both")
+    }
+
+    @Test func pastingKeepingConnectionsSkipsSourcesThatAreGone() throws {
+        let (editor, a, b, c) = try makeEditor()
+        let fragment = try editor.fragment(nodes: [b.id])
+        try editor.apply(.removeNode(id: a.id))
+        let paste = try editor.pasteCommand(fragment, keepingConnections: true)
+        try editor.apply(paste.command)
+        let feeding = editor.graph.links.values.filter { $0.target.node == paste.nodes[0] }
+        #expect(feeding.map(\.source.node) == [c.id])
+    }
+
     @Test func unknownNodesAndGroupsAreRefused() throws {
         let (editor, _, _, _) = try makeEditor()
         #expect(throws: GraphEditError.self) { try editor.fragment(nodes: [NodeID()]) }
