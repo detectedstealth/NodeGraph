@@ -48,6 +48,23 @@ private func exerciseStore(_ store: some GraphStore) async throws {
     _ = try await store.save(GraphDocument(), as: other, name: "Other")
     #expect(Set(try await store.list().map(\.id)) == [id, other])
 
+    // A save that expects an older revision is refused and writes nothing.
+    await #expect(throws: GraphStoreError.conflict(id, current: second.revision)) {
+        try await store.save(GraphDocument(), as: id, name: "Stale", expecting: .revision(first.revision))
+    }
+    await #expect(throws: GraphStoreError.conflict(id, current: second.revision)) {
+        try await store.save(GraphDocument(), as: id, name: "Again", expecting: .new)
+    }
+    #expect(try await store.load(id).summary == second)
+    let third = try await store.save(changed, as: id, name: "Third", expecting: .revision(second.revision))
+    #expect(third.revision == GraphRevision(rawValue: 3))
+    let missing = GraphID()
+    await #expect(throws: GraphStoreError.conflict(missing, current: nil)) {
+        try await store.save(GraphDocument(), as: missing, name: "Gone", expecting: .revision(first.revision))
+    }
+    #expect(try await store.save(GraphDocument(), as: missing, name: "Fresh", expecting: .new).revision.rawValue == 1)
+    try await store.delete(missing)
+
     try await store.delete(id)
     #expect(Set(try await store.list().map(\.id)) == [other])
     await #expect(throws: GraphStoreError.notFound(id)) { try await store.load(id) }
@@ -97,6 +114,69 @@ private func exerciseStore(_ store: some GraphStore) async throws {
 
     #expect(try await store.list().map(\.id) == [good])
     await #expect(throws: GraphStoreError.corrupt(bad)) { try await store.load(bad) }
+}
+
+@Test func concurrentSavesFromOneRevisionHaveOneWinner() async throws {
+    let store = InMemoryGraphStore(now: { stamp })
+    let id = GraphID()
+    let base = try await store.save(GraphDocument(), as: id, name: "Base").revision
+    let outcomes = await withTaskGroup(of: Bool.self) { group in
+        for index in 0..<8 {
+            group.addTask {
+                (try? await store.save(GraphDocument(), as: id, name: "W\(index)", expecting: .revision(base))) != nil
+            }
+        }
+        return await group.reduce(into: []) { $0.append($1) }
+    }
+    #expect(outcomes.filter { $0 }.count == 1)
+    #expect(try await store.load(id).summary.revision == GraphRevision(rawValue: 2))
+}
+
+// MARK: - Command log
+
+private func logEditor() -> GraphEditor {
+    var types = TypeRegistry()
+    types.register(PortTypeInfo(type: "number", displayName: "Number", color: RGBAColor(red: 0, green: 0, blue: 0)))
+    var nodes = NodeRegistry()
+    nodes.register(NodeDefinition(
+        typeID: "pass", displayName: "Pass",
+        ports: [
+            PortDefinition(id: "in", direction: .input, type: "number"),
+            PortDefinition(id: "out", direction: .output, type: "number"),
+        ]))
+    return GraphEditor(nodes: nodes, types: types)
+}
+
+@Test func commandLogRoundTripsAndReplays() async throws {
+    let editor = logEditor()
+    let stream = editor.changes()
+    let a = Node(typeID: "pass"), b = Node(typeID: "pass", position: GraphPoint(x: 100, y: 0))
+    try editor.apply(.addNode(node: a))
+    try editor.apply(.addNode(node: b))
+    try editor.connect(ConnectionProposal(
+        source: PortAddress(node: a.id, port: "out", direction: .output),
+        target: PortAddress(node: b.id, port: "in", direction: .input)))
+
+    var log = CommandLog()
+    for await change in stream {
+        let appended = log.append(change)
+        #expect(appended)
+        if log.changes.count == 3 { break }
+    }
+    #expect(log.revision == 3)
+    let repeated = log.append(log.changes[0])
+    #expect(!repeated)
+    #expect(log.changes(since: 2).map(\.revision) == [3])
+
+    let decoded = try CommandLog.decode(from: log.encoded())
+    #expect(decoded == log)
+    #expect(try log.encoded() == decoded.encoded())
+
+    let replica = logEditor()
+    try decoded.replay(on: replica)
+    #expect(replica.graph == editor.graph)
+    #expect(replica.revision == 3)
+    #expect(throws: CommandLogError.baseMismatch(expected: 0, actual: 3)) { try decoded.replay(on: replica) }
 }
 
 // MARK: - Library stores

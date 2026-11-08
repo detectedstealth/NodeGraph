@@ -60,9 +60,12 @@ public actor FileGraphStore: GraphStore {
         }
     }
 
-    public func save(_ document: GraphDocument, as id: GraphID, name: String) throws -> GraphSummary {
+    public func save(
+        _ document: GraphDocument, as id: GraphID, name: String, expecting expectation: SaveExpectation
+    ) throws -> GraphSummary {
         let url = fileURL(for: id)
         let previous = (try? Data(contentsOf: url)).flatMap { try? readHeader($0, id: id) }
+        try expectation.check(previous?.revision, for: id)
         let summary = GraphSummary(
             id: id, name: name,
             revision: GraphRevision(rawValue: (previous?.revision.rawValue ?? 0) + 1),

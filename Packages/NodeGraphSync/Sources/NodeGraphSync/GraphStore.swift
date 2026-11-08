@@ -46,6 +46,30 @@ public enum GraphStoreError: Error, Hashable, Sendable {
     case notFound(GraphID)
     /// The stored data for this graph cannot be read.
     case corrupt(GraphID)
+    /// A save expected a different state than the store holds: someone saved in between, or the
+    /// graph was created or deleted. `current` is the stored revision, nil if there is no graph.
+    case conflict(GraphID, current: GraphRevision?)
+}
+
+/// What a save requires of the stored graph, checked and applied as one step.
+public enum SaveExpectation: Hashable, Sendable {
+    /// Save over whatever is stored, or create the graph.
+    case any
+    /// The graph must not exist yet.
+    case new
+    /// The stored graph must be at exactly this revision, the one the edit started from.
+    case revision(GraphRevision)
+
+    /// Throws ``GraphStoreError/conflict(_:current:)`` unless `current`, the stored revision (nil if
+    /// there is none), satisfies the expectation.
+    public func check(_ current: GraphRevision?, for id: GraphID) throws {
+        switch self {
+        case .any: return
+        case .new: if current == nil { return }
+        case .revision(let expected): if current == expected { return }
+        }
+        throw GraphStoreError.conflict(id, current: current)
+    }
 }
 
 /// Somewhere graphs are kept: memory, a folder of files, and later a server.
@@ -62,9 +86,23 @@ public protocol GraphStore: Sendable {
 
     /// Stores `document` under `id`, creating the graph or replacing its contents, and returns the
     /// new summary with the revision one higher than before.
-    func save(_ document: GraphDocument, as id: GraphID, name: String) async throws -> GraphSummary
+    ///
+    /// The check against `expectation` and the write happen as one step, so of two saves that start
+    /// from the same revision only one succeeds. The loser gets
+    /// ``GraphStoreError/conflict(_:current:)``, and nothing is written.
+    func save(
+        _ document: GraphDocument, as id: GraphID, name: String, expecting expectation: SaveExpectation
+    ) async throws -> GraphSummary
 
     /// Removes a graph.
     /// - Throws: ``GraphStoreError/notFound(_:)``.
     func delete(_ id: GraphID) async throws
+}
+
+extension GraphStore {
+    /// Saves without a check: creates the graph or replaces what is stored.
+    @discardableResult
+    public func save(_ document: GraphDocument, as id: GraphID, name: String) async throws -> GraphSummary {
+        try await save(document, as: id, name: name, expecting: .any)
+    }
 }

@@ -20,7 +20,10 @@ public actor InMemoryGraphStore: GraphStore {
         return stored
     }
 
-    public func save(_ document: GraphDocument, as id: GraphID, name: String) -> GraphSummary {
+    public func save(
+        _ document: GraphDocument, as id: GraphID, name: String, expecting expectation: SaveExpectation
+    ) throws -> GraphSummary {
+        try expectation.check(graphs[id]?.summary.revision, for: id)
         let revision = GraphRevision(rawValue: (graphs[id]?.summary.revision.rawValue ?? 0) + 1)
         let summary = GraphSummary(id: id, name: name, revision: revision, modified: now())
         graphs[id] = StoredGraph(summary: summary, document: document)
