@@ -1,7 +1,8 @@
 import Foundation
 import NodeGraphCore
 
-/// Arithmetic and trigonometry on numbers. Every node is pure. Unlinked inputs use the defaults
+/// Arithmetic and trigonometry on numbers. Every node is pure, except the three that remember
+/// earlier passes (accumulate, average and tend to). Unlinked inputs use the defaults
 /// shown in each definition (identity values for multiply, divide and power).
 public enum MathPack: NodePack {
     public static func register(nodes: inout NodeRegistry, types: inout TypeRegistry) {
@@ -47,6 +48,8 @@ public enum MathPack: NodePack {
         binary("math.atan2", "Arctangent 2", a: 0, b: 1, in: &nodes) { y, x in atan2(y, x) }
         // The part after the decimal point, always 0 up to 1: frac(-0.25) is 0.75.
         unary("math.frac", "Fraction", in: &nodes) { $0 - $0.rounded(.down) }
+
+        registerStateful(in: &nodes)
 
         // Adds any number of inputs. The node always shows one free input after the last linked
         // one, so connecting the last port makes another.
@@ -146,6 +149,53 @@ public enum MathPack: NodePack {
     }
 
     // MARK: Helpers
+
+    /// Registers the nodes that keep per-node state (decision 193). None is pure.
+    private static func registerStateful(in nodes: inout NodeRegistry) {
+        // Adds `value` to a running total every pass. `reset` sets the total back to 0 first.
+        nodes.register(NodeDefinition(
+            typeID: "math.accumulate", displayName: "Accumulate", category: "Math",
+            ports: [
+                number("value", .input, 0),
+                PortDefinition(id: "reset", direction: .input, kind: .trigger),
+                number("total", .output),
+            ])
+        ) { ctx in
+            let before = ctx.didTrigger("reset") ? 0 : (ctx.state?.numberValue ?? 0)
+            let total = try finite(before + ctx.number("value"), "Accumulate")
+            return NodeOutputs(["total": .double(total)], state: .double(total))
+        }
+
+        // The mean of the latest `window` values, including this pass's.
+        nodes.register(NodeDefinition(
+            typeID: "math.average", displayName: "Average", category: "Math",
+            ports: [number("value", .input, 0), number("result", .output)],
+            properties: [PropertyDefinition(
+                id: "window", displayName: "Window", kind: .int(min: 1), defaultValue: .int(10))])
+        ) { ctx in
+            let window = Int(clamping: max(try ctx.property("window").intValue ?? 1, 1))
+            var recent = ctx.state.flatMap { value -> [Double]? in
+                if case .vector(let numbers) = value { numbers } else { nil }
+            } ?? []
+            recent.append(try ctx.number("value"))
+            if recent.count > window { recent.removeFirst(recent.count - window) }
+            return NodeOutputs(
+                ["result": .double(try finite(recent.reduce(0, +) / Double(recent.count), "Average"))],
+                state: .vector(recent))
+        }
+
+        // Moves toward `target` by the fraction `rate` of the remaining distance each pass, from
+        // 0 at the start of the run. A rate of 1 jumps straight there.
+        nodes.register(NodeDefinition(
+            typeID: "math.tendTo", displayName: "Tend To", category: "Math",
+            ports: [number("target", .input, 0), number("rate", .input, 0.1), number("result", .output)])
+        ) { ctx in
+            let rate = min(max(try ctx.number("rate"), 0), 1)
+            let current = ctx.state?.numberValue ?? 0
+            let next = try finite(current + (ctx.number("target") - current) * rate, "Tend To")
+            return NodeOutputs(["result": .double(next)], state: .double(next))
+        }
+    }
 
     private static func number(_ id: PortID, _ direction: PortDirection, _ value: Double? = nil) -> PortDefinition {
         PortDefinition(id: id, direction: direction, type: .number, defaultValue: value.map { .double($0) })

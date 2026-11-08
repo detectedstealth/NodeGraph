@@ -73,6 +73,8 @@ struct FrameState: Sendable {
     var held: [NodeID: NodeOutputs] = [:]
     /// Outputs of pure nodes with the exact inputs that produced them.
     var cache: [NodeID: CacheEntry] = [:]
+    /// What nodes stored with ``NodeOutputs/state``.
+    var nodeState: [NodeID: GraphValue] = [:]
 }
 
 /// A subgraph definition compiled for running, or why it cannot be.
@@ -218,7 +220,8 @@ enum PassEvaluator {
                 let context = NodeContext(
                     node: node, definition: definition,
                     linkedInputs: resolved.values, triggered: resolved.triggered,
-                    time: request.time, services: env.services, variables: env.variables, logger: env.logger,
+                    time: request.time, services: env.services, state: state.nodeState[id],
+                    variables: env.variables, logger: env.logger,
                     onProgress: forwardProgress)
 
                 if node.mode == .bypassed {
@@ -294,6 +297,11 @@ enum PassEvaluator {
                 switch result.outcome {
                 case .success(let produced):
                     if let key = keyByIndex[index] { state.cache[id] = CacheEntry(key: key, outputs: produced) }
+                    switch produced.state {
+                    case nil: break
+                    case .null?: state.nodeState[id] = nil
+                    case let next?: state.nodeState[id] = next
+                    }
                 case .failure, .cancelled:
                     state.cache[id] = nil
                 default:

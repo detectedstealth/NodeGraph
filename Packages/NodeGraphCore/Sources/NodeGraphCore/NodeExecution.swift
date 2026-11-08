@@ -16,15 +16,21 @@ public struct NodeOutputs: Hashable, Sendable, ExpressibleByDictionaryLiteral {
     public var values: [PortID: GraphValue]
     /// Trigger output ports that fire this evaluation.
     public var triggers: Set<PortID>
+    /// The node's state for the next pass, read back as ``NodeContext/state``. Nil leaves the
+    /// state as it was; to forget it, return `.null`. Kept only when the node succeeds. A node
+    /// that uses state must not be pure, or cached passes would skip its updates.
+    public var state: GraphValue?
 
-    public init(_ values: [PortID: GraphValue] = [:], triggers: Set<PortID> = []) {
+    public init(_ values: [PortID: GraphValue] = [:], triggers: Set<PortID> = [], state: GraphValue? = nil) {
         self.values = values
         self.triggers = triggers
+        self.state = state
     }
 
     public init(dictionaryLiteral elements: (PortID, GraphValue)...) {
         values = Dictionary(elements, uniquingKeysWith: { _, last in last })
         triggers = []
+        state = nil
     }
 
     /// No values and no triggers.
@@ -138,6 +144,10 @@ public struct NodeContext: Sendable {
     public let triggered: Set<PortID>
     public let time: ExecutionTime
     public let services: ServiceContainer
+    /// What this node stored with ``NodeOutputs/state`` on an earlier pass, or nil if it has
+    /// stored nothing since the run started or was reset. Kept per node, and per subgraph
+    /// instance, so two instances never share it.
+    public let state: GraphValue?
     /// The graph's variables as this run sees them: each declared value, or the run's override.
     /// The same for every node, including those inside subgraph instances.
     public let variables: [String: GraphValue]
@@ -157,6 +167,7 @@ public struct NodeContext: Sendable {
         triggered: Set<PortID> = [],
         time: ExecutionTime = ExecutionTime(),
         services: ServiceContainer = ServiceContainer(),
+        state: GraphValue? = nil,
         variables: [String: GraphValue] = [:],
         logger: Logger = Logger(label: "NodeGraph.node"),
         onProgress: @escaping @Sendable (NodeProgress) -> Void = { _ in }
@@ -179,6 +190,7 @@ public struct NodeContext: Sendable {
         self.triggered = triggered
         self.time = time
         self.services = services
+        self.state = state
         self.variables = variables
         self.logger = tagged
         self.progressSink = onProgress

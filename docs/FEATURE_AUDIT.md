@@ -58,7 +58,7 @@ Status: **Done** (implemented), **Partial**, **Gap** (in scope, not built), **De
 | Reroute | Done | waypoints and `util.reroute` |
 | Groups: add, colour, move with contents, resize, align | Done | |
 | Subgraphs, graph inputs and outputs, edit interface | Done | Phase 3 and 4 |
-| Global graph variables (`vars`, `Globals`) | Done | read-only parameters with run overrides (decisions 189-192); writing from the graph needs node state (decision 180) |
+| Global graph variables (`vars`, `Globals`) | Done | read-only parameters with run overrides (decisions 189-192); writing from the graph (`data_store`) is not built; state exists now (decision 193) but variables stay read-only |
 | Graph `config` and `extra` bag | Done | `GraphDocument.metadata`, a free-form `[String: GraphValue]` bag, already existed |
 | Execution order display (`render_execution_order`) | Gap | Cheap debug overlay from `ExecutionPlan` |
 | Start, stop, step, fixed time step, elapsed time | Done | `GraphRunner` modes |
@@ -119,7 +119,7 @@ Our packs hold 76 node types (decision list in PLAN). Comparison with litegraph'
 | `basic/const`, `boolean`, `string` | Done | `util.number`, `util.bool`, `util.string` |
 | `basic/watch`, `console`, `alert` | Done | `util.watch` (shown with `NodeContentDrawing.readout`) and `util.log` (to swift-log; no console view yet). Alert Out |
 | `basic/time` | Done | `util.time`: elapsed, delta, tick |
-| `basic/variable`, `data_store` | Partial | `util.variable` reads. Writing (`data_store`) waits on node state (decision 180) |
+| `basic/variable`, `data_store` | Partial | `util.variable` reads. Writing (`data_store`) is not built (decision 194) |
 | `basic/object`, `object_property`, `set_object`, `merge_objects`, `object_keys`, `jsonparse`, `data` | Done | `DataPack`: get, set, merge, keys, parse and write JSON (decision 182). `data` (data_store) waits on graph variables |
 | `basic/array`, `set_array`, `array[]`, `table[][]` | Done | make, get, set, length, append, slice. `table[][]` Out |
 | `basic/cast`, `math/converter`, `to_number` | Done | `convert.toNumber`, `toBool`, `toInt`; runtime port conversion is still open (decision 61) |
@@ -128,14 +128,14 @@ Our packs hold 76 node types (decision list in PLAN). Comparison with litegraph'
 | `basic/file`, `download`, `network/*` | Deferred | Needs asset and IO policy; Phase 6/7 |
 | `graph/subgraph`, `graph/input`, `graph/output` | Done | |
 | `math/*` arithmetic: operation, abs, floor, scale, clamp, lerp | Done | |
-| `math/range` (remap), `smoothstep`, `frac`, `tendTo`, `average`, `accumulate` | Partial | remap, smoothstep, frac done. Stateful ones (average, accumulate, tendTo) need per-node state, which Core does not have (decision 180) |
+| `math/range` (remap), `smoothstep`, `frac`, `tendTo`, `average`, `accumulate` | Partial | All done; average, accumulate and tendTo use per-node state (decisions 193-194) |
 | `math/rand`, `noise`, `spikes` | Partial | `math.random`, seeded and repeatable (decision 181). Noise and spikes Gap |
 | `math/trigonometry` | Done | sin, cos, tan, asin, acos, atan, atan2 |
 | `math/compare`, `condition`, `branch`, `gate` | Done | `logic.compare`, `logic.select`, `flow.gate` |
 | `math3d/vec2/3/4` split and combine | Gap | Needs vector types registered by a pack. Vec2/Vec3 for robotics and video |
 | `logic/AND`, `OR`, `NOT`, `selector`, `IF`, `CompareBool` | Done | plus xor |
 | `logic/sequence` (split and index) | Gap | with string split |
-| `events/*`: log, trigger, sequence, waitAll, stepper, filter, branch, counter, delay, timer, semaphore, once | Partial | `flow.delay`, `every`, `gate`, `both`, bool/trigger converters, `util.log`. Filter is `gate`; sequence is meaningless within a pass. Gap, waiting on node state (decision 180): counter, once, stepper, semaphore, and a waitAll that remembers |
+| `events/*`: log, trigger, sequence, waitAll, stepper, filter, branch, counter, delay, timer, semaphore, once | Partial | `flow.delay`, `every`, `gate`, `both`, bool/trigger converters, `util.log`. Filter is `gate`; sequence is meaningless within a pass. `flow.counter`, `once` and `latch` (stands in for semaphore) use node state (decision 194). Not built: stepper, and a waitAll that remembers |
 | `string/*`: concat, contains, upper, split, toFixed, toString, toTable | Done | concat, contains, upper/lower, join, replace, trim, length, format (to string), split, `string.toFixed`. `toTable` Out |
 | `widget/*` (button, toggle, number, combo, knob, sliders, progress, text, panel) | Partial | Our widgets live inside nodes and edit properties. Gap: standalone output-widget nodes only where useful: knob, progress, text display, panel (a note covers panel) |
 | `audio/*`, `midi/*` | Out | Web Audio. A media pack belongs to the video proof |

@@ -338,10 +338,13 @@ func toStringDescribesAnyValue(_ value: GraphValue, _ expected: String) async th
     }
 }
 
-@Test func onlyTimeDependentOrSideEffectingNodesAreImpure() throws {
+@Test func onlyTimeDependentSideEffectingOrStatefulNodesAreImpure() throws {
     let (nodes, _) = standardRegistries()
     let impure = Set(nodes.registeredDefinitions.filter { !$0.isPure }.map(\.typeID))
-    #expect(impure == ["flow.every", "util.time", "util.log", "math.random", "util.variable"])
+    #expect(impure == [
+        "flow.every", "util.time", "util.log", "math.random", "util.variable",
+        "flow.counter", "flow.once", "flow.latch", "math.accumulate", "math.average", "math.tendTo",
+    ])
 }
 
 @Test func definitionsExportAsJSON() throws {
@@ -779,4 +782,93 @@ private let person: GraphValue = .object(["name": "Ada", "age": .int(36)])
     let second = try await runner.step()
     #expect(second.succeeded)
     #expect(second.outputs(of: after)?["result"] == .double(70))
+}
+
+// MARK: Stateful nodes
+
+/// Runs `ticks` deterministic passes and reads one output of `node` after each.
+private func series(_ rig: Rig, _ node: NodeID, _ port: PortID, ticks: Int) async throws -> [GraphValue?] {
+    var values: [GraphValue?] = []
+    for await tick in try rig.runner().run(.deterministic(fixedDelta: .milliseconds(1), ticks: ticks)) {
+        values.append(tick.outputs(of: node)?[port])
+    }
+    return values
+}
+
+/// A node that fires on the listed ticks (0-based) and no others, built from `flow.every`.
+private func every(_ interval: Int64, in rig: Rig) throws -> NodeID {
+    try rig.add("flow.every", ["interval": .int(interval)])
+}
+
+@Test func counterCountsIncrementsDecrementsAndResets() async throws {
+    let rig = Rig()
+    let counter = try rig.add("flow.counter", ["start": .int(10)])
+    let up = try every(1, in: rig), down = try every(2, in: rig), reset = try every(5, in: rig)
+    try rig.link(up, "fire", counter, "increment")
+    try rig.link(down, "fire", counter, "decrement")
+    try rig.link(reset, "fire", counter, "reset")
+    // tick 0: reset to 10, +1, -1 = 10. Then +1 each tick, -1 on even ticks; tick 5 resets.
+    #expect(try await series(rig, counter, "count", ticks: 7) == [10, 11, 11, 12, 12, 11, 11].map { .int($0) })
+}
+
+@Test func onceFiresOnlyForTheFirstEventUntilReset() async throws {
+    let rig = Rig()
+    let once = try rig.add("flow.once")
+    let toBool = try rig.add("flow.triggerToBool")
+    let every1 = try every(1, in: rig), every4 = try every(4, in: rig)
+    try rig.link(every1, "fire", once, "trigger")
+    try rig.link(every4, "fire", once, "reset")
+    try rig.link(once, "fire", toBool, "trigger")
+    // Tick 0 resets and fires; tick 4 re-arms and fires again.
+    #expect(try await series(rig, toBool, "result", ticks: 6) == [true, false, false, false, true, false].map { .bool($0) })
+}
+
+@Test func latchHoldsAcrossPassesAndResetWins() async throws {
+    let rig = Rig()
+    let latch = try rig.add("flow.latch")
+    try rig.link(try every(2, in: rig), "fire", latch, "set")
+    try rig.link(try every(3, in: rig), "fire", latch, "reset")
+    // Tick 0: both fire, reset wins. Tick 2: on. Tick 3: off. Tick 4: on.
+    #expect(try await series(rig, latch, "on", ticks: 5) == [false, false, true, false, true].map { .bool($0) })
+}
+
+@Test func accumulateSumsEveryPassAndResets() async throws {
+    let rig = Rig()
+    let three = try rig.add("util.number", ["value": .double(3)])
+    let accumulate = try rig.add("math.accumulate")
+    try rig.link(three, "value", accumulate, "value")
+    try rig.link(try every(3, in: rig), "fire", accumulate, "reset")
+    // Tick 0 and tick 3 reset first, then add.
+    #expect(try await series(rig, accumulate, "total", ticks: 5) == [3, 6, 9, 3, 6].map { .double($0) })
+}
+
+@Test func averageUsesTheLatestWindowOfValues() async throws {
+    let rig = Rig()
+    let time = try rig.add("util.time")
+    let average = try rig.add("math.average", ["window": .int(3)])
+    try rig.link(time, "tick", average, "value")
+    // Values 0,1,2,3,4: means of [0], [0,1], [0,1,2], [1,2,3], [2,3,4].
+    #expect(try await series(rig, average, "result", ticks: 5) == [0, 0.5, 1, 2, 3].map { .double($0) })
+}
+
+@Test func tendToClosesTheGapByTheRateEachPass() async throws {
+    let rig = Rig()
+    let target = try rig.add("util.number", ["value": .double(8)])
+    let tend = try rig.add("math.tendTo")
+    try rig.link(target, "value", tend, "target")
+    // The default rate is 0.1, starting from 0.
+    let values = try await series(rig, tend, "result", ticks: 3).compactMap(\.?.numberValue)
+    #expect(values.count == 3)
+    for (value, expected) in zip(values, [0.8, 1.52, 2.168]) { #expect(abs(value - expected) < 1e-9) }
+}
+
+@Test func statefulNodesStartOverAfterAReset() async throws {
+    let rig = Rig()
+    let counter = try rig.add("flow.counter")
+    try rig.link(try every(1, in: rig), "fire", counter, "increment")
+    let runner = try rig.runner()
+    _ = await runner.step(); _ = await runner.step()
+    #expect(await runner.step().outputs(of: counter)?["count"] == .int(3))
+    await runner.reset()
+    #expect(await runner.step().outputs(of: counter)?["count"] == .int(1))
 }

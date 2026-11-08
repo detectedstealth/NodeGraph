@@ -42,7 +42,7 @@ public enum FlowPack: NodePack {
         }
 
         // Fires when both inputs fired in the same pass. It does not remember an input that
-        // fired in an earlier pass (that needs per-node state). Chain two for three inputs.
+        // fired in an earlier pass; for that, latch each input first. Chain two for three inputs.
         nodes.register(NodeDefinition(
             typeID: "flow.both", displayName: "Both Triggers", category: "Flow",
             ports: [
@@ -72,5 +72,59 @@ public enum FlowPack: NodePack {
             ],
             isPure: true)
         ) { ctx in NodeOutputs(triggers: (try ctx.bool("value")) ? ["fire"] : []) }
+
+        // The nodes below keep per-node state (decision 193), so none is pure.
+
+        // Counts events. Each pass applies reset, then increment, then decrement.
+        nodes.register(NodeDefinition(
+            typeID: "flow.counter", displayName: "Counter", category: "Flow",
+            ports: [
+                PortDefinition(id: "increment", direction: .input, kind: .trigger),
+                PortDefinition(id: "decrement", direction: .input, kind: .trigger),
+                PortDefinition(id: "reset", direction: .input, kind: .trigger),
+                PortDefinition(id: "count", direction: .output, type: .number),
+            ],
+            properties: [PropertyDefinition(
+                id: "start", displayName: "Start", kind: .int(), defaultValue: .int(0))])
+        ) { ctx in
+            let start = try ctx.property("start").intValue ?? 0
+            var count = ctx.state?.intValue ?? start
+            if ctx.didTrigger("reset") { count = start }
+            if ctx.didTrigger("increment") { count &+= 1 }
+            if ctx.didTrigger("decrement") { count &-= 1 }
+            return NodeOutputs(["count": .int(count)], state: .int(count))
+        }
+
+        // Passes the first event on and swallows the rest, until `reset` arms it again.
+        nodes.register(NodeDefinition(
+            typeID: "flow.once", displayName: "Once", category: "Flow",
+            ports: [
+                PortDefinition(id: "trigger", direction: .input, kind: .trigger),
+                PortDefinition(id: "reset", direction: .input, kind: .trigger),
+                PortDefinition(id: "fire", direction: .output, kind: .trigger),
+            ])
+        ) { ctx in
+            var spent = ctx.state?.boolValue ?? false
+            if ctx.didTrigger("reset") { spent = false }
+            let fires = ctx.didTrigger("trigger") && !spent
+            if fires { spent = true }
+            return NodeOutputs(triggers: fires ? ["fire"] : [], state: .bool(spent))
+        }
+
+        // A flip-flop: `set` turns it on, `reset` turns it off, and it stays that way between
+        // events. `reset` wins when both fire in one pass.
+        nodes.register(NodeDefinition(
+            typeID: "flow.latch", displayName: "Latch", category: "Flow",
+            ports: [
+                PortDefinition(id: "set", direction: .input, kind: .trigger),
+                PortDefinition(id: "reset", direction: .input, kind: .trigger),
+                PortDefinition(id: "on", direction: .output, type: .bool),
+            ])
+        ) { ctx in
+            var on = ctx.state?.boolValue ?? false
+            if ctx.didTrigger("set") { on = true }
+            if ctx.didTrigger("reset") { on = false }
+            return NodeOutputs(["on": .bool(on)], state: .bool(on))
+        }
     }
 }

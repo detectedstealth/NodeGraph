@@ -218,6 +218,9 @@ public actor GraphRunner {
         variableOverrides = variableOverrides.filter { name, value in
             graph.variables[name]?.value.kindName == value.kindName
         }
+        rootState.nodeState = rootState.nodeState.filter { id, _ in
+            graph.nodes[id]?.typeID == previous.graph.nodes[id]?.typeID
+        }
         rootState.feedback = rootState.feedback.filter { next.feedbackSources.contains($0.key) }
         rootState.held = rootState.held.filter { next.graph.nodes[$0.key]?.mode == .onTrigger }
 
