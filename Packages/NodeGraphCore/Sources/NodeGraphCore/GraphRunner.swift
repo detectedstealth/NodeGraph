@@ -17,6 +17,14 @@ public enum RunMode: Sendable {
     case deterministic(fixedDelta: Duration, ticks: Int)
 }
 
+/// Why a run's variable value was refused.
+public enum VariableOverrideError: Error, Hashable, Sendable {
+    /// The graph declares no variable with this name.
+    case undeclared(String)
+    /// The value is not the same kind as the variable's declared value (an int for a double, say).
+    case kindMismatch(name: String, expected: String, found: String)
+}
+
 /// The outcome of one evaluation of the whole graph.
 public struct TickResult: Hashable, Sendable {
     /// Evaluation count, starting at 0.
@@ -74,6 +82,8 @@ public actor GraphRunner {
     private let onProgress: @Sendable (NodeProgress) -> Void
 
     private var tickCount = 0
+    /// Values that replace declared variables in this run. Always names the graph declares.
+    private var variableOverrides: [String: GraphValue] = [:]
     private let cachingEnabled: Bool
     /// What the root graph remembers between passes.
     private var rootState = FrameState()
@@ -97,6 +107,7 @@ public actor GraphRunner {
         registry: NodeRegistry,
         subgraphs: [SubgraphDefinition] = [],
         services: ServiceContainer = ServiceContainer(),
+        variables overrides: [String: GraphValue] = [:],
         logger: Logger = Logger(label: "NodeGraph.runner"),
         caching: Bool = true,
         onProgress: @escaping @Sendable (NodeProgress) -> Void = { _ in }
@@ -108,6 +119,7 @@ public actor GraphRunner {
         self.services = services
         self.logger = logger
         self.onProgress = onProgress
+        variableOverrides = try Self.checked(overrides, against: graph)
         (requests, requestContinuation) = AsyncStream.makeStream(of: Void.self, bufferingPolicy: .bufferingNewest(1))
     }
 
@@ -116,13 +128,14 @@ public actor GraphRunner {
         document: GraphDocument,
         registry: NodeRegistry,
         services: ServiceContainer = ServiceContainer(),
+        variables overrides: [String: GraphValue] = [:],
         logger: Logger = Logger(label: "NodeGraph.runner"),
         caching: Bool = true,
         onProgress: @escaping @Sendable (NodeProgress) -> Void = { _ in }
     ) throws {
         try self.init(
             graph: document.graph, registry: registry, subgraphs: document.subgraphs, services: services,
-            logger: logger, caching: caching, onProgress: onProgress)
+            variables: overrides, logger: logger, caching: caching, onProgress: onProgress)
     }
 
     /// Compiles every definition once. One that cannot run (its inner graph has a cycle) is
@@ -138,6 +151,44 @@ public actor GraphRunner {
                 return (definition.id, CompiledSubgraph(definition: definition, error: "\(error)"))
             }
         }, uniquingKeysWith: { _, last in last })
+    }
+
+    /// Checks `values` against the variables `graph` declares: every name declared, every value
+    /// the same kind as the declared one.
+    private static func checked(_ values: [String: GraphValue], against graph: Graph) throws -> [String: GraphValue] {
+        for (name, value) in values {
+            guard let declared = graph.variables[name] else { throw VariableOverrideError.undeclared(name) }
+            guard value.kindName == declared.value.kindName else {
+                throw VariableOverrideError.kindMismatch(
+                    name: name, expected: declared.value.kindName, found: value.kindName)
+            }
+        }
+        return values
+    }
+
+    /// The variables nodes see: each declared value, or the run's override of it.
+    public var variables: [String: GraphValue] {
+        Dictionary(uniqueKeysWithValues: snapshot.graph.variables.map { ($0.key, $0.value.value) })
+            .merging(variableOverrides) { _, override in override }
+    }
+
+    /// Replaces a variable's value for this run, from the next pass on, without touching the
+    /// graph. Pass nil to go back to the declared value.
+    ///
+    /// - Throws: ``VariableOverrideError`` for an undeclared name or a value of another kind
+    ///   than the declared one.
+    public func setVariable(_ name: String, to value: GraphValue?) throws {
+        guard let value else {
+            variableOverrides[name] = nil
+            return
+        }
+        variableOverrides = variableOverrides.merging(
+            try Self.checked([name: value], against: snapshot.graph)) { _, new in new }
+    }
+
+    /// Replaces every override at once. All or nothing: if any value is refused, none is applied.
+    public func setVariables(_ values: [String: GraphValue]) throws {
+        variableOverrides = try Self.checked(values, against: snapshot.graph)
     }
 
     /// The number of passes completed since creation or the last ``reset()``.
@@ -161,6 +212,11 @@ public actor GraphRunner {
             guard let node = graph.nodes[id], let old = previous.graph.nodes[id], node.typeID == old.typeID
             else { return false }
             return registry.definition(for: node.typeID) == previous.registry.definition(for: node.typeID)
+        }
+        // An override of a variable the new graph no longer declares, or declares as another kind,
+        // is dropped rather than failing an update that is otherwise fine.
+        variableOverrides = variableOverrides.filter { name, value in
+            graph.variables[name]?.value.kindName == value.kindName
         }
         rootState.feedback = rootState.feedback.filter { next.feedbackSources.contains($0.key) }
         rootState.held = rootState.held.filter { next.graph.nodes[$0.key]?.mode == .onTrigger }
@@ -298,7 +354,7 @@ public actor GraphRunner {
         eventBroadcaster.send(.passStarted(tick: tick, time: time))
         let environment = PassEnvironment(
             services: services, logger: logger, onProgress: onProgress, cachingEnabled: cachingEnabled,
-            events: eventBroadcaster, subgraphs: subgraphs, store: store)
+            events: eventBroadcaster, subgraphs: subgraphs, store: store, variables: variables)
         let pass = await PassEvaluator.run(
             snapshot, environment: environment,
             request: PassRequest(time: time, tick: tick, sequential: fixedDelta != nil),

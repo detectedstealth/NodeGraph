@@ -43,6 +43,7 @@ private struct GraphSection: View {
             LabeledContent("Links", value: "\(summary.linkCount)")
             LabeledContent("Groups", value: "\(summary.groupCount)")
         }
+        VariablesSection(model: model)
         Section("Problems") {
             if diagnostics.isEmpty {
                 Text("None").foregroundStyle(.secondary)
@@ -61,6 +62,63 @@ private struct GraphSection: View {
         }
         .task(id: model.revision) {
             diagnostics = GraphValidator(connections: model.editor.connectionValidator).validate(model.editor.validationContext(in: model.currentScope) ?? model.editor.validationContext)
+        }
+    }
+}
+
+// MARK: - Variables
+
+/// The graph's variables: values nodes read by name (a Variable node). Edits the declared value;
+/// a run can still override it.
+private struct VariablesSection: View {
+    let model: GraphEditorModel
+
+    var body: some View {
+        Section("Variables") {
+            let variables = Array(model.graph.variables.values)
+            if variables.isEmpty {
+                Text("None. Add one, then read it with a Variable node.").foregroundStyle(.secondary)
+            }
+            ForEach(variables, id: \.name) { variable in
+                HStack {
+                    Text(variable.name).lineLimit(1)
+                    Spacer(minLength: 8)
+                    VariableValueField(model: model, variable: variable)
+                    IconButton(systemName: "trash") { model.removeVariable(variable.name) }
+                }
+            }
+            Menu("Add Variable") {
+                ForEach(VariableKind.allCases, id: \.self) { kind in
+                    Button(kind.title) { model.addVariable(kind: kind) }
+                }
+            }
+        }
+    }
+}
+
+/// The control for a variable's value, chosen by its kind. Kinds with no control here (arrays,
+/// objects and so on) show a summary.
+private struct VariableValueField: View {
+    let model: GraphEditorModel
+    let variable: GraphVariable
+
+    var body: some View {
+        switch variable.value {
+        case .double(let number):
+            NumberField(value: number) { model.setVariable(variable.name, to: .double($0)) }
+        case .int(let number):
+            NumberField(value: Double(number)) { text in
+                guard let whole = Int64(exactly: text) else { return false }
+                return model.setVariable(variable.name, to: .int(whole))
+            }
+        case .string(let text):
+            CommitTextField(text: text, placeholder: "") { model.setVariable(variable.name, to: .string($0 ?? "")) }
+                .multilineTextAlignment(.trailing)
+        case .bool(let on):
+            Toggle("", isOn: Binding(get: { on }, set: { model.setVariable(variable.name, to: .bool($0)) }))
+                .labelsHidden()
+        default:
+            Text(variable.value.summary(limit: 30)).foregroundStyle(.secondary)
         }
     }
 }

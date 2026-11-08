@@ -93,6 +93,12 @@ public indirect enum GraphCommand: Hashable, Sendable, Codable {
     case removeGroup(id: GroupID)
     /// Replaces a group, matched by id.
     case updateGroup(group: NodeGroup)
+    /// Declares a variable, at `index` or at the end. Variable commands work only on the root
+    /// graph, not inside ``inSubgraph(id:command:)``.
+    case addVariable(variable: GraphVariable, index: Int? = nil)
+    case removeVariable(name: String)
+    /// Replaces a variable's type, value or summary, matched by name.
+    case updateVariable(variable: GraphVariable)
     /// Adds a subgraph definition. Subgraph commands work only at the top level of a document, not
     /// inside ``inSubgraph(id:command:)``.
     case addSubgraph(definition: SubgraphDefinition, index: Int? = nil)
@@ -130,6 +136,8 @@ extension GraphCommand {
             l1 == l2 ? next : nil
         case (.updateGroup(let a), .updateGroup(let b)):
             a.id == b.id ? next : nil
+        case (.updateVariable(let a), .updateVariable(let b)):
+            a.name == b.name ? next : nil
         case (.inSubgraph(let id1, let a), .inSubgraph(let id2, let b)):
             id1 == id2 ? a.coalesced(with: b).map { .inSubgraph(id: id1, command: $0) } : nil
         case (.batch(let a), .batch(let b)):
@@ -201,4 +209,8 @@ public enum GraphEditError: Error, Hashable, Sendable {
     /// The ids run around the loop, starting and ending with the same subgraph.
     case recursiveSubgraph([SubgraphID])
     case invalidConnection([GraphDiagnostic])
+    case variableNotFound(String)
+    case duplicateVariable(String)
+    /// A variable's name is empty or only whitespace.
+    case invalidVariableName
 }

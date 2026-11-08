@@ -119,7 +119,7 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
   - [x] Watch, time and log nodes, plus last run values on links: `RunValues`, `GraphValue.summary`, `util.watch`/`util.time`/`util.log` (48 node types), `NodeContentDrawing.readout`, link value labels (decisions 176-179). Core 423, Nodes 35, UI 336 tests. Demo app has Watch and Time nodes; not checked by eye
   - [x] Node pack gaps, the stateless ones: arrays, objects, JSON, converters, remap, smoothstep, frac, full trigonometry, seeded random, split, toFixed, `flow.both` (27 new node types, 75 in all; decisions 180-184). Nodes 53 tests. Not built: counter, once, stepper, semaphore, average, accumulate, tendTo, noise, vector types, expression node; the stateful ones wait on a state decision (180)
   - [x] Node shapes, title modes, slot shapes: `NodeShape`, `NodeTitleMode`, `PortShape`, node menu and inspector controls (decisions 185-188). Core 429, UI 347 tests. Demo app shows a card, a box with a transparent title and an autohiding title; not checked by eye
-  - [ ] Graph variables and `extra` metadata (needs a decision)
+  - [x] Graph variables: read-only parameters on the root graph, `util.variable`, run overrides, inspector editing (decisions 189-192; owner chose read-only over writable). `extra` metadata already existed as `GraphDocument.metadata`. Core 443, Nodes 56, UI 353 tests; 76 node types. Demo app has a `gain` variable; not checked by eye
   - [ ] Small editor aids: delete with bridge, paste keeping connections, default node per slot type, node help text
   - [ ] Auto-arrange; display extras. Vertical slot layout and vector types wait for a domain that needs them
 

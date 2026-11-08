@@ -138,6 +138,9 @@ public struct NodeContext: Sendable {
     public let triggered: Set<PortID>
     public let time: ExecutionTime
     public let services: ServiceContainer
+    /// The graph's variables as this run sees them: each declared value, or the run's override.
+    /// The same for every node, including those inside subgraph instances.
+    public let variables: [String: GraphValue]
     /// Tagged with the node id and type.
     public let logger: Logger
     private let progressSink: @Sendable (NodeProgress) -> Void
@@ -154,6 +157,7 @@ public struct NodeContext: Sendable {
         triggered: Set<PortID> = [],
         time: ExecutionTime = ExecutionTime(),
         services: ServiceContainer = ServiceContainer(),
+        variables: [String: GraphValue] = [:],
         logger: Logger = Logger(label: "NodeGraph.node"),
         onProgress: @escaping @Sendable (NodeProgress) -> Void = { _ in }
     ) {
@@ -175,6 +179,7 @@ public struct NodeContext: Sendable {
         self.triggered = triggered
         self.time = time
         self.services = services
+        self.variables = variables
         self.logger = tagged
         self.progressSink = onProgress
     }
@@ -212,6 +217,15 @@ public struct NodeContext: Sendable {
     public func string(_ port: PortID) throws -> String {
         guard let value = try input(port).stringValue else {
             throw NodeExecutionError.invalidInput(port, expected: "string")
+        }
+        return value
+    }
+
+    /// The value of a graph variable.
+    /// - Throws: ``NodeExecutionError/failed(_:)`` naming the variable if the graph has none.
+    public func variable(_ name: String) throws -> GraphValue {
+        guard let value = variables[name] else {
+            throw NodeExecutionError.failed("The graph has no variable named \"\(name)\"")
         }
         return value
     }

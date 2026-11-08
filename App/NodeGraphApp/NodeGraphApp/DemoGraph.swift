@@ -48,6 +48,14 @@ enum DemoGraph {
         let time = add("util.time", 0, -200)
         let timeWatch = add("util.watch", 300, -200, title: "Elapsed")
         link(time, timeWatch)
+        // A graph variable, read by a Variable node. Edit it in the inspector with nothing selected.
+        if let name = model.addVariable(named: "gain", kind: .number) {
+            model.setVariable(name, to: .double(2.5))
+            let read = add("util.variable", 560, -260, title: "Gain")
+            _ = try? model.perform(.setNodeProperty(node: read, property: "name", value: .string(name)))
+            let gainWatch = add("util.watch", 820, -260)
+            link(read, gainWatch)
+        }
         // A few nodes drawn differently, to show shapes and title bar styles.
         _ = try? model.perform(.setNodeAttribute(node: compare, attribute: .shape(value: .card)))
         _ = try? model.perform(.setNodeAttribute(node: timeWatch, attribute: .shape(value: .box)))

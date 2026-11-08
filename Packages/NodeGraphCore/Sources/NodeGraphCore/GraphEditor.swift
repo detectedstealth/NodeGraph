@@ -311,6 +311,29 @@ public final class GraphEditor {
             graph.insert(group)
             return .updateGroup(group: previous)
 
+        case .addVariable(let variable, let index):
+            guard scope == nil else { throw GraphEditError.invalidScope }
+            guard GraphVariable.isValidName(variable.name) else { throw GraphEditError.invalidVariableName }
+            guard graph.variables[variable.name] == nil else { throw GraphEditError.duplicateVariable(variable.name) }
+            try checkIndex(index, count: graph.variables.count)
+            graph.insert(variable, at: index)
+            return .removeVariable(name: variable.name)
+
+        case .removeVariable(let name):
+            guard scope == nil else { throw GraphEditError.invalidScope }
+            guard let variable = graph.variables[name] else { throw GraphEditError.variableNotFound(name) }
+            let index = graph.variables.index(forKey: name)
+            graph.removeVariable(name)
+            return .addVariable(variable: variable, index: index)
+
+        case .updateVariable(let variable):
+            guard scope == nil else { throw GraphEditError.invalidScope }
+            guard let previous = graph.variables[variable.name] else {
+                throw GraphEditError.variableNotFound(variable.name)
+            }
+            graph.insert(variable)
+            return .updateVariable(variable: previous)
+
         case .addSubgraph(let definition, let index):
             guard scope == nil else { throw GraphEditError.invalidScope }
             guard subgraphs[definition.id] == nil else { throw GraphEditError.duplicateID(definition.id.description) }

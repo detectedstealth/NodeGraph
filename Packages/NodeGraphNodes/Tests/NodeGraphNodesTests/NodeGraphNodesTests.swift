@@ -341,7 +341,7 @@ func toStringDescribesAnyValue(_ value: GraphValue, _ expected: String) async th
 @Test func onlyTimeDependentOrSideEffectingNodesAreImpure() throws {
     let (nodes, _) = standardRegistries()
     let impure = Set(nodes.registeredDefinitions.filter { !$0.isPure }.map(\.typeID))
-    #expect(impure == ["flow.every", "util.time", "util.log", "math.random"])
+    #expect(impure == ["flow.every", "util.time", "util.log", "math.random", "util.variable"])
 }
 
 @Test func definitionsExportAsJSON() throws {
@@ -727,4 +727,56 @@ private let person: GraphValue = .object(["name": "Ada", "age": .int(36)])
     // A number cannot go into an array port.
     let number = try rig.add("util.number")
     #expect(throws: (any Error).self) { try rig.link(number, "value", length, "array") }
+}
+
+// MARK: Variables
+
+@Test func variableReadsTheGraphsValueOrTheRunsOverride() async throws {
+    let rig = Rig()
+    try rig.editor.apply(.addVariable(variable: GraphVariable(name: "speed", type: .number, value: .double(3))))
+    let read = try rig.add("util.variable", ["name": .string("speed")])
+    let double = try rig.add("math.multiply")
+    let two = try rig.add("util.number", ["value": .double(2)])
+    try rig.link(read, "value", double, "a")
+    try rig.link(two, "value", double, "b")
+
+    let runner = try rig.runner()
+    #expect(try await runner.step().outputs(of: double)?["result"] == .double(6))
+    try await runner.setVariable("speed", to: .double(10))
+    #expect(try await runner.step().outputs(of: double)?["result"] == .double(20))
+}
+
+@Test func variableWithAnUnknownNameFailsClearly() async throws {
+    let rig = Rig()
+    let read = try rig.add("util.variable", ["name": .string("nope")])
+    let tick = try await rig.step()
+    guard case .failure(let failure)? = tick.results[read]?.outcome else { Issue.record("expected a failure"); return }
+    #expect(failure.message.contains("no variable named \"nope\""))
+    // An unset name is the same failure, not a crash.
+    let blank = try rig.add("util.variable")
+    #expect(try await rig.step().results[blank]?.status != .succeeded)
+}
+
+@Test func aVariableNodeInsideASubgraphReadsTheRootsVariable() async throws {
+    let rig = Rig()
+    try rig.editor.apply(.addVariable(variable: GraphVariable(name: "gain", type: .number, value: .double(4))))
+    let read = try rig.add("util.variable", ["name": .string("gain")])
+    let scale = try rig.add("math.multiply")
+    let ten = try rig.add("util.number", ["value": .double(10)])
+    try rig.link(read, "value", scale, "a")
+    try rig.link(ten, "value", scale, "b")
+    let after = try rig.add("math.add")   // outside the subgraph, so the product becomes an exposed output
+    try rig.link(scale, "result", after, "a")
+    let conversion = try rig.editor.convertToSubgraphCommand(nodes: [read, scale, ten], name: "Scaled")
+    try rig.editor.apply(conversion.command)
+
+    let runner = try GraphRunner(
+        graph: rig.editor.graph, registry: rig.editor.nodes, subgraphs: rig.editor.subgraphs.map(\.value))
+    let first = try await runner.step()
+    #expect(first.succeeded, "\(first.results.values.map(\.status))")
+    #expect(first.outputs(of: after)?["result"] == .double(40))
+    try await runner.setVariable("gain", to: .double(7))
+    let second = try await runner.step()
+    #expect(second.succeeded)
+    #expect(second.outputs(of: after)?["result"] == .double(70))
 }

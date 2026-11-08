@@ -58,8 +58,8 @@ Status: **Done** (implemented), **Partial**, **Gap** (in scope, not built), **De
 | Reroute | Done | waypoints and `util.reroute` |
 | Groups: add, colour, move with contents, resize, align | Done | |
 | Subgraphs, graph inputs and outputs, edit interface | Done | Phase 3 and 4 |
-| Global graph variables (`vars`, `Globals`) | Gap | Core has no graph-level variables. Server and robotics will want parameters. Needs a decision |
-| Graph `config` and `extra` bag | Gap | Free-form `JSONValue` metadata on `Graph`/`GraphDocument`. Check what the document already carries |
+| Global graph variables (`vars`, `Globals`) | Done | read-only parameters with run overrides (decisions 189-192); writing from the graph needs node state (decision 180) |
+| Graph `config` and `extra` bag | Done | `GraphDocument.metadata`, a free-form `[String: GraphValue]` bag, already existed |
 | Execution order display (`render_execution_order`) | Gap | Cheap debug overlay from `ExecutionPlan` |
 | Start, stop, step, fixed time step, elapsed time | Done | `GraphRunner` modes |
 | Error catching per node | Done | |
@@ -112,14 +112,14 @@ Status: **Done** (implemented), **Partial**, **Gap** (in scope, not built), **De
 
 ## 4. Built-in node families
 
-Our packs hold 75 node types (decision list in PLAN). Comparison with litegraph's families:
+Our packs hold 76 node types (decision list in PLAN). Comparison with litegraph's families:
 
 | litegraph family | Status | Notes |
 |---|---|---|
 | `basic/const`, `boolean`, `string` | Done | `util.number`, `util.bool`, `util.string` |
 | `basic/watch`, `console`, `alert` | Done | `util.watch` (shown with `NodeContentDrawing.readout`) and `util.log` (to swift-log; no console view yet). Alert Out |
 | `basic/time` | Done | `util.time`: elapsed, delta, tick |
-| `basic/variable`, `data_store` | Gap | with graph variables above |
+| `basic/variable`, `data_store` | Partial | `util.variable` reads. Writing (`data_store`) waits on node state (decision 180) |
 | `basic/object`, `object_property`, `set_object`, `merge_objects`, `object_keys`, `jsonparse`, `data` | Done | `DataPack`: get, set, merge, keys, parse and write JSON (decision 182). `data` (data_store) waits on graph variables |
 | `basic/array`, `set_array`, `array[]`, `table[][]` | Done | make, get, set, length, append, slice. `table[][]` Out |
 | `basic/cast`, `math/converter`, `to_number` | Done | `convert.toNumber`, `toBool`, `toInt`; runtime port conversion is still open (decision 61) |

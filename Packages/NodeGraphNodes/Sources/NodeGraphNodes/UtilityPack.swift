@@ -1,6 +1,6 @@
 import NodeGraphCore
 
-/// Constants, reroute points, notes, and the run-time helpers Watch, Time and Log.
+/// Constants, reroute points, notes, and the run-time helpers Watch, Time, Log and Variable.
 public enum UtilityPack: NodePack {
     public static func register(nodes: inout NodeRegistry, types: inout TypeRegistry) {
         StandardTypes.register(in: &types)
@@ -33,6 +33,15 @@ public enum UtilityPack: NodePack {
         ) { ctx in
             ctx.inputs["value"].map { ["result": $0] } ?? .empty
         }
+
+        // Reads a graph variable by name: its declared value, or the run's override. Not pure,
+        // since the value can change between passes without any input or property changing.
+        nodes.register(NodeDefinition(
+            typeID: "util.variable", displayName: "Variable", category: "Utility",
+            ports: [PortDefinition(id: "value", direction: .output)],
+            properties: [PropertyDefinition(
+                id: "name", displayName: "Name", kind: .string(multiline: false), defaultValue: "")])
+        ) { ctx in ["value": try ctx.variable(try ctx.property("name").stringValue ?? "")] }
 
         // Where the run is in time. Not pure: it changes every pass.
         nodes.register(NodeDefinition(

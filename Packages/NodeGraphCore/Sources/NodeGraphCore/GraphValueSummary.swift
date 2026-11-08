@@ -44,3 +44,24 @@ extension GraphValue {
         return describe(depth: depth)
     }
 }
+
+extension GraphValue {
+    /// The name of the case: "double", "string", "array", and so on. For messages and for
+    /// checking that one value is the same kind as another.
+    public var kindName: String {
+        switch self {
+        case .null: "null"
+        case .bool: "bool"
+        case .int: "int"
+        case .double: "double"
+        case .string: "string"
+        case .vector: "vector"
+        case .matrix: "matrix"
+        case .color: "color"
+        case .array: "array"
+        case .object: "object"
+        case .data: "data"
+        case .handle: "handle"
+        }
+    }
+}

@@ -114,6 +114,8 @@ struct PassEnvironment: Sendable {
     var events: Broadcaster<ExecutionEvent>?
     var subgraphs: [SubgraphID: CompiledSubgraph]
     var store: SubgraphStateStore
+    /// The graph's variables with the run's overrides applied.
+    var variables: [String: GraphValue] = [:]
 }
 
 /// How one pass is posed.
@@ -216,7 +218,8 @@ enum PassEvaluator {
                 let context = NodeContext(
                     node: node, definition: definition,
                     linkedInputs: resolved.values, triggered: resolved.triggered,
-                    time: request.time, services: env.services, logger: env.logger, onProgress: forwardProgress)
+                    time: request.time, services: env.services, variables: env.variables, logger: env.logger,
+                    onProgress: forwardProgress)
 
                 if node.mode == .bypassed {
                     levelResults[index] = NodeRunResult(

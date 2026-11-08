@@ -9,6 +9,9 @@ public struct Graph: Sendable {
     public private(set) var nodes: OrderedDictionary<NodeID, Node> = [:]
     public private(set) var links: OrderedDictionary<LinkID, Link> = [:]
     public private(set) var groups: OrderedDictionary<GroupID, NodeGroup> = [:]
+    /// Named values nodes can read, by name, in declaration order. Only the root graph has any;
+    /// a subgraph's inner graph reads the root's.
+    public private(set) var variables: OrderedDictionary<String, GraphVariable> = [:]
 
     /// Derived lookups so link queries do not scan every link. Always rebuilt from `links`, never
     /// encoded, and ignored by `==` and `hash`.
@@ -116,6 +119,20 @@ public struct Graph: Sendable {
         }
     }
 
+    /// Same placement rules as inserting a node. Replaces a variable of the same name in place.
+    mutating func insert(_ variable: GraphVariable, at index: Int? = nil) {
+        if let index, variables[variable.name] == nil {
+            variables.updateValue(variable, forKey: variable.name, insertingAt: index)
+        } else {
+            variables[variable.name] = variable
+        }
+    }
+
+    @discardableResult
+    mutating func removeVariable(_ name: String) -> GraphVariable? {
+        variables.removeValue(forKey: name)
+    }
+
     /// Removes a node only. Attached links are the caller's responsibility.
     @discardableResult
     mutating func removeNode(_ id: NodeID) -> Node? {
@@ -156,7 +173,7 @@ public struct Graph: Sendable {
 /// Encodes as plain arrays in storage order, so output is deterministic and diff-friendly.
 extension Graph: Codable {
     private enum CodingKeys: String, CodingKey {
-        case nodes, links, groups
+        case nodes, links, groups, variables
     }
 
     public init(from decoder: any Decoder) throws {
@@ -180,6 +197,12 @@ extension Graph: Codable {
                     forKey: .groups, in: container, debugDescription: "Duplicate group id \(group.id)")
             }
         }
+        for variable in try container.decodeIfPresent([GraphVariable].self, forKey: .variables) ?? [] {
+            guard variables.updateValue(variable, forKey: variable.name) == nil else {
+                throw DecodingError.dataCorruptedError(
+                    forKey: .variables, in: container, debugDescription: "Duplicate variable \(variable.name)")
+            }
+        }
     }
 
     public func encode(to encoder: any Encoder) throws {
@@ -187,15 +210,18 @@ extension Graph: Codable {
         try container.encode(Array(nodes.values), forKey: .nodes)
         try container.encode(Array(links.values), forKey: .links)
         try container.encode(Array(groups.values), forKey: .groups)
+        // Left out when empty, so files without variables are unchanged.
+        if !variables.isEmpty { try container.encode(Array(variables.values), forKey: .variables) }
     }
 }
 
 // MARK: - Equality
 
-/// Two graphs are equal when their nodes, links and groups are equal and in the same order.
+/// Two graphs are equal when their nodes, links, groups and variables are equal and in the same order.
 extension Graph: Hashable {
     public static func == (lhs: Graph, rhs: Graph) -> Bool {
         lhs.nodes == rhs.nodes && lhs.links == rhs.links && lhs.groups == rhs.groups
+            && lhs.variables == rhs.variables
     }
 
     public func hash(into hasher: inout Hasher) {
