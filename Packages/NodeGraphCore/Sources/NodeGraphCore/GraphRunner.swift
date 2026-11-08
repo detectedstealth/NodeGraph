@@ -322,28 +322,37 @@ public actor GraphRunner {
         continuation.finish()
     }
 
+    /// Evaluates one pass as if the run were at `elapsed`, for time-based graphs such as video
+    /// ("the frame at 2.5 s") where a caller wants any moment without running the ones before it.
+    /// Nodes run one at a time in plan order, like a deterministic run. State that nodes keep
+    /// between passes carries over from whatever pass ran last, so a graph that is a pure function
+    /// of time gives the same result in any order.
+    public func step(at elapsed: Duration, delta: Duration = .zero) async -> TickResult {
+        await serialized(fixedDelta: delta, elapsed: elapsed)
+    }
+
     // MARK: One pass
 
     /// Queues a pass behind any pass already running, so passes never overlap even though the
     /// actor is re-entered while nodes are awaited.
-    private func serialized(fixedDelta: Duration?) async -> TickResult {
+    private func serialized(fixedDelta: Duration?, elapsed: Duration? = nil) async -> TickResult {
         let previous = inFlight
         let task = Task { [self] () -> TickResult in
             _ = await previous?.value
-            return await evaluate(fixedDelta: fixedDelta)
+            return await evaluate(fixedDelta: fixedDelta, elapsed: elapsed)
         }
         inFlight = task
         return await withTaskCancellationHandler { await task.value } onCancel: { task.cancel() }
     }
 
-    private func evaluate(fixedDelta: Duration?) async -> TickResult {
+    private func evaluate(fixedDelta: Duration?, elapsed: Duration? = nil) async -> TickResult {
         let clock = ContinuousClock()
         let started = clock.now
         let tick = tickCount
 
         let time: ExecutionTime
         if let fixedDelta {
-            time = ExecutionTime(tick: tick, elapsed: fixedDelta * tick, delta: fixedDelta)
+            time = ExecutionTime(tick: tick, elapsed: elapsed ?? fixedDelta * tick, delta: fixedDelta)
         } else {
             let runStart = runStart ?? started
             self.runStart = runStart

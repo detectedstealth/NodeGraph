@@ -245,6 +245,20 @@ private func collect(_ stream: AsyncStream<TickResult>, count: Int) async -> [Ti
     #expect(took < .milliseconds(400), "4 x 150 ms ran serially: \(took)")
 }
 
+@Test func stepAtEvaluatesAnyMomentInAnyOrder() async throws {
+    var p = Pack()
+    p.registry.register(NodeDefinition(
+        typeID: "clock", displayName: "Clock", ports: [PortDefinition(id: "out", direction: .output)])
+    ) { ctx in ["out": .double(ctx.time.elapsedSeconds)] }
+    let clock = p.node("clock")
+    let runner = try p.runner()
+    let late = await runner.step(at: .seconds(2.5), delta: .milliseconds(40))
+    let early = await runner.step(at: .seconds(1))
+    #expect(late.outputs(of: clock) == ["out": 2.5] && late.time.delta == .milliseconds(40))
+    #expect(early.outputs(of: clock) == ["out": 1.0] && early.time.delta == .zero)
+    #expect(early.tick == 1)
+}
+
 @Test func stepReportsRealTimeDeltas() async throws {
     var p = Pack()
     p.node("record", ["name": "r"])
