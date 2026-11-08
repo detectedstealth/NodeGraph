@@ -46,6 +46,40 @@ import NodeGraphCore
         #expect(!model.removeVariable("nope"))
     }
 
+    @Test func renamingIsOneUndoStepAndFollowsTheReaders() throws {
+        let model = TestKit.makeModel()
+        model.addVariable(named: "a", kind: .number)
+        model.addVariable(named: "b", kind: .text)
+        let reader = Node(typeID: TestKit.reader, properties: ["name": .string("a")])
+        try model.perform(.addNode(node: reader))
+        #expect(model.renameVariable("a", to: "  speed "))
+        #expect(Array(model.graph.variables.keys) == ["speed", "b"])
+        #expect(model.graph.nodes[reader.id]?.properties["name"] == .string("speed"))
+        try model.undo()
+        #expect(Array(model.graph.variables.keys) == ["a", "b"])
+        #expect(model.graph.nodes[reader.id]?.properties["name"] == .string("a"))
+
+        #expect(!model.renameVariable("a", to: "b"), "taken")
+        #expect(!model.renameVariable("a", to: "   "), "blank")
+        #expect(!model.renameVariable("a", to: " a "), "unchanged")
+        #expect(!model.renameVariable("nope", to: "x"))
+    }
+
+    @Test func aVariableNamePropertyOffersTheGraphsVariables() throws {
+        let model = TestKit.makeModel()
+        model.addVariable(named: "gain", kind: .number)
+        let property = PropertyDefinition(id: "name", displayName: "Name", kind: .variable, defaultValue: "")
+        guard case .combo(let choices) = model.widgetSpec(for: property, currentValue: .string("gain")).kind else {
+            Issue.record("expected a choice"); return
+        }
+        #expect(choices.map(\.value) == ["gain"])
+        guard case .combo(let withMissing) = model.widgetSpec(for: property, currentValue: .string("old")).kind else {
+            Issue.record("expected a choice"); return
+        }
+        #expect(withMissing.map(\.value) == ["gain", "old"])
+        #expect(withMissing.last?.label == "old (not declared)")
+    }
+
     @Test func insideASubgraphTheRootsVariablesCannotBeEdited() throws {
         let model = TestKit.makeModel()
         model.addVariable(named: "v", kind: .number)

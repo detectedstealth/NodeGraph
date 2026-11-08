@@ -9,6 +9,7 @@ enum TestKit {
     static let merge = NodeTypeID("test.merge")
     static let widgets = NodeTypeID("test.widgets")
     static let relay = NodeTypeID("test.relay")
+    static let reader = NodeTypeID("test.reader")
 
     static func registries() -> (nodes: NodeRegistry, types: TypeRegistry) {
         var nodes = NodeRegistry()
@@ -49,6 +50,10 @@ enum TestKit {
             ],
             defaultSize: GraphSize(width: 220, height: 80),
             help: "Has one of every widget."))
+        nodes.register(NodeDefinition(
+            typeID: reader, displayName: "Reader",
+            ports: [PortDefinition(id: "out", direction: .output, type: "number")],
+            properties: [PropertyDefinition(id: "name", displayName: "Name", kind: .variable, defaultValue: "")]))
         var types = TypeRegistry()
         types.register(PortTypeInfo(
             type: "number", displayName: "Number", color: RGBAColor(red: 0.2, green: 0.4, blue: 0.9),

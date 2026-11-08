@@ -1,7 +1,9 @@
 /// A named, typed value a graph exposes to its nodes, such as a gain, a duration or a file name.
 ///
 /// Variables are declared on the root graph with commands, so edits are undoable and part of the
-/// change log. Nodes read them by name through ``NodeContext/variable(_:)``. A run can replace a
+/// change log. Nodes read them by name through ``NodeContext/variable(_:)``; a node property of
+/// kind ``PropertyKind/variable`` holds that name, and a rename keeps it current (see
+/// ``GraphEditor/renameVariableCommand(from:to:)``). A run can replace a
 /// value without editing the graph: see ``GraphRunner/setVariable(_:to:)``. Nothing in a graph
 /// writes a variable during a run.
 public struct GraphVariable: Hashable, Sendable, Codable {

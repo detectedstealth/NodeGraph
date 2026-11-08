@@ -211,7 +211,8 @@ extension GraphEditorModel {
             shape: node.shape, titleMode: node.titleMode, isPinned: node.isPinned, isCollapsed: node.isCollapsed, position: node.position, size: size,
             properties: (definition?.properties ?? []).map { property in
                 InspectedProperty(
-                    definition: property, spec: NodeWidgetSpec(property),
+                    definition: property,
+                    spec: widgetSpec(for: property, currentValue: node.properties[property.id] ?? property.defaultValue),
                     value: node.properties[property.id] ?? property.defaultValue,
                     isDefault: node.properties[property.id] == nil,
                     isExposed: isExposed(property: PropertyTarget(node: node.id, property: property.id)))

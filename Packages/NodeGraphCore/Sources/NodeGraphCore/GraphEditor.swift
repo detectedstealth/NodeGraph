@@ -125,6 +125,40 @@ public final class GraphEditor {
         return change
     }
 
+    /// The command that renames variable `old` to `new` and keeps every reader of it working: a
+    /// batch that redeclares the variable under the new name at the same position, and sets each
+    /// node property of kind ``PropertyKind/variable`` that holds `old` (in the root graph, in
+    /// subgraph definitions, and on subgraph instances) to `new`. As one batch it is a single
+    /// undo step and replays on a server like any other change.
+    ///
+    /// Apply it to the root graph only. A run's override of `old` is not carried over, since
+    /// ``GraphRunner/update(graph:registry:)`` drops overrides of names the graph no longer declares.
+    /// - Throws: ``GraphEditError/variableNotFound(_:)``, ``GraphEditError/invalidVariableName`` or
+    ///   ``GraphEditError/duplicateVariable(_:)`` (`new` is taken by another variable).
+    public func renameVariableCommand(from old: String, to new: String) throws -> GraphCommand {
+        guard var variable = graph.variables[old] else { throw GraphEditError.variableNotFound(old) }
+        guard GraphVariable.isValidName(new) else { throw GraphEditError.invalidVariableName }
+        guard new == old || graph.variables[new] == nil else { throw GraphEditError.duplicateVariable(new) }
+        variable.name = new
+        var commands: [GraphCommand] = [
+            .removeVariable(name: old),
+            .addVariable(variable: variable, index: graph.variables.index(forKey: old)),
+        ]
+        func readers(in graph: Graph, scope: SubgraphID?) {
+            for node in graph.nodes.values {
+                guard let definition = nodes.definition(for: node) else { continue }
+                for property in definition.properties where property.kind == .variable {
+                    guard node.value(of: property.id, in: definition) == .string(old) else { continue }
+                    let set = GraphCommand.setNodeProperty(node: node.id, property: property.id, value: .string(new))
+                    commands.append(scope.map { .inSubgraph(id: $0, command: set) } ?? set)
+                }
+            }
+        }
+        readers(in: graph, scope: nil)
+        for definition in subgraphs.values { readers(in: definition.graph, scope: definition.id) }
+        return .batch(commands: commands)
+    }
+
     /// Undoes a change by applying its inverse. Returns the change describing the undo; its
     /// `inverse` redoes the original.
     @discardableResult

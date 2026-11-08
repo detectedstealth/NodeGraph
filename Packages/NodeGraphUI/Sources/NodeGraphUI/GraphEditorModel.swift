@@ -429,8 +429,21 @@ public final class GraphEditorModel {
     /// The widgets in `node`'s body: one per property, then whatever ``widgetProvider`` adds.
     public func widgetSpecs(for node: Node, definition: NodeDefinition?) -> [NodeWidgetSpec] {
         guard let definition else { return [] }
-        return definition.properties.map(NodeWidgetSpec.init)
+        return definition.properties.map { widgetSpec(for: $0, currentValue: node.value(of: $0.id, in: definition)) }
             + (widgetProvider?.widgets(for: node, definition: definition) ?? [])
+    }
+
+    /// The widget for `property`. A variable-name property becomes a choice of the graph's
+    /// variables, plus its current name if no variable has it, so a dangling reference shows.
+    public func widgetSpec(for property: PropertyDefinition, currentValue: GraphValue?) -> NodeWidgetSpec {
+        var spec = NodeWidgetSpec(property)
+        guard property.kind == .variable else { return spec }
+        var choices = editor.graph.variables.keys.map { PropertyChoice(value: $0, label: $0) }
+        if let name = currentValue?.stringValue, !name.isEmpty, editor.graph.variables[name] == nil {
+            choices.append(PropertyChoice(value: name, label: "\(name) (not declared)"))
+        }
+        spec.kind = .combo(choices)
+        return spec
     }
 
     /// The node types that can be added right now, as a searchable list.

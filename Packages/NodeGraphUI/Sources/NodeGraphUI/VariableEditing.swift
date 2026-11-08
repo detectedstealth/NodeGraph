@@ -1,3 +1,4 @@
+import Foundation
 import NodeGraphCore
 
 /// What kind of value a new variable holds, as the editor offers it.
@@ -55,6 +56,17 @@ extension GraphEditorModel {
         variable.value = value
         return (try? perform(
             .updateVariable(variable: variable), name: "Set Variable", coalescing: coalescing, isScoped: true)) != nil
+    }
+
+    /// Renames a variable, and every Variable node (in any graph or subgraph) that reads it, as one
+    /// undo step. Fails, changing nothing, for a blank name, a name another variable has, or an
+    /// unknown variable; a name that is unchanged (after trimming) is not a rename.
+    @discardableResult
+    public func renameVariable(_ name: String, to newName: String) -> Bool {
+        let newName = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard currentScope == nil, newName != name,
+              let command = try? editor.renameVariableCommand(from: name, to: newName) else { return false }
+        return (try? perform(command, name: "Rename Variable", isScoped: true)) != nil
     }
 
     @discardableResult

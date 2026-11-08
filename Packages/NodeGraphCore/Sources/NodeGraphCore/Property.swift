@@ -23,6 +23,11 @@ public enum PropertyKind: Hashable, Sendable, Codable {
     case double(min: Double? = nil, max: Double? = nil, step: Double? = nil)
     case string(multiline: Bool = false)
     case choice([PropertyChoice])
+    /// The name of a graph variable (see ``GraphVariable``), stored as `GraphValue.string`. The
+    /// editor offers the graph's variables to pick from, and
+    /// ``GraphEditor/renameVariableCommand(from:to:)`` follows a renamed variable by rewriting
+    /// every node property of this kind that holds the old name.
+    case variable
     case color
     /// A fixed-length vector of doubles.
     case vector(dimension: Int)
@@ -58,7 +63,7 @@ public struct PropertyDefinition: Hashable, Sendable, Codable {
     /// `.double`. Non-finite doubles are out of range.
     public func validate(_ value: GraphValue) throws {
         switch (kind, value) {
-        case (.bool, .bool), (.color, .color), (.string, .string), (.custom, _):
+        case (.bool, .bool), (.color, .color), (.string, .string), (.variable, .string), (.custom, _):
             return
         case (.int(let min, let max, _), .int(let v)):
             if let min, v < min { throw PropertyValidationError.outOfRange }
@@ -110,7 +115,7 @@ extension PropertyKind {
         case .bool: "bool"
         case .int: "int"
         case .double: "double"
-        case .string, .choice: "string"
+        case .string, .choice, .variable: "string"
         case .color: "color"
         case .vector: "vector"
         case .custom: "any"

@@ -41,7 +41,7 @@ public enum UtilityPack: NodePack {
             typeID: "util.variable", displayName: "Variable", category: "Utility",
             ports: [PortDefinition(id: "value", direction: .output)],
             properties: [PropertyDefinition(
-                id: "name", displayName: "Name", kind: .string(multiline: false), defaultValue: "")])
+                id: "name", displayName: "Name", kind: .variable, defaultValue: "")])
         ) { ctx in ["value": try ctx.variable(try ctx.property("name").stringValue ?? "")] }
 
         // Where the run is in time. Not pure: it changes every pass.

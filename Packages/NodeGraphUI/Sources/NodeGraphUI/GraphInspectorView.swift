@@ -77,11 +77,15 @@ private struct VariablesSection: View {
         Section("Variables") {
             let variables = Array(model.graph.variables.values)
             if variables.isEmpty {
-                Text("None. Add one, then read it with a Variable node.").foregroundStyle(.secondary)
+                Text("None. Add one, then read it with a Variable node and pick it by name.").foregroundStyle(.secondary)
             }
             ForEach(variables, id: \.name) { variable in
                 HStack {
-                    Text(variable.name).lineLimit(1)
+                    CommitTextField(text: variable.name, placeholder: "Name") { text in
+                        // A refused name (blank or taken) puts the old one back.
+                        guard let text, text != variable.name else { return true }
+                        return model.renameVariable(variable.name, to: text)
+                    }
                     Spacer(minLength: 8)
                     VariableValueField(model: model, variable: variable)
                     IconButton(systemName: "trash") { model.removeVariable(variable.name) }

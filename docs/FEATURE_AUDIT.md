@@ -58,7 +58,7 @@ Status: **Done** (implemented), **Partial**, **Gap** (in scope, not built), **De
 | Reroute | Done | waypoints and `util.reroute` |
 | Groups: add, colour, move with contents, resize, align | Done | |
 | Subgraphs, graph inputs and outputs, edit interface | Done | Phase 3 and 4 |
-| Global graph variables (`vars`, `Globals`) | Done | read-only parameters with run overrides (decisions 189-192); writing from the graph (`data_store`) is not built; state exists now (decision 193) but variables stay read-only |
+| Global graph variables (`vars`, `Globals`) | Done | read-only parameters with run overrides (decisions 189-192); writing from the graph (`data_store`) is not built; state exists now (decision 193) but variables stay read-only; variables can be renamed and readers pick them from a list (decision 201) |
 | Graph `config` and `extra` bag | Done | `GraphDocument.metadata`, a free-form `[String: GraphValue]` bag, already existed |
 | Execution order display (`render_execution_order`) | Gap | Cheap debug overlay from `ExecutionPlan` |
 | Start, stop, step, fixed time step, elapsed time | Done | `GraphRunner` modes |

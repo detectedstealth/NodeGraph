@@ -82,6 +82,10 @@ public struct NodeWidgetSpec: Hashable, Sendable, Identifiable {
             kind = multiline ? .multilineText : .text
         case .choice(let choices):
             kind = .combo(choices)
+        case .variable:
+            // The graph's variables are not known here; ``GraphEditorModel/widgetSpec(for:currentValue:)``
+            // fills the list in.
+            kind = .combo([])
         case .color:
             kind = .color
         case .vector:
