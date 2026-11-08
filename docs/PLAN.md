@@ -142,7 +142,7 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
 
 ## Phase 7: Domain proofs of concept
 
-- [ ] `NodeGraphRobotics`: sensor, PID/filter, state machine, actuator nodes, deterministic fixed-step runner
+- [x] `NodeGraphRobotics`: sensor, PID/filter, state machine, actuator nodes, deterministic fixed-step runner: `RoboticsPack` (11 `robotics.*` node types: signal source, low-pass, rate limiter, deadband, threshold, PID, first-order plant, event, state machine, actuator), `FixedStepScenario` and `ScenarioTrace` over the Core deterministic mode (decision 209). 26 tests, including a closed PID loop that settles. Not linked into the app yet, so not seen in the editor; no Core gaps found so far (see decision 209 for one workaround)
 - [ ] `NodeGraphVideo`: clip, trim, transition, effect, render nodes; time-based evaluation (frame at t); asset handles
 - [ ] Fix any Core abstraction gaps they expose
 
