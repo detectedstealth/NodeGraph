@@ -87,6 +87,15 @@ private struct NodeSections: View {
             Toggle("Pinned", isOn: Binding(get: { info.isPinned }, set: { model.setPinned($0, of: [info.id]) }))
             Toggle("Collapsed", isOn: Binding(get: { info.isCollapsed }, set: { model.setCollapsed($0, of: [info.id]) }))
             ColorRow(title: "Color", color: info.color, allowsClear: true) { model.setColor($0, of: [info.id]) }
+            // "Default" clears the node's own choice, so it follows its type again.
+            Picker("Shape", selection: Binding(get: { info.shape }, set: { model.setShape($0, of: [info.id]) })) {
+                Text("Default").tag(NodeShape?.none)
+                ForEach(NodeShape.allCases, id: \.self) { Text($0.menuTitle).tag(Optional($0)) }
+            }
+            Picker("Title Bar", selection: Binding(get: { info.titleMode }, set: { model.setTitleMode($0, of: [info.id]) })) {
+                Text("Default").tag(NodeTitleMode?.none)
+                ForEach(NodeTitleMode.allCases, id: \.self) { Text($0.menuTitle).tag(Optional($0)) }
+            }
         }
 
         Section("Layout") {

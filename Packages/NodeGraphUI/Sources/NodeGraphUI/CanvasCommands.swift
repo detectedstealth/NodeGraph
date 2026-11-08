@@ -114,6 +114,10 @@ extension GraphInteractionController {
             return setAttribute(on: nodes, name: pin ? "Pin" : "Unpin", .isPinned(value: pin))
         case .setMode(let mode):
             return setAttribute(on: nodes, name: "Set Mode", .mode(value: mode))
+        case .setShape(let shape):
+            return setAttribute(on: nodes, name: "Set Shape", .shape(value: shape))
+        case .setTitleMode(let mode):
+            return setAttribute(on: nodes, name: "Set Title Bar", .titleMode(value: mode))
 
         case .disconnectSelection:
             let links = Set(nodes.flatMap { model.graph.links(attachedTo: $0.id) }.map(\.id))
@@ -146,6 +150,9 @@ extension GraphInteractionController {
             if !model.selection.nodes.contains(id) { model.selection = GraphSelection(nodes: [id]) }
             let nodes = model.graph.nodes.values.filter { model.selection.nodes.contains($0.id) }
             let modes = Set(nodes.map(\.mode))
+            // What each node is drawn with, so the menu checks the one they all share.
+            let shapes = Set(nodes.map { $0.resolvedShape(in: model.definition(of: $0)) })
+            let titleModes = Set(nodes.map { $0.resolvedTitleMode(in: model.definition(of: $0)) })
             let opens = nodes.count == 1 && model.subgraph(of: id) != nil
             let authoring = [CanvasMenuItem("Create Subgraph…", .createSubgraph)]
                 + (opens ? [CanvasMenuItem("Unpack Subgraph", .unpackSubgraph)] : [])
@@ -165,6 +172,12 @@ extension GraphInteractionController {
                 CanvasMenuItem(nodes.allSatisfy(\.isPinned) ? "Unpin" : "Pin", .togglePinned),
                 CanvasMenuItem("Mode", submenu: NodeMode.allCases.map {
                     CanvasMenuItem($0.menuTitle, .setMode($0), isChecked: modes == [$0])
+                }),
+                CanvasMenuItem("Shape", submenu: NodeShape.allCases.map { shape in
+                    CanvasMenuItem(shape.menuTitle, .setShape(shape), isChecked: shapes == [shape])
+                }),
+                CanvasMenuItem("Title Bar", submenu: NodeTitleMode.allCases.map { mode in
+                    CanvasMenuItem(mode.menuTitle, .setTitleMode(mode), isChecked: titleModes == [mode])
                 }),
                 CanvasMenuItem(
                     "Disconnect All", .disconnectSelection,
@@ -248,6 +261,27 @@ extension NodeMode {
         case .muted: "Muted"
         case .bypassed: "Bypassed"
         case .onTrigger: "On Trigger"
+        }
+    }
+}
+
+extension NodeShape {
+    var menuTitle: String {
+        switch self {
+        case .box: "Box"
+        case .round: "Round"
+        case .card: "Card"
+        }
+    }
+}
+
+extension NodeTitleMode {
+    var menuTitle: String {
+        switch self {
+        case .normal: "Normal"
+        case .hidden: "Hidden"
+        case .transparent: "Transparent"
+        case .autohide: "Show on Hover"
         }
     }
 }

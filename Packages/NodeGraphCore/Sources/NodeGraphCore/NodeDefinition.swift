@@ -17,6 +17,9 @@ public struct PortDefinition: Hashable, Sendable, Codable {
     public var allowsMultipleLinks: Bool
     /// The ``DynamicPortGroup`` this port was generated from, or nil for a fixed port.
     public var group: String?
+    /// The mark drawn for the port. Nil picks one: a diamond for triggers, else the port type's
+    /// shape (``PortTypeInfo/shape``), else a circle.
+    public var shape: PortShape?
 
     public init(
         id: PortID,
@@ -26,8 +29,10 @@ public struct PortDefinition: Hashable, Sendable, Codable {
         type: PortType = .any,
         defaultValue: GraphValue? = nil,
         allowsMultipleLinks: Bool? = nil,
-        group: String? = nil
+        group: String? = nil,
+        shape: PortShape? = nil
     ) {
+        self.shape = shape
         self.group = group
         self.id = id
         self.displayName = displayName ?? id.rawValue
@@ -134,6 +139,10 @@ public struct NodeDefinition: Hashable, Sendable, Codable {
     /// randomness, no outside state. The runner may then reuse the previous outputs instead of
     /// running the node again when none of those changed. Defaults to false, which always runs.
     public var isPure: Bool
+    /// The outline nodes of this type have unless a node overrides it. Nil means ``NodeShape/round``.
+    public var shape: NodeShape?
+    /// The title bar style nodes of this type have unless a node overrides it. Nil means ``NodeTitleMode/normal``.
+    public var titleMode: NodeTitleMode?
 
     public init(
         typeID: NodeTypeID,
@@ -144,8 +153,12 @@ public struct NodeDefinition: Hashable, Sendable, Codable {
         properties: [PropertyDefinition] = [],
         defaultSize: GraphSize = GraphSize(width: 160, height: 80),
         isFeedback: Bool = false,
-        isPure: Bool = false
+        isPure: Bool = false,
+        shape: NodeShape? = nil,
+        titleMode: NodeTitleMode? = nil
     ) {
+        self.shape = shape
+        self.titleMode = titleMode
         self.dynamicPorts = dynamicPorts
         self.typeID = typeID
         self.displayName = displayName

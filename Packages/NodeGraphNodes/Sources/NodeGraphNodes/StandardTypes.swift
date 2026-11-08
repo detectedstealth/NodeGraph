@@ -23,9 +23,9 @@ public enum StandardTypes {
         types.register(PortTypeInfo(
             type: .string, displayName: "String", color: RGBAColor(red: 0.45, green: 0.78, blue: 0.50)))
         types.register(PortTypeInfo(
-            type: .array, displayName: "Array", color: RGBAColor(red: 0.90, green: 0.70, blue: 0.30)))
+            type: .array, displayName: "Array", color: RGBAColor(red: 0.90, green: 0.70, blue: 0.30), shape: .grid))
         types.register(PortTypeInfo(
-            type: .object, displayName: "Object", color: RGBAColor(red: 0.70, green: 0.50, blue: 0.85)))
+            type: .object, displayName: "Object", color: RGBAColor(red: 0.70, green: 0.50, blue: 0.85), shape: .square))
     }
 }
 

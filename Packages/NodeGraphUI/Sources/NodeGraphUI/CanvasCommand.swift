@@ -43,6 +43,10 @@ public enum CanvasCommand: Hashable, Sendable {
     /// Pins the selected nodes, or unpins them if all are already pinned.
     case togglePinned
     case setMode(NodeMode)
+    /// Sets the outline of the selected nodes.
+    case setShape(NodeShape)
+    /// Sets how the selected nodes' title bars are shown.
+    case setTitleMode(NodeTitleMode)
     /// Removes every link attached to the selected nodes.
     case disconnectSelection
     /// Adds a reroute point on a link at a graph-space position.
@@ -55,7 +59,8 @@ extension CanvasCommand {
     public var isEdit: Bool {
         switch self {
         case .deleteSelection, .nudge, .cut, .paste, .duplicate, .align, .distribute, .createSubgraph,
-             .unpackSubgraph, .addNode, .toggleCollapsed, .togglePinned, .setMode, .disconnectSelection,
+             .unpackSubgraph, .addNode, .toggleCollapsed, .togglePinned, .setMode, .setShape, .setTitleMode,
+             .disconnectSelection,
              .addWaypoint:
             true
         case .selectAll, .escape, .zoomToFit, .resetZoom, .zoomIn, .zoomOut, .toggleSnapToGrid, .copy,

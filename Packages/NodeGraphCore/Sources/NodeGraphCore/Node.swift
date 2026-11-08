@@ -29,6 +29,10 @@ public struct Node: Hashable, Sendable {
     public var mode: NodeMode
     public var isCollapsed: Bool
     public var isPinned: Bool
+    /// Overrides the definition's outline when set.
+    public var shape: NodeShape?
+    /// Overrides the definition's title bar style when set.
+    public var titleMode: NodeTitleMode?
     /// Values that differ from the definition's defaults, keyed by property id.
     public var properties: [PropertyID: GraphValue]
     /// How many ports each of the definition's dynamic port groups has on this node. Groups not
@@ -47,8 +51,12 @@ public struct Node: Hashable, Sendable {
         isCollapsed: Bool = false,
         isPinned: Bool = false,
         properties: [PropertyID: GraphValue] = [:],
-        portCounts: [String: Int] = [:]
+        portCounts: [String: Int] = [:],
+        shape: NodeShape? = nil,
+        titleMode: NodeTitleMode? = nil
     ) {
+        self.shape = shape
+        self.titleMode = titleMode
         self.portCounts = portCounts
         self.id = id
         self.typeID = typeID
@@ -72,6 +80,16 @@ public struct Node: Hashable, Sendable {
         GraphRect(origin: position, size: resolvedSize(in: definition))
     }
 
+    /// The outline to draw: the node's own, else the definition's, else ``NodeShape/round``.
+    public func resolvedShape(in definition: NodeDefinition?) -> NodeShape {
+        shape ?? definition?.shape ?? .round
+    }
+
+    /// The title bar style to draw: the node's own, else the definition's, else ``NodeTitleMode/normal``.
+    public func resolvedTitleMode(in definition: NodeDefinition?) -> NodeTitleMode {
+        titleMode ?? definition?.titleMode ?? .normal
+    }
+
     /// The stored value for a property, or the definition's default when unset.
     public func value(of property: PropertyID, in definition: NodeDefinition) -> GraphValue? {
         properties[property] ?? definition.property(property)?.defaultValue
@@ -84,7 +102,7 @@ public struct Node: Hashable, Sendable {
 /// string-backed type would otherwise encode as a flat key/value array in unspecified order.
 extension Node: Codable {
     private enum CodingKeys: String, CodingKey {
-        case id, typeID, position, size, title, color, mode, isCollapsed, isPinned, properties, portCounts
+        case id, typeID, position, size, title, color, mode, isCollapsed, isPinned, properties, portCounts, shape, titleMode
     }
 
     public init(from decoder: any Decoder) throws {
@@ -103,7 +121,9 @@ extension Node: Codable {
                 uniqueKeysWithValues: (try container.decodeIfPresent(
                     [String: GraphValue].self, forKey: .properties) ?? [:])
                     .map { (PropertyID($0.key), $0.value) }),
-            portCounts: try container.decodeIfPresent([String: Int].self, forKey: .portCounts) ?? [:]
+            portCounts: try container.decodeIfPresent([String: Int].self, forKey: .portCounts) ?? [:],
+            shape: try container.decodeIfPresent(NodeShape.self, forKey: .shape),
+            titleMode: try container.decodeIfPresent(NodeTitleMode.self, forKey: .titleMode)
         )
     }
 
@@ -122,5 +142,7 @@ extension Node: Codable {
             Dictionary(uniqueKeysWithValues: properties.map { ($0.key.rawValue, $0.value) }),
             forKey: .properties)
         if !portCounts.isEmpty { try container.encode(portCounts, forKey: .portCounts) }
+        try container.encodeIfPresent(shape, forKey: .shape)
+        try container.encodeIfPresent(titleMode, forKey: .titleMode)
     }
 }

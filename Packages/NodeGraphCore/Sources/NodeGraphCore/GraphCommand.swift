@@ -19,6 +19,10 @@ public enum NodeAttribute: Hashable, Sendable, Codable {
     case mode(value: NodeMode)
     case isCollapsed(value: Bool)
     case isPinned(value: Bool)
+    /// `nil` falls back to the definition's shape.
+    case shape(value: NodeShape?)
+    /// `nil` falls back to the definition's title mode.
+    case titleMode(value: NodeTitleMode?)
 
     /// The field this attribute sets, ignoring its value.
     var field: String {
@@ -29,6 +33,8 @@ public enum NodeAttribute: Hashable, Sendable, Codable {
         case .mode: "mode"
         case .isCollapsed: "isCollapsed"
         case .isPinned: "isPinned"
+        case .shape: "shape"
+        case .titleMode: "titleMode"
         }
     }
 
@@ -41,6 +47,8 @@ public enum NodeAttribute: Hashable, Sendable, Codable {
         case .mode: .mode(value: node.mode)
         case .isCollapsed: .isCollapsed(value: node.isCollapsed)
         case .isPinned: .isPinned(value: node.isPinned)
+        case .shape: .shape(value: node.shape)
+        case .titleMode: .titleMode(value: node.titleMode)
         }
     }
 
@@ -52,6 +60,8 @@ public enum NodeAttribute: Hashable, Sendable, Codable {
         case .mode(let v): node.mode = v
         case .isCollapsed(let v): node.isCollapsed = v
         case .isPinned(let v): node.isPinned = v
+        case .shape(let v): node.shape = v
+        case .titleMode(let v): node.titleMode = v
         }
     }
 }

@@ -29,6 +29,18 @@ extension GraphEditorModel {
         setAttribute(.isCollapsed(value: collapsed), of: ids, name: collapsed ? "Collapse" : "Expand")
     }
 
+    /// Sets the outline of each node. Nil goes back to the node type's own.
+    @discardableResult
+    public func setShape(_ shape: NodeShape?, of ids: some Collection<NodeID>) -> Bool {
+        setAttribute(.shape(value: shape), of: ids, name: "Set Shape")
+    }
+
+    /// Sets how each node's title bar is shown. Nil goes back to the node type's own.
+    @discardableResult
+    public func setTitleMode(_ mode: NodeTitleMode?, of ids: some Collection<NodeID>) -> Bool {
+        setAttribute(.titleMode(value: mode), of: ids, name: "Set Title Bar")
+    }
+
     /// Moves one node to an exact position.
     @discardableResult
     public func setPosition(_ position: GraphPoint, of id: NodeID) -> Bool {
@@ -112,6 +124,8 @@ extension GraphEditorModel {
         case .mode(let value): node.mode != value
         case .isCollapsed(let value): node.isCollapsed != value
         case .isPinned(let value): node.isPinned != value
+        case .shape(let value): node.shape != value
+        case .titleMode(let value): node.titleMode != value
         }
     }
 

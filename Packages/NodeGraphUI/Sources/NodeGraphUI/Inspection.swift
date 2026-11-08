@@ -36,6 +36,10 @@ public struct NodeInspection: Hashable, Sendable {
     public var title: String
     public var color: RGBAColor?
     public var mode: NodeMode
+    /// The node's own outline, or nil when it uses its type's.
+    public var shape: NodeShape?
+    /// The node's own title bar style, or nil when it uses its type's.
+    public var titleMode: NodeTitleMode?
     public var isPinned: Bool
     public var isCollapsed: Bool
     public var position: GraphPoint
@@ -202,7 +206,7 @@ extension GraphEditorModel {
         return NodeInspection(
             id: node.id, typeID: node.typeID, typeName: definition?.displayName ?? node.typeID.rawValue,
             category: definition?.category ?? "", title: node.title ?? "", color: node.color, mode: node.mode,
-            isPinned: node.isPinned, isCollapsed: node.isCollapsed, position: node.position, size: size,
+            shape: node.shape, titleMode: node.titleMode, isPinned: node.isPinned, isCollapsed: node.isCollapsed, position: node.position, size: size,
             properties: (definition?.properties ?? []).map { property in
                 InspectedProperty(
                     definition: property, spec: NodeWidgetSpec(property),

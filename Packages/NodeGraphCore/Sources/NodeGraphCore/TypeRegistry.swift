@@ -23,13 +23,17 @@ public struct PortTypeInfo: Hashable, Sendable, Codable {
     /// Types whose outputs this type's inputs accept as-is, with no conversion (for example
     /// `"number"` accepting `"int"`). Identity and ``PortType/any`` are always accepted.
     public var acceptsFrom: Set<PortType>
+    /// The mark ports of this type are drawn with, unless a port sets its own. Nil is a circle.
+    public var shape: PortShape?
 
     public init(
         type: PortType,
         displayName: String,
         color: RGBAColor,
-        acceptsFrom: Set<PortType> = []
+        acceptsFrom: Set<PortType> = [],
+        shape: PortShape? = nil
     ) {
+        self.shape = shape
         self.type = type
         self.displayName = displayName
         self.color = color

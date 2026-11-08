@@ -221,23 +221,27 @@ struct GraphCanvasRenderer {
         let zoom = model.camera.zoom
         let frame = CGRect(layout.frame)
         let selected = model.selection.nodes.contains(node.id)
-        let radius = lod.drawsRoundedCorners ? theme.cornerRadius : 0
-        let shape = Path(roundedRect: frame, cornerRadius: radius)
+        let definition = model.definition(of: node)
+        let corners = NodeCorners.radii(
+            for: node.resolvedShape(in: definition), radius: lod.drawsRoundedCorners ? theme.cornerRadius : 0)
+        let shape = corners.shape.path(in: frame)
+        let hovered = controller?.hover == .node(node.id)
+        let titleStyle = TitleStyle(node.resolvedTitleMode(in: definition), isActive: selected || hovered)
         let headerColor = node.color ?? theme.nodeHeader
 
         if lod.tier == .minimal {
             context.fill(shape, with: .color(Color(headerColor)))
         } else {
             context.fill(shape, with: .color(Color(theme.nodeBody)))
-            // The header is the top of the node, so only its top corners are rounded (all of
-            // them when the node is collapsed to just a header). That matches the body's outline
+            // The bar is the top of the node, so it takes the node's top corners (and the bottom
+            // ones too when the node is collapsed to just a bar). That matches the body's outline
             // without clipping.
-            let header = UnevenRoundedRectangle(
-                topLeadingRadius: radius, bottomLeadingRadius: layout.isCollapsed ? radius : 0,
-                bottomTrailingRadius: layout.isCollapsed ? radius : 0, topTrailingRadius: radius)
-            context.fill(header.path(in: CGRect(layout.header)), with: .color(Color(headerColor)))
+            if titleStyle.drawsBar {
+                context.fill(
+                    corners.header(isCollapsed: layout.isCollapsed).shape.path(in: CGRect(layout.header)),
+                    with: .color(Color(headerColor)))
+            }
         }
-        let hovered = controller?.hover == .node(node.id)
         let decoration = model.runDecoration(of: node.id)
         var border = selected ? theme.selection : hovered ? theme.selection.withAlpha(0.55) : theme.nodeBorder
         var borderWidth = selected || hovered ? 2.0 : theme.borderWidth
@@ -248,7 +252,7 @@ struct GraphCanvasRenderer {
         }
         context.stroke(shape, with: .color(Color(border)), lineWidth: max(borderWidth, 1 / zoom))
 
-        if lod.drawsTitles {
+        if lod.drawsTitles, titleStyle.drawsTitle {
             let title = node.title ?? model.definition(of: node)?.displayName ?? node.typeID.rawValue
             let text = fittedTitle(&context, title, width: layout.header.size.width - 20)
             context.draw(
@@ -482,19 +486,7 @@ struct GraphCanvasRenderer {
         let connected = port.address.direction == .input
             ? !model.graph.links(into: port.address).isEmpty : !model.graph.links(from: port.address).isEmpty
 
-        let shape: Path
-        if port.definition.kind == .trigger {
-            // Trigger ports are diamonds, so they read differently from data dots at a glance.
-            var diamond = Path()
-            diamond.move(to: CGPoint(x: center.x, y: center.y - r * 1.3))
-            diamond.addLine(to: CGPoint(x: center.x + r * 1.3, y: center.y))
-            diamond.addLine(to: CGPoint(x: center.x, y: center.y + r * 1.3))
-            diamond.addLine(to: CGPoint(x: center.x - r * 1.3, y: center.y))
-            diamond.closeSubpath()
-            shape = diamond
-        } else {
-            shape = Path(ellipseIn: CGRect(x: center.x - r, y: center.y - r, width: 2 * r, height: 2 * r))
-        }
+        let shape = model.portShape(of: port.definition).path(center: center, radius: r)
         if connected {
             context.fill(shape, with: .color(color))
         } else {

@@ -48,6 +48,11 @@ enum DemoGraph {
         let time = add("util.time", 0, -200)
         let timeWatch = add("util.watch", 300, -200, title: "Elapsed")
         link(time, timeWatch)
+        // A few nodes drawn differently, to show shapes and title bar styles.
+        _ = try? model.perform(.setNodeAttribute(node: compare, attribute: .shape(value: .card)))
+        _ = try? model.perform(.setNodeAttribute(node: timeWatch, attribute: .shape(value: .box)))
+        _ = try? model.perform(.setNodeAttribute(node: timeWatch, attribute: .titleMode(value: .transparent)))
+        _ = try? model.perform(.setNodeAttribute(node: sineWatch, attribute: .titleMode(value: .autohide)))
         _ = try? model.perform(.addGroup(group: NodeGroup(
             title: "Arithmetic", bounds: GraphRect(x: 270, y: -20, width: 480, height: 300))))
         // Turn the sum and the product into a subgraph, so there is one to open.

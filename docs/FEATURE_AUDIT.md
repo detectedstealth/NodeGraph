@@ -23,9 +23,9 @@ Status: **Done** (implemented), **Partial**, **Gap** (in scope, not built), **De
 | `onConnectInput` veto, `onConnectionsChange` | Partial | Pluggable `ConnectionValidator` per domain; per-node closure hooks decided against (decision 91) |
 | Execution priority (`priority`) | Gap | Order is topological then stable. A per-definition priority for tie-breaks is cheap |
 | Node colour, title, collapse, pin, resize | Done | inspector and menus |
-| Node shapes (box, round, card) | Gap | One shape today. Add `NodeShape` to `Node` or `NodeDefinition`, theme-driven |
-| Title modes (normal, none, transparent, autohide) | Gap | Same place as shapes |
-| Custom colour per slot (`color_on`, `color_off`), slot shapes | Partial | Colour by type via theme `?`; per-slot override and slot shapes (arrow, grid for arrays) Gap |
+| Node shapes (box, round, card) | Done | `NodeShape` on node and definition (decision 185) |
+| Title modes (normal, none, transparent, autohide) | Done | `NodeTitleMode` (`none` is `hidden`, decision 186); drawing only (decision 187) |
+| Custom colour per slot (`color_on`, `color_off`), slot shapes | Partial | Colour by type via theme. Slot shapes done (`PortShape`: circle, square, diamond, arrow, grid). Per-slot colour override Gap |
 | Vertical slot layout (`horizontal`, slot `dir`) | Gap | Needed for flow-chart style graphs. Touches `NodeLayout`, hit testing and links. Medium size |
 | Widgets: number, slider, combo, text, toggle, button | Done | plus multiline, color |
 | Widget bound to a property, options (min, max, step, precision, values) | Done | |
@@ -92,7 +92,7 @@ Status: **Done** (implemented), **Partial**, **Gap** (in scope, not built), **De
 | Collapse by title click | Partial | Collapse command exists; click gesture `?` |
 | Context menus: node, canvas, slot, link | Done | node, canvas and link; slot menu is the connection chooser |
 | Menu: Align, Collapse, Pin, Mode, Colors, Properties | Done | |
-| Menu: Shapes | Gap | with node shapes |
+| Menu: Shapes | Done | Shape and Title Bar submenus |
 | Node panel (title, mode, colour, properties, delete) | Done | inspector |
 | Graph options panel (render mode, shadows, etc.) | Partial | inspector graph section; canvas display options (grid, link style, shadows) as settings `?` |
 | Prompt dialog, property value editors | Done | widget editor overlays |
