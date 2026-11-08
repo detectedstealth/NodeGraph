@@ -198,3 +198,21 @@ private final class ProgressLog: @unchecked Sendable {
     let registry = NodeRegistry().addingPlaceholders(for: graph)
     #expect(registry.definition(for: "ghost") != nil && registry.executor(for: "ghost") == nil)
 }
+
+// MARK: Help text
+
+@Test func setHelpKeepsTheExecutorAndOldDefinitionsDecodeWithoutHelp() throws {
+    var nodes = NodeRegistry()
+    nodes.register(NodeDefinition(typeID: "t", displayName: "T")) { _ in .empty }
+    nodes.setHelp("Does a thing.", for: "t")
+    #expect(nodes.definition(for: "t")?.help == "Does a thing.")
+    #expect(nodes.executor(for: "t") != nil)
+    nodes.setHelp("ignored", for: "missing")
+    #expect(nodes.definition(for: "missing") == nil)
+
+    var plain = try #require(nodes.definition(for: "t"))
+    plain.help = nil
+    let json = String(decoding: try JSONEncoder().encode(plain), as: UTF8.self)
+    #expect(!json.contains("help"))
+    #expect(try JSONDecoder().decode(NodeDefinition.self, from: Data(json.utf8)) == plain)
+}

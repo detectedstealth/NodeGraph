@@ -4,6 +4,7 @@ import NodeGraphCore
 public enum FlowPack: NodePack {
     public static func register(nodes: inout NodeRegistry, types: inout TypeRegistry) {
         StandardTypes.register(in: &types)
+        defer { NodeHelp.apply(to: &nodes) }
 
         // A feedback node: links leaving it deliver this node's output from the previous pass.
         // That lets a graph close a loop, for example an accumulator or a smoothing filter.

@@ -33,6 +33,12 @@ public struct NodeRegistry: Sendable {
         return copy
     }
 
+    /// Sets the help text of a registered type, keeping its executor. Does nothing for a type
+    /// that is not registered.
+    public mutating func setHelp(_ help: String?, for typeID: NodeTypeID) {
+        definitions[typeID]?.help = help
+    }
+
     /// Removes a definition and its executor.
     public mutating func unregister(_ typeID: NodeTypeID) {
         definitions.removeValue(forKey: typeID)

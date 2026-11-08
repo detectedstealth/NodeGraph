@@ -5,6 +5,7 @@ import NodeGraphCore
 public enum StringPack: NodePack {
     public static func register(nodes: inout NodeRegistry, types: inout TypeRegistry) {
         StandardTypes.register(in: &types)
+        defer { NodeHelp.apply(to: &nodes) }
 
         text("string.concat", "Concatenate", inputs: ["a", "b"], in: &nodes) { ctx in
             ["result": .string(try ctx.string("a") + ctx.string("b"))]

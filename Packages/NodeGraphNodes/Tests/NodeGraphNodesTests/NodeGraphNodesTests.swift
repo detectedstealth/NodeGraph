@@ -893,3 +893,13 @@ private func every(_ interval: Int64, in rig: Rig) throws -> NodeID {
     }
     #expect(seen == 8)
 }
+
+// MARK: Help text
+
+@Test func everyBuiltInNodeHasHelpAndNoHelpIsLeftOverForAMissingNode() throws {
+    let (nodes, _) = standardRegistries()
+    let missing = nodes.registeredDefinitions.filter { ($0.help ?? "").isEmpty }.map(\.typeID.rawValue)
+    #expect(missing.isEmpty, "no help for \(missing)")
+    let stale = Set(NodeHelp.text.keys).subtracting(nodes.registeredDefinitions.map(\.typeID)).map(\.rawValue)
+    #expect(stale.isEmpty, "help for types that do not exist: \(stale.sorted())")
+}

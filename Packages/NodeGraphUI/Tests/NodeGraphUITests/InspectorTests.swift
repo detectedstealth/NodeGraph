@@ -24,6 +24,19 @@ import NodeGraphCore
         #expect(summary == GraphSummary(nodeCount: 2, linkCount: 0, groupCount: 1))
     }
 
+    @Test func theInspectorAndThePaletteCarryTheTypesHelp() throws {
+        let node = try add(TestKit.widgets)
+        model.select(node: node.id)
+        guard case .node(let info) = model.inspection() else {
+            Issue.record("expected a node")
+            return
+        }
+        #expect(info.help == "Has one of every widget.")
+        let entries = model.makeNodeCatalog().entries
+        #expect(entries.first { $0.id == TestKit.widgets }?.help == "Has one of every widget.")
+        #expect(entries.first { $0.id == TestKit.source }?.help == "", "a type with no help shows none")
+    }
+
     @Test func oneNodeShowsItsPropertiesAndPorts() throws {
         let node = try add(TestKit.widgets, title: "Mine")
         try model.perform(.setNodeProperty(node: node.id, property: "flag", value: .bool(true)))

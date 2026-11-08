@@ -131,6 +131,7 @@ private struct NodeSections: View {
 
     var body: some View {
         Section(info.typeName) {
+            if !info.help.isEmpty { Text(info.help).font(.callout).foregroundStyle(.secondary) }
             LabeledContent("Title") {
                 CommitTextField(text: info.title, placeholder: info.typeName) { model.setTitle($0, of: [info.id]) }
             }

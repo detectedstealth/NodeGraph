@@ -4,6 +4,7 @@ import NodeGraphCore
 public enum LogicPack: NodePack {
     public static func register(nodes: inout NodeRegistry, types: inout TypeRegistry) {
         StandardTypes.register(in: &types)
+        defer { NodeHelp.apply(to: &nodes) }
 
         binary("logic.and", "And", in: &nodes) { $0 && $1 }
         binary("logic.or", "Or", in: &nodes) { $0 || $1 }

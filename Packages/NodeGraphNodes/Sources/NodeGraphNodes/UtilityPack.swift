@@ -4,6 +4,7 @@ import NodeGraphCore
 public enum UtilityPack: NodePack {
     public static func register(nodes: inout NodeRegistry, types: inout TypeRegistry) {
         StandardTypes.register(in: &types)
+        defer { NodeHelp.apply(to: &nodes) }
 
         constant("util.number", "Number", .number, .double(), 0.0, in: &nodes)
         constant("util.bool", "Boolean", .bool, .bool, false, in: &nodes)

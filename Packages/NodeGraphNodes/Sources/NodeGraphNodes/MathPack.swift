@@ -7,6 +7,7 @@ import NodeGraphCore
 public enum MathPack: NodePack {
     public static func register(nodes: inout NodeRegistry, types: inout TypeRegistry) {
         StandardTypes.register(in: &types)
+        defer { NodeHelp.apply(to: &nodes) }
 
         binary("math.add", "Add", a: 0, b: 0, in: &nodes) { a, b in a + b }
         binary("math.subtract", "Subtract", a: 0, b: 0, in: &nodes) { a, b in a - b }

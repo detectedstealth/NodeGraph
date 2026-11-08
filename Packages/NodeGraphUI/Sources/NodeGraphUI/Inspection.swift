@@ -32,6 +32,8 @@ public struct NodeInspection: Hashable, Sendable {
     /// The definition's display name; the node's own title replaces it when set.
     public var typeName: String
     public var category: String
+    /// What the node's type says about itself, or empty.
+    public var help: String
     /// The node's own title, or empty when it uses the type's name.
     public var title: String
     public var color: RGBAColor?
@@ -205,7 +207,7 @@ extension GraphEditorModel {
         }
         return NodeInspection(
             id: node.id, typeID: node.typeID, typeName: definition?.displayName ?? node.typeID.rawValue,
-            category: definition?.category ?? "", title: node.title ?? "", color: node.color, mode: node.mode,
+            category: definition?.category ?? "", help: definition?.help ?? "", title: node.title ?? "", color: node.color, mode: node.mode,
             shape: node.shape, titleMode: node.titleMode, isPinned: node.isPinned, isCollapsed: node.isCollapsed, position: node.position, size: size,
             properties: (definition?.properties ?? []).map { property in
                 InspectedProperty(

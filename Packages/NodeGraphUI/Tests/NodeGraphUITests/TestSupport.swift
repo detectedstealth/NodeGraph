@@ -47,7 +47,8 @@ enum TestKit {
                 PropertyDefinition(id: "tint", displayName: "Tint", kind: .color, defaultValue: .color(RGBAColor(red: 1, green: 0, blue: 0))),
                 PropertyDefinition(id: "notes", displayName: "Notes", kind: .string(multiline: true), defaultValue: .string("")),
             ],
-            defaultSize: GraphSize(width: 220, height: 80)))
+            defaultSize: GraphSize(width: 220, height: 80),
+            help: "Has one of every widget."))
         var types = TypeRegistry()
         types.register(PortTypeInfo(
             type: "number", displayName: "Number", color: RGBAColor(red: 0.2, green: 0.4, blue: 0.9),

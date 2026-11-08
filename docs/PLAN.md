@@ -121,11 +121,11 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
   - [x] Per-node state and the stateful nodes: `ctx.state`, `NodeOutputs.state`, `FrameState.nodeState`; `flow.counter`, `flow.once`, `flow.latch`, `math.accumulate`, `math.average`, `math.tendTo` (decisions 193-194; owner approved decision 180). Core 449, Nodes 63, UI 353 tests; 82 node types. Not shown in the UI or saved with documents
   - [x] Node shapes, title modes, slot shapes: `NodeShape`, `NodeTitleMode`, `PortShape`, node menu and inspector controls (decisions 185-188). Core 429, UI 347 tests. Demo app shows a card, a box with a transparent title and an autohiding title; not checked by eye
   - [x] Graph variables: read-only parameters on the root graph, `util.variable`, run overrides, inspector editing (decisions 189-192; owner chose read-only over writable). `extra` metadata already existed as `GraphDocument.metadata`. Core 443, Nodes 56, UI 353 tests; 76 node types. Demo app has a `gain` variable; not checked by eye
-  - [ ] Small editor aids, one at a time:
+  - [x] Small editor aids, one at a time:
     - [x] Delete with bridge: `bridgeProposals`, `CanvasCommand.deleteAndReconnect` (decision 195). Core 452, UI 355 tests. Not checked by eye
     - [x] Paste keeping connections: `GraphFragment.inputLinks`, `keepingConnections`, `CanvasCommand.pasteWithConnections` (decision 196). Core 455, UI 356 tests. Not checked by eye
     - [x] Default node per slot type: `PortTypeInfo.defaultProducer`/`defaultConsumer`, `addDefaultNode(for:)`, port context menu (decision 197). Core 455, Nodes 64, UI 360 tests. Not checked by eye; no middle-click yet
-    - [ ] Node help text
+    - [x] Node help text: `NodeDefinition.help`, `NodeHelp`, palette caption and inspector (decision 198). Core 456, Nodes 65, UI 361 tests. Not checked by eye; no canvas hover tooltip yet
   - [ ] Auto-arrange; display extras. Vertical slot layout and vector types wait for a domain that needs them
 
 ## Phase 6: Persistence and server readiness

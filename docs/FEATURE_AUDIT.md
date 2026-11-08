@@ -44,7 +44,7 @@ Status: **Done** (implemented), **Partial**, **Gap** (in scope, not built), **De
 | Node clone | Done | duplicate, copy/paste |
 | `flags.allow_interaction` per node | Gap | Per-node lock. Pin covers moving only |
 | Mode colouring of the title box, trigger-lit boxes | Partial | Execution overlay tints; mode colouring `?` |
-| Node help text / tooltips | Gap | Show `NodeDefinition` description on hover and in the palette `?` |
+| Node help text / tooltips | Partial | `NodeDefinition.help` in the palette and inspector (decision 198); no hover tooltip on the canvas |
 
 ## 2. Link and graph features
 

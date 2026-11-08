@@ -35,6 +35,14 @@ private struct AddNodePanel: View {
         catalog?.search(query, connecting: request.filter) ?? []
     }
 
+    /// What the highlighted node does, shown under the list.
+    private var highlightedHelp: String? {
+        let found = matches
+        guard found.indices.contains(highlighted) else { return nil }
+        let help = found[highlighted].entry.help
+        return help.isEmpty ? nil : help
+    }
+
     /// Browse order groups by category; a search or a link shows one ranked list.
     private var isBrowsing: Bool { query.isEmpty && request.filter == nil }
 
@@ -57,6 +65,15 @@ private struct AddNodePanel: View {
                 #endif
             Divider().overlay(Color(theme.nodeBorder))
             results
+            if let help = highlightedHelp {
+                Divider().overlay(Color(theme.nodeBorder))
+                Text(help)
+                    .font(.caption)
+                    .foregroundStyle(Color(theme.portLabel))
+                    .frame(maxWidth: .infinity, minHeight: 34, alignment: .topLeading)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+            }
         }
         .foregroundStyle(Color(theme.nodeTitle))
         .tint(Color(theme.selection))

@@ -25,6 +25,8 @@ public struct NodeCatalogEntry: Hashable, Sendable, Identifiable {
     public var definition: NodeDefinition
     public var displayName: String { definition.displayName }
     public var category: String { definition.category.isEmpty ? "Other" : definition.category }
+    /// What the node does, or empty.
+    public var help: String { definition.help ?? "" }
 }
 
 /// A search result: an entry, how well it matched, and, when searching for something a link can

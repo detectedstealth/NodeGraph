@@ -143,6 +143,9 @@ public struct NodeDefinition: Hashable, Sendable, Codable {
     public var shape: NodeShape?
     /// The title bar style nodes of this type have unless a node overrides it. Nil means ``NodeTitleMode/normal``.
     public var titleMode: NodeTitleMode?
+    /// A sentence or two on what the node does, shown in the add-node palette and the inspector.
+    /// Nil or empty means none.
+    public var help: String?
 
     public init(
         typeID: NodeTypeID,
@@ -155,8 +158,10 @@ public struct NodeDefinition: Hashable, Sendable, Codable {
         isFeedback: Bool = false,
         isPure: Bool = false,
         shape: NodeShape? = nil,
-        titleMode: NodeTitleMode? = nil
+        titleMode: NodeTitleMode? = nil,
+        help: String? = nil
     ) {
+        self.help = help
         self.shape = shape
         self.titleMode = titleMode
         self.dynamicPorts = dynamicPorts

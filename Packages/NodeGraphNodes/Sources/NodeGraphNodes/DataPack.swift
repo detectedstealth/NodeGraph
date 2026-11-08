@@ -8,6 +8,7 @@ import NodeGraphCore
 public enum DataPack: NodePack {
     public static func register(nodes: inout NodeRegistry, types: inout TypeRegistry) {
         StandardTypes.register(in: &types)
+        defer { NodeHelp.apply(to: &nodes) }
 
         // MARK: Arrays
 
