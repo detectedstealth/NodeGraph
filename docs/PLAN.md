@@ -116,7 +116,7 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
 - [x] Mark each as implemented, deferred, or out of scope; record in `docs/FEATURE_AUDIT.md`. Status was judged from the plan and a code search, not by running the app; rows marked `?` need confirming when picked up. Section 6 ranks the gaps
 - [ ] Fill the gaps that are in scope, in the order of FEATURE_AUDIT section 6, one at a time:
   - [x] Read-only canvas mode: `GraphEditorModel.isEditable` (decision 175; `ReadOnlyTests`, 19 tests; 328 UI tests). Not checked by eye, and the demo app has no switch for it yet
-  - [ ] Watch, time and log nodes, plus last run values on links
+  - [x] Watch, time and log nodes, plus last run values on links: `RunValues`, `GraphValue.summary`, `util.watch`/`util.time`/`util.log` (48 node types), `NodeContentDrawing.readout`, link value labels (decisions 176-179). Core 423, Nodes 35, UI 336 tests. Demo app has Watch and Time nodes; not checked by eye
   - [ ] Core node pack gaps (arrays and objects, remap, trigonometry, seeded random, event nodes, converters)
   - [ ] Node shapes, title modes, slot shapes
   - [ ] Graph variables and `extra` metadata (needs a decision)

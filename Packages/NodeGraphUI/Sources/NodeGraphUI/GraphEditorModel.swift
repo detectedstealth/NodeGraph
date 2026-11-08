@@ -139,6 +139,11 @@ public final class GraphEditorModel {
     /// ``apply(_:)`` or ``observeExecution(_:)``.
     public internal(set) var executionState = ExecutionState()
 
+    /// The values the latest run produced, per node, for watch nodes and link labels. Fed by
+    /// ``apply(_:)-(TickResult)`` or ``observeResults(_:)``, and cleared with
+    /// ``clearExecutionState()``. Like ``executionState`` it is not part of the graph or history.
+    public internal(set) var runValues = RunValues()
+
     /// The Create Subgraph form, while it is open.
     public var createSubgraphRequest: CreateSubgraphRequest?
 

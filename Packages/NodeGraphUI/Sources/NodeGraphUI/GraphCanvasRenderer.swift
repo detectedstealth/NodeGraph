@@ -177,6 +177,25 @@ struct GraphCanvasRenderer {
         let hovered = controller?.hover == .link(link.id)
         let width = max(theme.linkWidth, 1.5 / model.camera.zoom) * (selected ? 1.5 : hovered ? 1.35 : 1)
         context.stroke(path, with: .color(Color(color)), style: StrokeStyle(lineWidth: width, lineCap: .round, lineJoin: .round))
+        // The value passing along a link, while the pointer is on it or it is selected.
+        if (selected || hovered), lod.tier == .full, let text = model.valueLabel(of: link),
+           let route = model.linkPath(of: link) {
+            drawLinkLabel(&context, text, at: CGPoint(route.midpoint()))
+        }
+    }
+
+    private func drawLinkLabel(_ context: inout GraphicsContext, _ text: String, at point: CGPoint) {
+        let theme = model.theme
+        let size = theme.portFontSize * model.textScale
+        let resolved = context.resolve(
+            Text(text).font(.system(size: size, design: .monospaced)).foregroundColor(Color(theme.nodeTitle)))
+        let measured = resolved.measure(in: CGSize(width: CGFloat.infinity, height: CGFloat.infinity))
+        let pill = CGRect(
+            x: point.x - measured.width / 2 - 6, y: point.y - measured.height / 2 - 3,
+            width: measured.width + 12, height: measured.height + 6)
+        context.fill(Path(roundedRect: pill, cornerRadius: pill.height / 2), with: .color(Color(theme.nodeBody)))
+        context.stroke(Path(roundedRect: pill, cornerRadius: pill.height / 2), with: .color(Color(theme.nodeBorder)), lineWidth: 1)
+        context.draw(resolved, at: point, anchor: .center)
     }
 
     // MARK: Nodes
@@ -258,7 +277,7 @@ struct GraphCanvasRenderer {
                     &layer,
                     NodeContentContext(
                         node: node, definition: model.definition(of: node), rect: CGRect(area), theme: theme,
-                        zoom: zoom))
+                        zoom: zoom, values: model.runValues[node.id]))
             }
         }
         if selected, !layout.isCollapsed, lod.tier == .full { drawResizeHandle(&context, layout) }

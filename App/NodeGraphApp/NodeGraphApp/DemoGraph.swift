@@ -12,6 +12,8 @@ enum DemoGraph {
         StandardPack.register(nodes: &nodes, types: &types)
         let editor = GraphEditor(nodes: nodes, types: types)
         let model = GraphEditorModel(editor: editor)
+        // Watch nodes show the value they pass on, from the latest run.
+        model.registerContentDrawing(for: "util.watch", .readout(of: "result"))
 
         func add(_ type: String, _ x: Double, _ y: Double, title: String? = nil) -> NodeID {
             let node = Node(typeID: NodeTypeID(type), position: GraphPoint(x: x, y: y), title: title)
@@ -41,6 +43,11 @@ enum DemoGraph {
         link(scale, product, input: 1)
         link(product, compare, input: 0)
         link(a, sine)
+        let sineWatch = add("util.watch", 820, -80)
+        link(sine, sineWatch)
+        let time = add("util.time", 0, -200)
+        let timeWatch = add("util.watch", 300, -200, title: "Elapsed")
+        link(time, timeWatch)
         _ = try? model.perform(.addGroup(group: NodeGroup(
             title: "Arithmetic", bounds: GraphRect(x: 270, y: -20, width: 480, height: 300))))
         // Turn the sum and the product into a subgraph, so there is one to open.

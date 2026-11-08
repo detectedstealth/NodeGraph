@@ -338,10 +338,10 @@ func toStringDescribesAnyValue(_ value: GraphValue, _ expected: String) async th
     }
 }
 
-@Test func onlyTimeDependentNodesAreImpure() throws {
+@Test func onlyTimeDependentOrSideEffectingNodesAreImpure() throws {
     let (nodes, _) = standardRegistries()
-    let impure = nodes.registeredDefinitions.filter { !$0.isPure }.map(\.typeID)
-    #expect(impure == ["flow.every"])
+    let impure = Set(nodes.registeredDefinitions.filter { !$0.isPure }.map(\.typeID))
+    #expect(impure == ["flow.every", "util.time", "util.log"])
 }
 
 @Test func definitionsExportAsJSON() throws {
@@ -437,4 +437,49 @@ private func inputIDs(_ rig: Rig, _ node: NodeID) -> [String] {
     #expect(GraphValidator().validate(ValidationContext(graph: loaded.graph, nodes: nodes, types: types)).isEmpty)
     let after = await (try GraphRunner(document: loaded, registry: nodes)).step()
     #expect(after.outputs(of: sum)?["result"] == 5.0)
+}
+
+// MARK: Watch, time and log
+
+@Test func watchAndLogPassTheirInputThroughAndNeedNoneToRun() async throws {
+    for type in ["util.watch", "util.log"] as [NodeTypeID] {
+        #expect(try await result(type, ["value": .string("hi")]) == .string("hi"))
+        #expect(try await result(type, ["value": .array([.int(1)])]) == .array([.int(1)]))
+        // Nothing connected: nothing to show or write, and not a failure.
+        let empty = try await evaluate(type)
+        #expect(empty.outputs?.values.isEmpty == true)
+    }
+}
+
+@Test func logAcceptsEveryLevelAndLabel() async throws {
+    for level in ["debug", "info", "warning", "error"] {
+        let value = try await result(
+            "util.log", ["value": .double(2)], properties: ["label": .string("x"), "level": .string(level)])
+        #expect(value == .double(2))
+    }
+}
+
+@Test func timeReportsTheRunsClockInADeterministicRun() async throws {
+    let rig = Rig()
+    let time = try rig.add("util.time")
+    var last: TickResult?
+    for await tick in try rig.runner().run(.deterministic(fixedDelta: .milliseconds(500), ticks: 3)) { last = tick }
+    let outputs = try #require(last?.outputs(of: time))
+    #expect(outputs["elapsed"] == .double(1))
+    #expect(outputs["delta"] == .double(0.5))
+    #expect(outputs["tick"] == .int(2))
+}
+
+@Test func aWatchedValueIsAvailableOnItsNodeAndOnTheLinkIntoIt() async throws {
+    let rig = Rig()
+    let constant = try rig.add("util.number", ["value": .double(5)])
+    let watch = try rig.add("util.watch")
+    try rig.link(constant, "value", watch, "value")
+    let tick = try await rig.step()
+
+    var values = RunValues()
+    values.apply(tick)
+    #expect(values[watch, "result"] == .double(5))
+    let link = try #require(rig.editor.graph.links.values.first)
+    #expect(values.value(of: link) == .double(5))
 }

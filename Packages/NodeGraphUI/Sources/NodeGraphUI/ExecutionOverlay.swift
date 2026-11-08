@@ -59,9 +59,33 @@ extension GraphEditorModel {
         executionState.apply(event)
     }
 
-    /// Forgets every node's run state, so the canvas shows no badges.
+    /// Forgets every node's run state and values, so the canvas shows no badges and watches go blank.
     public func clearExecutionState() {
         executionState = ExecutionState()
+        runValues = RunValues()
+    }
+
+    /// Folds one pass's results into ``runValues``. The canvas redraws watch nodes and link labels.
+    public func apply(_ result: TickResult) {
+        runValues.apply(result)
+    }
+
+    /// Feeds a runner's results (``GraphRunner/run(_:)``) into ``runValues`` until the stream
+    /// ends or the returned task is cancelled. Pass events to ``observeExecution(_:)`` as well
+    /// for badges.
+    @discardableResult
+    public func observeResults(_ results: AsyncStream<TickResult>) -> Task<Void, Never> {
+        Task { [weak self] in
+            for await result in results {
+                guard let self else { return }
+                self.apply(result)
+            }
+        }
+    }
+
+    /// What a link carried in the latest run, as a short label, or nil if nothing was recorded.
+    func valueLabel(of link: Link) -> String? {
+        runValues.value(of: link)?.summary(limit: 40)
     }
 
     /// Feeds a runner's events (``GraphRunner/events(bufferingPolicy:)``) into ``executionState``

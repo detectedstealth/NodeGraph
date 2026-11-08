@@ -12,6 +12,9 @@ public struct NodeContentContext {
     public var theme: GraphTheme
     /// Screen points per graph unit, for choosing how much detail to draw.
     public var zoom: Double
+    /// What the node published in the latest run, by output port. Empty before a run, or when
+    /// the node has nothing current (see ``RunValues``).
+    public var values: [PortID: GraphValue] = [:]
 }
 
 /// Draws into an area of a node's body, below its widgets, for domain visuals such as timeline
@@ -29,5 +32,21 @@ public struct NodeContentDrawing {
     public init(height: Double, draw: @escaping @MainActor (inout GraphicsContext, NodeContentContext) -> Void) {
         self.height = height
         self.draw = draw
+    }
+}
+
+extension NodeContentDrawing {
+    /// Shows the latest value of an output port as text, such as the Watch node's. Without a
+    /// value it shows a dash. Long values are cut to fit the area.
+    public static func readout(of port: PortID, height: Double = 24) -> NodeContentDrawing {
+        NodeContentDrawing(height: height) { context, content in
+            let theme = content.theme
+            let value = content.values[port]
+            let text = value?.summary(limit: 200) ?? "–"
+            let color = Color(value == nil ? theme.portLabel.withAlpha(0.5) : theme.nodeTitle)
+            let resolved = context.resolve(
+                Text(text).font(.system(size: theme.portFontSize, design: .monospaced)).foregroundColor(color))
+            context.draw(resolved, at: CGPoint(x: content.rect.minX, y: content.rect.midY), anchor: .leading)
+        }
     }
 }

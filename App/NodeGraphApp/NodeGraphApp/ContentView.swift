@@ -47,7 +47,8 @@ extension ContentView {
             subgraphs: model.editor.subgraphs.map(\.value))
         else { return }
         model.observeExecution(runner.events())
-        runTask = Task { for await _ in runner.run(.once) {} }
+        // Ends with the run, and cancelling it stops the run.
+        runTask = model.observeResults(runner.run(.once))
     }
 }
 

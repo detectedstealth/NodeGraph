@@ -53,7 +53,7 @@ Status: **Done** (implemented), **Partial**, **Gap** (in scope, not built), **De
 | Spline, linear, straight links | Done | `LinkStyle` |
 | Link arrows, link shadows | Gap | Cosmetic. Arrow at the midpoint is cheap |
 | Link centre marker with menu (Add Node, Delete) | Partial | Waypoints and link menu done; "Add Node into link" `?` |
-| Link tooltip showing the value passing | Gap | Needs last run values from the runner. Useful for debugging |
+| Link tooltip showing the value passing | Done | label at the link midpoint on hover or selection (decision 179) |
 | Link colour by type | Done `?` | |
 | Reroute | Done | waypoints and `util.reroute` |
 | Groups: add, colour, move with contents, resize, align | Done | |
@@ -117,8 +117,8 @@ Our packs hold 45 node types (decision list in PLAN). Comparison with litegraph'
 | litegraph family | Status | Notes |
 |---|---|---|
 | `basic/const`, `boolean`, `string` | Done | `util.number`, `util.bool`, `util.string` |
-| `basic/watch`, `console`, `alert` | Gap | A **Watch** (display the input's last value in the node) is the one that matters. Needs the custom drawing hook plus run values. Console/log node Gap. Alert Out |
-| `basic/time` | Gap | Elapsed time and delta from the run context. Needed by every time-based domain |
+| `basic/watch`, `console`, `alert` | Done | `util.watch` (shown with `NodeContentDrawing.readout`) and `util.log` (to swift-log; no console view yet). Alert Out |
+| `basic/time` | Done | `util.time`: elapsed, delta, tick |
 | `basic/variable`, `data_store` | Gap | with graph variables above |
 | `basic/object`, `object_property`, `set_object`, `merge_objects`, `object_keys`, `jsonparse`, `data` | Gap | Core `GraphValue` has object and array cases `?`; a pack of object/array/JSON nodes is in scope |
 | `basic/array`, `set_array`, `array[]`, `table[][]` | Gap | Array pack: make, get, set, length, append, slice |

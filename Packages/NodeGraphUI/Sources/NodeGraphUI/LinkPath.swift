@@ -85,6 +85,21 @@ public struct LinkPath: Hashable, Sendable {
         return points
     }
 
+    /// The point halfway along the path, by length, for labels that sit on a link.
+    public func midpoint(curveSteps: Int = 16) -> GraphPoint {
+        let points = polyline(curveSteps: curveSteps)
+        let pieces = zip(points, points.dropFirst()).map { ($0, $1, $0.distance(to: $1)) }
+        var remaining = pieces.reduce(0) { $0 + $1.2 } / 2
+        for (a, b, length) in pieces {
+            if remaining <= length, length > 0 {
+                let t = remaining / length
+                return GraphPoint(x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t)
+            }
+            remaining -= length
+        }
+        return points[points.count - 1]
+    }
+
     /// Shortest distance from `point` to the path.
     public func distance(to point: GraphPoint, curveSteps: Int = 16) -> Double {
         let points = polyline(curveSteps: curveSteps)
