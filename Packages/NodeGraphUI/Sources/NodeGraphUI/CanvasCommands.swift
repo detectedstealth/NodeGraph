@@ -129,6 +129,8 @@ extension GraphInteractionController {
             return true
         case .addDefaultNode(let port):
             return addDefaultNode(for: port) != nil
+        case .renamePort(let port):
+            return beginRenamePort(port)
 
         case .toggleCollapsed:
             let collapse = nodes.contains { !$0.isCollapsed }
@@ -173,7 +175,8 @@ extension GraphInteractionController {
         // A port gets its own item ahead of the menu of the node it belongs to.
         guard case .port(let port) = subject else { return menu(for: subject, at: point) }
         let title = defaultNodeType(for: port).flatMap { model.editor.nodes.definition(for: $0)?.displayName }
-        let item = title.map { [CanvasMenuItem("Add \($0) Node", .addDefaultNode(for: port)), .separator] } ?? []
+        let add = title.map { [CanvasMenuItem("Add \($0) Node", .addDefaultNode(for: port))] } ?? []
+        let item = add + [CanvasMenuItem("Rename Port…", .renamePort(port)), .separator]
         return item + menu(for: .node(port.node), at: point)
     }
 

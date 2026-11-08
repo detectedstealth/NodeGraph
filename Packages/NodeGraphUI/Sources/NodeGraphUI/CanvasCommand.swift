@@ -56,6 +56,8 @@ public enum CanvasCommand: Hashable, Sendable {
     case addNode(at: GraphPoint?)
     /// Adds the default node for a port's type beside it, linked to it.
     case addDefaultNode(for: PortAddress)
+    /// Opens the editor over a port to give it another name on this node.
+    case renamePort(PortAddress)
     /// Collapses the selected nodes, or expands them if all are already collapsed.
     case toggleCollapsed
     /// Pins the selected nodes, or unpins them if all are already pinned.
@@ -77,7 +79,7 @@ extension CanvasCommand {
     public var isEdit: Bool {
         switch self {
         case .deleteSelection, .deleteAndReconnect, .nudge, .cut, .paste, .pasteWithConnections, .duplicate, .align, .distribute, .autoArrange, .createSubgraph,
-             .unpackSubgraph, .addNode, .addDefaultNode, .toggleCollapsed, .togglePinned, .setMode, .setShape, .setTitleMode,
+             .unpackSubgraph, .addNode, .addDefaultNode, .renamePort, .toggleCollapsed, .togglePinned, .setMode, .setShape, .setTitleMode,
              .disconnectSelection,
              .addWaypoint:
             true

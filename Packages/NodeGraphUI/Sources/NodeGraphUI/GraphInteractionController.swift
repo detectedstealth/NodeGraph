@@ -106,10 +106,14 @@ public final class GraphInteractionController {
     /// A widget being edited in an overlay (text, number, choice, color), or nil.
     public private(set) var editor: WidgetEditor?
 
+    /// A port's label being edited in an overlay, or nil.
+    public private(set) var portLabelEditor: PortLabelEditor?
+
     /// A request to add a node, shown as the search panel, or nil.
     public private(set) var addNodeRequest: AddNodeRequest?
     private var lastEmptyClick: (point: CGPoint, time: ContinuousClock.Instant)?
     private var lastNodeClick: (node: NodeID, time: ContinuousClock.Instant)?
+    private var lastPortClick: (port: PortAddress, time: ContinuousClock.Instant)?
     /// The last place the pointer was reported, for commands that act where it is.
     private var lastPointer: CGPoint?
 
@@ -525,6 +529,15 @@ public final class GraphInteractionController {
             }
         case .widget(let id, let widget):
             if model.isEditable { activate(widget, on: id) }
+        case .port(let port):
+            // A double click on a port renames it.
+            let time = now()
+            if let last = lastPortClick, last.port == port.address, time - last.time <= doubleClickInterval {
+                lastPortClick = nil
+                beginRenamePort(port.address)
+            } else {
+                lastPortClick = (port.address, time)
+            }
         case .empty:
             if !press.modifiers.extendsSelection { model.clearSelection() }
             let time = now()
@@ -881,6 +894,40 @@ public final class GraphInteractionController {
         public var draftText: String
     }
 
+    /// A port's label being edited.
+    public struct PortLabelEditor: Hashable, Sendable {
+        public var port: PortAddress
+        /// What the text field holds while typing. Applied when the editor closes with a commit.
+        public var draftText: String
+    }
+
+    /// Opens the label editor over a port, closing any other editor first. Returns false when the
+    /// canvas is read-only, the port does not exist, or its labels are not drawn at this zoom
+    /// (nothing to edit in place; use the inspector).
+    @discardableResult
+    public func beginRenamePort(_ address: PortAddress) -> Bool {
+        guard model.isEditable, let port = model.layout(of: address.node)?.port(address),
+              !(model.layout(of: address.node)?.isCollapsed ?? true),
+              LevelOfDetail(zoom: model.camera.zoom).drawsPortLabels else { return false }
+        closeEditor(commit: true)
+        portLabelEditor = PortLabelEditor(port: address, draftText: port.definition.displayName)
+        return true
+    }
+
+    /// Records what has been typed so far.
+    public func updatePortLabelDraft(_ text: String) {
+        portLabelEditor?.draftText = text
+    }
+
+    /// Closes the label editor. With `commit`, the typed text becomes the port's label; blank
+    /// (or the type's own name) goes back to the type's name. One undo step.
+    public func closePortLabelEditor(commit: Bool) {
+        guard let editor = portLabelEditor else { return }
+        portLabelEditor = nil
+        model.endCoalescing()
+        if commit { model.setPortLabel(editor.port, to: editor.draftText) }
+    }
+
     /// The edited widget's frame in graph space, following the node if it moves.
     public var editorFrame: GraphRect? {
         guard let editor else { return nil }
@@ -896,6 +943,7 @@ public final class GraphInteractionController {
     /// number that does not parse is dropped); choice and color editors commit through
     /// ``commitEditor(_:)`` instead.
     public func closeEditor(commit: Bool) {
+        closePortLabelEditor(commit: commit)
         guard let editor else { return }
         self.editor = nil
         model.endCoalescing()
