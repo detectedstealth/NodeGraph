@@ -278,6 +278,20 @@ extension GraphEditorModel {
     }
 }
 
+private struct ExposesCanvasElementsKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    /// Builds the canvas's accessibility elements even when VoiceOver is off. UI tests set this
+    /// so XCUIAutomation can find nodes, links and groups; the elements are rebuilt whenever
+    /// the graph or view moves, so leave it off otherwise.
+    public var exposesCanvasElements: Bool {
+        get { self[ExposesCanvasElementsKey.self] }
+        set { self[ExposesCanvasElementsKey.self] = newValue }
+    }
+}
+
 /// The accessibility stand-ins for what the canvas draws, laid out where they are drawn so
 /// VoiceOver's focus ring lands on the right place.
 struct AccessibilityElementsView: View {

@@ -15,6 +15,7 @@ public struct GraphCanvasView: View {
     @Environment(\.undoManager) private var undoManager
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
+    @Environment(\.exposesCanvasElements) private var exposesCanvasElements
 
     public init(model: GraphEditorModel) {
         self.init(controller: GraphInteractionController(model: model))
@@ -96,8 +97,9 @@ public struct GraphCanvasView: View {
         .accessibilityLabel("Node graph")
         .accessibilityChildren {
             // The canvas is one drawn view; these stand in for its nodes, links and groups. Only
-            // built while VoiceOver runs, since they are rebuilt whenever the graph or view moves.
-            if voiceOverEnabled {
+            // built while VoiceOver runs (or UI tests ask), since they are rebuilt whenever the
+            // graph or view moves.
+            if voiceOverEnabled || exposesCanvasElements {
                 AccessibilityElementsView(controller: controller)
             }
         }

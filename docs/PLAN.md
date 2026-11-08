@@ -108,7 +108,7 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
 - [x] Custom node drawing hook for domain packs: `NodeContentDrawing` registered per node type with `GraphEditorModel.registerContentDrawing(for:_:)` reserves an area below the widgets (`NodeLayout.content`) and draws into it at full detail, clipped. 302 UI tests; not yet checked by eye
 - [x] Accessibility: VoiceOver actions for node and link operations, Dynamic Type: `CanvasAccessibility` (elements and actions, connection chooser), `GraphEditorModel.textScale`. 307 UI tests; not yet checked with VoiceOver or at large text sizes by eye (decisions 166-169)
 - [x] Benchmarks at 1k, 5k, 10k nodes; decide if Metal is needed (record in DECISIONS.md): `ScaleBenchmarkTests` (frame time at three zooms, cold build, drag step; release command in its header). Metal not needed (decision 170). Follow-up found: incremental spatial index update for drags at 5k+ nodes (decision 171), not started. Not measured on a physical iPad
-- [ ] XCUIAutomation tests for core editing flows on macOS and iPad
+- [x] XCUIAutomation tests for core editing flows on macOS and iPad: `NodeGraphAppUITests` (9 tests; 9 pass on macOS, 8 pass and 1 skipped on the iPad Pro 13-inch simulator). Needs `-ExposeCanvasElements` (decisions 172-174). Not covered: link drawing by drag, pinch, Pencil; Delete, Escape and Return keys on iPad are untested
 
 ## Phase 5: litegraph feature audit
 

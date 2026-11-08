@@ -9,6 +9,8 @@ struct ContentView: View {
 
     var body: some View {
         GraphCanvasView(controller: controller)
+            // UI tests pass this so XCUIAutomation can see the nodes, links and groups.
+            .environment(\.exposesCanvasElements, ProcessInfo.processInfo.arguments.contains("-ExposeCanvasElements"))
             .ignoresSafeArea(.container)
             .overlay(alignment: .topTrailing) {
                 HStack {
