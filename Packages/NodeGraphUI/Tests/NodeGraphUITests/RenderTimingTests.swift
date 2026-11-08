@@ -27,7 +27,7 @@ import NodeGraphCore
         return model
     }
 
-    private func millisecondsPerFrame(_ model: GraphEditorModel, frames: Int) -> Double {
+    func millisecondsPerFrame(_ model: GraphEditorModel, frames: Int) -> Double {
         let controller = GraphInteractionController(model: model)
         let canvas = Canvas(opaque: true, rendersAsynchronously: false) { context, size in
             var context = context
