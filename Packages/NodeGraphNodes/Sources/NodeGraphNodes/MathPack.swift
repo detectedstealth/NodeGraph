@@ -33,6 +33,20 @@ public enum MathPack: NodePack {
         }
         unary("math.sin", "Sine", in: &nodes) { sin($0) }
         unary("math.cos", "Cosine", in: &nodes) { cos($0) }
+        unary("math.tan", "Tangent", in: &nodes) { tan($0) }
+        unary("math.asin", "Arcsine", in: &nodes) { value in
+            guard (-1...1).contains(value) else { throw NodeExecutionError.failed("Arcsine needs a value from -1 to 1") }
+            return asin(value)
+        }
+        unary("math.acos", "Arccosine", in: &nodes) { value in
+            guard (-1...1).contains(value) else { throw NodeExecutionError.failed("Arccosine needs a value from -1 to 1") }
+            return acos(value)
+        }
+        unary("math.atan", "Arctangent", in: &nodes) { atan($0) }
+        // The angle of the point (x, y), in radians from -pi to pi.
+        binary("math.atan2", "Arctangent 2", a: 0, b: 1, in: &nodes) { y, x in atan2(y, x) }
+        // The part after the decimal point, always 0 up to 1: frac(-0.25) is 0.75.
+        unary("math.frac", "Fraction", in: &nodes) { $0 - $0.rounded(.down) }
 
         // Adds any number of inputs. The node always shows one free input after the last linked
         // one, so connecting the last port makes another.
@@ -62,6 +76,60 @@ public enum MathPack: NodePack {
             let low = try ctx.number("min"), high = try ctx.number("max")
             guard low <= high else { throw NodeExecutionError.failed("Clamp minimum is above its maximum") }
             return ["result": .double(min(max(try ctx.number("value"), low), high))]
+        }
+
+        // Maps `value` from one range onto another. The ranges may run backwards. With `clamp`
+        // on, values outside the input range stop at the ends of the output range.
+        nodes.register(NodeDefinition(
+            typeID: "math.remap", displayName: "Remap", category: "Math",
+            ports: [
+                number("value", .input, 0), number("inMin", .input, 0), number("inMax", .input, 1),
+                number("outMin", .input, 0), number("outMax", .input, 1), number("result", .output),
+            ],
+            properties: [PropertyDefinition(id: "clamp", displayName: "Clamp", kind: .bool, defaultValue: false)],
+            isPure: true)
+        ) { ctx in
+            let low = try ctx.number("inMin"), high = try ctx.number("inMax")
+            guard low != high else { throw NodeExecutionError.failed("Remap input range is empty") }
+            var t = (try ctx.number("value") - low) / (high - low)
+            if try ctx.property("clamp").boolValue == true { t = min(max(t, 0), 1) }
+            let start = try ctx.number("outMin"), end = try ctx.number("outMax")
+            return ["result": .double(try finite(start + (end - start) * t, "Remap"))]
+        }
+
+        // 0 below `edge0`, 1 above `edge1`, and an S-shaped ease between them.
+        nodes.register(NodeDefinition(
+            typeID: "math.smoothstep", displayName: "Smoothstep", category: "Math",
+            ports: [number("x", .input, 0), number("edge0", .input, 0), number("edge1", .input, 1), number("result", .output)],
+            isPure: true)
+        ) { ctx in
+            let low = try ctx.number("edge0"), high = try ctx.number("edge1")
+            guard low != high else { throw NodeExecutionError.failed("Smoothstep edges are equal") }
+            let t = min(max((try ctx.number("x") - low) / (high - low), 0), 1)
+            return ["result": .double(t * t * (3 - 2 * t))]
+        }
+
+        // A number from `min` up to (not including) `max` that is a pure function of the seed,
+        // the pass number and this node, so the same seed always gives the same run, including in
+        // deterministic runs, and every pass gets a fresh number. Not pure: it reads the pass.
+        // A node inside a subgraph instance repeats its sequence in every instance.
+        nodes.register(NodeDefinition(
+            typeID: "math.random", displayName: "Random", category: "Math",
+            ports: [number("min", .input, 0), number("max", .input, 1), number("result", .output)],
+            properties: [PropertyDefinition(id: "seed", displayName: "Seed", kind: .int(), defaultValue: .int(0))])
+        ) { ctx in
+            let low = try ctx.number("min"), high = try ctx.number("max")
+            let seed = UInt64(bitPattern: try ctx.property("seed").intValue ?? 0)
+            var state = seed ^ (UInt64(ctx.time.tick) &* 0x9E37_79B9_7F4A_7C15)
+            withUnsafeBytes(of: ctx.nodeID.uuid.uuid) { bytes in
+                for byte in bytes { state = (state ^ UInt64(byte)) &* 0x0000_0100_0000_01B3 }
+            }
+            // SplitMix64 finalizer: spreads the mixed bits over the whole word.
+            state = (state ^ (state >> 30)) &* 0xBF58_476D_1CE4_E5B9
+            state = (state ^ (state >> 27)) &* 0x94D0_49BB_1331_11EB
+            state ^= state >> 31
+            let unit = Double(state >> 11) / Double(1 << 53)
+            return ["result": .double(try finite(low + (high - low) * unit, "Random"))]
         }
 
         nodes.register(NodeDefinition(

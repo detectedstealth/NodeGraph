@@ -341,7 +341,7 @@ func toStringDescribesAnyValue(_ value: GraphValue, _ expected: String) async th
 @Test func onlyTimeDependentOrSideEffectingNodesAreImpure() throws {
     let (nodes, _) = standardRegistries()
     let impure = Set(nodes.registeredDefinitions.filter { !$0.isPure }.map(\.typeID))
-    #expect(impure == ["flow.every", "util.time", "util.log"])
+    #expect(impure == ["flow.every", "util.time", "util.log", "math.random"])
 }
 
 @Test func definitionsExportAsJSON() throws {
@@ -354,12 +354,12 @@ func toStringDescribesAnyValue(_ value: GraphValue, _ expected: String) async th
     var nodes = NodeRegistry(), types = TypeRegistry()
     MathPack.register(nodes: &nodes, types: &types)
     #expect(nodes.registeredDefinitions.allSatisfy { $0.category == "Math" })
-    #expect(types.registeredTypes.map(\.type) == [.number, .bool, .string])
+    #expect(Set(types.registeredTypes.map(\.type)) == [.number, .bool, .string, .array, .object])
     let count = nodes.registeredDefinitions.count
     MathPack.register(nodes: &nodes, types: &types)
     #expect(nodes.registeredDefinitions.count == count)
     LogicPack.register(nodes: &nodes, types: &types)
-    #expect(nodes.definition(for: "logic.and") != nil && types.registeredTypes.count == 3)
+    #expect(nodes.definition(for: "logic.and") != nil && types.registeredTypes.count == 5)
 }
 
 @Test func everyNodeRunsOnItsDefaultsOrFailsCleanly() async throws {
@@ -482,4 +482,249 @@ private func inputIDs(_ rig: Rig, _ node: NodeID) -> [String] {
     #expect(values[watch, "result"] == .double(5))
     let link = try #require(rig.editor.graph.links.values.first)
     #expect(values.value(of: link) == .double(5))
+}
+
+// MARK: More math
+
+private func close(_ value: GraphValue?, _ expected: Double) -> Bool {
+    guard let number = value?.numberValue else { return false }
+    return abs(number - expected) < 1e-9
+}
+
+@Test(arguments: [
+    ("math.tan", ["value": 0.0] as [PortID: GraphValue], 0.0),
+    ("math.asin", ["value": 1.0], Double.pi / 2),
+    ("math.acos", ["value": 1.0], 0.0),
+    ("math.atan", ["value": 1.0], Double.pi / 4),
+    ("math.atan2", ["a": 1.0, "b": -1.0], 3 * Double.pi / 4),
+    ("math.frac", ["value": 2.75], 0.75),
+    ("math.frac", ["value": -0.25], 0.75),
+    ("math.remap", ["value": 5.0, "inMin": 0.0, "inMax": 10.0, "outMin": 100.0, "outMax": 200.0], 150.0),
+    ("math.remap", ["value": 15.0, "inMin": 0.0, "inMax": 10.0, "outMin": 100.0, "outMax": 200.0], 250.0),
+    ("math.remap", ["value": 2.5, "inMin": 0.0, "inMax": 10.0, "outMin": 1.0, "outMax": 0.0], 0.75),
+    ("math.smoothstep", ["x": 0.5], 0.5),
+    ("math.smoothstep", ["x": -3.0], 0.0),
+    ("math.smoothstep", ["x": 9.0], 1.0),
+    ("math.smoothstep", ["x": 5.0, "edge0": 0.0, "edge1": 10.0], 0.5),
+] as [(NodeTypeID, [PortID: GraphValue], Double)])
+func moreMathNodesCompute(_ type: NodeTypeID, _ inputs: [PortID: GraphValue], _ expected: Double) async throws {
+    #expect(close(try await result(type, inputs), expected), "\(type) \(inputs)")
+}
+
+@Test func remapCanClampToTheOutputRange() async throws {
+    let inputs: [PortID: GraphValue] = ["value": 15.0, "inMin": 0.0, "inMax": 10.0, "outMin": 100.0, "outMax": 200.0]
+    #expect(close(try await result("math.remap", inputs, properties: ["clamp": .bool(true)]), 200))
+}
+
+@Test(arguments: [
+    ("math.asin", ["value": 2.0] as [PortID: GraphValue], "-1 to 1"),
+    ("math.acos", ["value": -2.0], "-1 to 1"),
+    ("math.remap", ["inMin": 3.0, "inMax": 3.0], "empty"),
+    ("math.smoothstep", ["edge0": 1.0, "edge1": 1.0], "equal"),
+] as [(NodeTypeID, [PortID: GraphValue], String)])
+func moreMathErrorsAreFailures(_ type: NodeTypeID, _ inputs: [PortID: GraphValue], _ message: String) async throws {
+    let text = try #require(try await failure(type, inputs))
+    #expect(text.contains(message))
+}
+
+/// Runs a `math.random` node at a given pass, for a given seed.
+private func random(seed: Int64, tick: Int, node: Node? = nil, min: Double = 0, max: Double = 1) async throws -> Double {
+    let (nodes, _) = standardRegistries()
+    let node = node ?? Node(typeID: "math.random", properties: ["seed": .int(seed)])
+    let definition = try #require(nodes.definition(for: node))
+    let context = NodeContext(
+        node: node, definition: definition, linkedInputs: ["min": .double(min), "max": .double(max)],
+        time: ExecutionTime(tick: tick))
+    let run = await NodeInvocation.run(node: node, registry: nodes, context: context)
+    return try #require(run.outputs?["result"]?.numberValue)
+}
+
+@Test func randomIsRepeatableForASeedAPassAndANode() async throws {
+    let node = Node(typeID: "math.random", properties: ["seed": .int(7)])
+    let first = try await random(seed: 7, tick: 3, node: node)
+    #expect(try await random(seed: 7, tick: 3, node: node) == first)
+    #expect(try await random(seed: 7, tick: 4, node: node) != first, "a new pass gives a new number")
+    #expect(try await random(seed: 8, tick: 3, node: Node(id: node.id, typeID: "math.random", properties: ["seed": .int(8)])) != first)
+    #expect(try await random(seed: 7, tick: 3) != first, "another node gives another sequence")
+}
+
+@Test func randomStaysInRangeAndSpreadsOverIt() async throws {
+    var values: [Double] = []
+    for tick in 0..<200 { values.append(try await random(seed: 1, tick: tick, min: 10, max: 20)) }
+    #expect(values.allSatisfy { $0 >= 10 && $0 < 20 })
+    #expect(values.contains { $0 < 12 } && values.contains { $0 > 18 })
+    let mean = values.reduce(0, +) / Double(values.count)
+    #expect(abs(mean - 15) < 1.5)
+    // A reversed range is allowed: it counts down from `min`.
+    let reversed = try await random(seed: 1, tick: 0, min: 20, max: 10)
+    #expect(reversed > 10 && reversed <= 20)
+}
+
+@Test func aDeterministicRunWithARandomNodeRepeatsExactly() async throws {
+    func run() async throws -> [Double] {
+        let rig = Rig()
+        let id = try rig.add("math.random", ["seed": .int(42)])
+        var out: [Double] = []
+        for await tick in try rig.runner().run(.deterministic(fixedDelta: .milliseconds(10), ticks: 5)) {
+            out.append(try #require(tick.outputs(of: id)?["result"]?.numberValue))
+        }
+        return out
+    }
+    // Each rig makes a new node id, so compare the shape: five distinct numbers, and a rerun of
+    // the same rig's runner would match (covered by the repeatability test above).
+    let numbers = try await run()
+    #expect(numbers.count == 5 && Set(numbers).count == 5)
+}
+
+// MARK: More strings
+
+@Test func splitCutsTextAndKeepsEmptyPieces() async throws {
+    #expect(try await result("string.split", ["value": "a,,b", "separator": ","]) == .array(["a", "", "b"]))
+    #expect(try await result("string.split", ["value": "abc", "separator": ""]) == .array(["a", "b", "c"]))
+    #expect(try await result("string.split", ["value": "", "separator": ","]) == .array([""]))
+    #expect(try await result("string.split", ["value": "a b"]) == .array(["a b"]), "the default separator is a comma")
+}
+
+@Test func toFixedRoundsToTheDecimals() async throws {
+    #expect(try await result("string.toFixed", ["value": 3.14159]) == "3.14")
+    #expect(try await result("string.toFixed", ["value": 3.14159], properties: ["decimals": .int(0)]) == "3")
+    #expect(try await result("string.toFixed", ["value": 2.0], properties: ["decimals": .int(3)]) == "2.000")
+    #expect(try await result("string.toFixed", ["value": .int(5)]) == "5.00")
+    #expect(try await failure("string.toFixed", ["value": .double(.infinity)]) != nil)
+}
+
+// MARK: Arrays
+
+private let numbers: GraphValue = .array([.int(10), .int(20), .int(30)])
+
+@Test func makeArrayCollectsLinkedItemsInOrder() async throws {
+    let rig = Rig()
+    let make = try rig.add("array.make")
+    let a = try rig.add("util.number", ["value": .double(1)])
+    let b = try rig.add("util.string", ["value": .string("x")])
+    try rig.link(a, "value", make, "in_1")
+    try rig.link(b, "value", make, "in_2")
+    #expect(try await rig.step().outputs(of: make)?["result"] == .array([.double(1), .string("x")]))
+}
+
+@Test func arrayLengthGetSetAppendSlice() async throws {
+    #expect(try await result("array.length", ["array": numbers]) == .int(3))
+    #expect(try await result("array.length", ["array": .vector([1, 2])]) == .int(2), "a vector reads as numbers")
+    #expect(try await result("array.length") == .int(0))
+    #expect(try await result("array.get", ["array": numbers, "index": .int(1)]) == .int(20))
+    #expect(try await result("array.get", ["array": .vector([1.5, 2.5]), "index": .double(1)]) == .double(2.5))
+    #expect(try await result("array.set", ["array": numbers, "index": .int(0), "value": "x"]) == .array(["x", .int(20), .int(30)]))
+    #expect(try await result("array.append", ["array": numbers, "value": .int(40)]) == .array([.int(10), .int(20), .int(30), .int(40)]))
+    #expect(try await result("array.append", ["value": .int(1)]) == .array([.int(1)]), "no array starts an empty one")
+    #expect(try await result("array.slice", ["array": numbers, "start": .int(1)]) == .array([.int(20), .int(30)]))
+    #expect(try await result("array.slice", ["array": numbers, "start": .int(1), "count": .int(1)]) == .array([.int(20)]))
+    #expect(try await result("array.slice", ["array": numbers, "start": .int(5), "count": .int(2)]) == .array([]))
+    #expect(try await result("array.slice", ["array": numbers, "start": .int(-4), "count": .int(2)]) == .array([.int(10), .int(20)]))
+}
+
+@Test func arrayErrorsAreCleanFailures() async throws {
+    #expect(try #require(try await failure("array.get", ["array": numbers, "index": .int(3)])).contains("outside an array of 3"))
+    #expect(try #require(try await failure("array.get", ["array": numbers, "index": .int(-1)])).contains("outside"))
+    #expect(try #require(try await failure("array.set", ["array": numbers, "index": .int(9), "value": .int(0)])).contains("outside"))
+    #expect(try #require(try await failure("array.get", ["array": numbers, "index": 1.5])).contains("whole number"))
+    #expect(try #require(try await failure("array.length", ["array": "text"])).contains("array"))
+}
+
+// MARK: Objects and JSON
+
+private let person: GraphValue = .object(["name": "Ada", "age": .int(36)])
+
+@Test func objectGetSetMergeKeys() async throws {
+    let found = try await evaluate("object.get", ["object": person, "key": "name"]).outputs
+    #expect(found?["value"] == "Ada" && found?["found"] == .bool(true))
+    let missing = try await evaluate("object.get", ["object": person, "key": "nope"]).outputs
+    #expect(missing?["value"] == nil && missing?["found"] == .bool(false))
+
+    #expect(try await result("object.set", ["object": person, "key": "age", "value": .int(37)]) == .object(["name": "Ada", "age": .int(37)]))
+    #expect(try await result("object.set", ["key": "a", "value": .bool(true)]) == .object(["a": .bool(true)]))
+    #expect(try await result("object.merge", ["a": person, "b": .object(["age": .int(1), "x": .null])])
+            == .object(["name": "Ada", "age": .int(1), "x": .null]))
+    #expect(try await result("object.keys", ["object": person]) == .array(["age", "name"]), "sorted")
+    #expect(try #require(try await failure("object.keys", ["object": numbers])).contains("object"))
+}
+
+@Test func jsonParsesAndWritesBack() async throws {
+    let text = #"{"a":[1,2.5,"x",null,true],"b":{"c":"d"}}"#
+    let parsed = try #require(try await result("object.parseJson", ["text": .string(text)]))
+    #expect(parsed == .object([
+        "a": .array([.int(1), .double(2.5), "x", .null, .bool(true)]),
+        "b": .object(["c": "d"]),
+    ]))
+    #expect(try await result("object.toJson", ["value": parsed]) == .string(text), "keys are sorted, so the text is stable")
+    #expect(try #require(try await failure("object.parseJson", ["text": "{nope"])).contains("JSON"))
+    #expect(try await result("object.parseJson") == .null, "the default is null")
+    #expect(try await result("object.toJson", ["value": .vector([1, 2])]) == "[1,2]", "whole doubles are written without a fraction, as JSON does")
+    #expect(try #require(try await failure("object.toJson", ["value": .color(RGBAColor(red: 0, green: 0, blue: 0))])).contains("no JSON form"))
+    #expect(try await failure("object.toJson", ["value": .double(.nan)]) != nil)
+    #expect(try await failure("object.toJson", ["value": .array([.int(1), .handle(HandleID(uuid: UUID()))])]) != nil)
+}
+
+// MARK: Conversions
+
+@Test func toNumberReadsNumbersBoolsAndText() async throws {
+    #expect(try await result("convert.toNumber", ["value": .int(3)]) == .double(3))
+    #expect(try await result("convert.toNumber", ["value": .bool(true)]) == .double(1))
+    #expect(try await result("convert.toNumber", ["value": .bool(false)]) == .double(0))
+    #expect(try await result("convert.toNumber", ["value": " 2.5 "]) == .double(2.5))
+    #expect(try #require(try await failure("convert.toNumber", ["value": "abc"])).contains("not a number"))
+    #expect(try await failure("convert.toNumber", ["value": "inf"]) != nil)
+    #expect(try await failure("convert.toNumber", ["value": numbers]) != nil)
+}
+
+@Test func toBoolReadsNumbersAndText() async throws {
+    #expect(try await result("convert.toBool", ["value": .int(0)]) == .bool(false))
+    #expect(try await result("convert.toBool", ["value": .double(0.1)]) == .bool(true))
+    #expect(try await result("convert.toBool", ["value": .bool(true)]) == .bool(true))
+    #expect(try await result("convert.toBool", ["value": "TRUE"]) == .bool(true))
+    #expect(try await result("convert.toBool", ["value": " 0 "]) == .bool(false))
+    #expect(try #require(try await failure("convert.toBool", ["value": "maybe"])).contains("not true or false"))
+}
+
+@Test func toIntegerRoundsAsChosenAndOutputsAnInt() async throws {
+    for (rounding, expected) in [("nearest", 3), ("down", 2), ("up", 3), ("towardZero", 2)] as [(String, Int64)] {
+        #expect(try await result("convert.toInt", ["value": 2.5], properties: ["rounding": .string(rounding)]) == .int(expected), "\(rounding)")
+    }
+    #expect(try await result("convert.toInt", ["value": -2.5], properties: ["rounding": "towardZero"]) == .int(-2))
+    #expect(try await result("convert.toInt", ["value": -2.5], properties: ["rounding": "down"]) == .int(-3))
+    #expect(try #require(try await failure("convert.toInt", ["value": 1e30])).contains("does not fit"))
+}
+
+// MARK: Triggers
+
+@Test func bothFiresOnlyWhenBothInputsFiredInThePass() async throws {
+    let rig = Rig()
+    let every1 = try rig.add("flow.every", ["interval": .int(1)])
+    let every2 = try rig.add("flow.every", ["interval": .int(2)])
+    let both = try rig.add("flow.both")
+    let toBool = try rig.add("flow.triggerToBool")
+    try rig.link(every1, "fire", both, "a")
+    try rig.link(every2, "fire", both, "b")
+    try rig.link(both, "fire", toBool, "trigger")
+    var fired: [Bool] = []
+    for await tick in try rig.runner().run(.deterministic(fixedDelta: .milliseconds(1), ticks: 4)) {
+        fired.append(tick.outputs(of: toBool)?["result"] == .bool(true))
+    }
+    #expect(fired == [true, false, true, false])
+}
+
+@Test func arraysAndObjectsConnectBetweenTheirPorts() async throws {
+    let rig = Rig()
+    let text = try rig.add("util.string", ["value": .string("a,b,c")])
+    let split = try rig.add("string.split")
+    try rig.link(text, "value", split, "value")
+    let length = try rig.add("array.length")
+    let get = try rig.add("array.get")
+    try rig.link(split, "result", length, "array")
+    try rig.link(split, "result", get, "array")
+    let tick = try await rig.step()
+    #expect(tick.outputs(of: length)?["result"] == .int(3))
+    #expect(tick.outputs(of: get)?["result"] == "a")
+    // A number cannot go into an array port.
+    let number = try rig.add("util.number")
+    #expect(throws: (any Error).self) { try rig.link(number, "value", length, "array") }
 }

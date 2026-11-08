@@ -41,6 +41,18 @@ public enum FlowPack: NodePack {
             NodeOutputs(triggers: try ctx.didTrigger("trigger") && ctx.bool("open") ? ["fire"] : [])
         }
 
+        // Fires when both inputs fired in the same pass. It does not remember an input that
+        // fired in an earlier pass (that needs per-node state). Chain two for three inputs.
+        nodes.register(NodeDefinition(
+            typeID: "flow.both", displayName: "Both Triggers", category: "Flow",
+            ports: [
+                PortDefinition(id: "a", direction: .input, kind: .trigger),
+                PortDefinition(id: "b", direction: .input, kind: .trigger),
+                PortDefinition(id: "fire", direction: .output, kind: .trigger),
+            ],
+            isPure: true)
+        ) { ctx in NodeOutputs(triggers: ctx.didTrigger("a") && ctx.didTrigger("b") ? ["fire"] : []) }
+
         // Turns "something fired" into a value, so triggers can drive data.
         nodes.register(NodeDefinition(
             typeID: "flow.triggerToBool", displayName: "Trigger To Bool", category: "Flow",

@@ -117,7 +117,7 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
 - [ ] Fill the gaps that are in scope, in the order of FEATURE_AUDIT section 6, one at a time:
   - [x] Read-only canvas mode: `GraphEditorModel.isEditable` (decision 175; `ReadOnlyTests`, 19 tests; 328 UI tests). Not checked by eye, and the demo app has no switch for it yet
   - [x] Watch, time and log nodes, plus last run values on links: `RunValues`, `GraphValue.summary`, `util.watch`/`util.time`/`util.log` (48 node types), `NodeContentDrawing.readout`, link value labels (decisions 176-179). Core 423, Nodes 35, UI 336 tests. Demo app has Watch and Time nodes; not checked by eye
-  - [ ] Core node pack gaps (arrays and objects, remap, trigonometry, seeded random, event nodes, converters)
+  - [x] Node pack gaps, the stateless ones: arrays, objects, JSON, converters, remap, smoothstep, frac, full trigonometry, seeded random, split, toFixed, `flow.both` (27 new node types, 75 in all; decisions 180-184). Nodes 53 tests. Not built: counter, once, stepper, semaphore, average, accumulate, tendTo, noise, vector types, expression node; the stateful ones wait on a state decision (180)
   - [ ] Node shapes, title modes, slot shapes
   - [ ] Graph variables and `extra` metadata (needs a decision)
   - [ ] Small editor aids: delete with bridge, paste keeping connections, default node per slot type, node help text

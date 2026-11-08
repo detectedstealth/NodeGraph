@@ -1,3 +1,4 @@
+import Foundation
 import NodeGraphCore
 
 /// Text manipulation. Every node is pure.
@@ -21,6 +22,40 @@ public enum StringPack: NodePack {
             let find = try ctx.string("find")
             guard !find.isEmpty else { throw NodeExecutionError.failed("Nothing to find") }
             return ["result": .string(try ctx.string("value").replacingOccurrences(of: find, with: try ctx.string("replacement")))]
+        }
+
+        // Cuts text at every occurrence of the separator, keeping empty pieces: "a,,b" gives
+        // "a", "", "b". An empty separator splits into characters.
+        nodes.register(NodeDefinition(
+            typeID: "string.split", displayName: "Split", category: "String",
+            ports: [
+                PortDefinition(id: "value", direction: .input, type: .string, defaultValue: ""),
+                PortDefinition(id: "separator", direction: .input, type: .string, defaultValue: ","),
+                PortDefinition(id: "result", direction: .output, type: .array),
+            ],
+            isPure: true)
+        ) { ctx in
+            let value = try ctx.string("value"), separator = try ctx.string("separator")
+            let pieces = separator.isEmpty
+                ? value.map(String.init) : value.components(separatedBy: separator)
+            return ["result": .array(pieces.map(GraphValue.string))]
+        }
+
+        // A number with a fixed count of decimals: 3.14159 with 2 gives "3.14".
+        nodes.register(NodeDefinition(
+            typeID: "string.toFixed", displayName: "Format Number", category: "String",
+            ports: [
+                PortDefinition(id: "value", direction: .input, type: .number, defaultValue: 0.0),
+                PortDefinition(id: "result", direction: .output, type: .string),
+            ],
+            properties: [PropertyDefinition(
+                id: "decimals", displayName: "Decimals", kind: .int(min: 0, max: 15), defaultValue: .int(2))],
+            isPure: true)
+        ) { ctx in
+            let number = try ctx.number("value")
+            guard number.isFinite else { throw NodeExecutionError.failed("Not a finite number") }
+            let decimals = min(max(Int(try ctx.property("decimals").intValue ?? 2), 0), 15)
+            return ["result": .string(String(format: "%.\(decimals)f", number))]
         }
 
         // Joins any number of strings, in port order, with a separator. Unlinked ports are skipped.

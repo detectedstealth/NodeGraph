@@ -112,7 +112,7 @@ Status: **Done** (implemented), **Partial**, **Gap** (in scope, not built), **De
 
 ## 4. Built-in node families
 
-Our packs hold 45 node types (decision list in PLAN). Comparison with litegraph's families:
+Our packs hold 75 node types (decision list in PLAN). Comparison with litegraph's families:
 
 | litegraph family | Status | Notes |
 |---|---|---|
@@ -120,23 +120,23 @@ Our packs hold 45 node types (decision list in PLAN). Comparison with litegraph'
 | `basic/watch`, `console`, `alert` | Done | `util.watch` (shown with `NodeContentDrawing.readout`) and `util.log` (to swift-log; no console view yet). Alert Out |
 | `basic/time` | Done | `util.time`: elapsed, delta, tick |
 | `basic/variable`, `data_store` | Gap | with graph variables above |
-| `basic/object`, `object_property`, `set_object`, `merge_objects`, `object_keys`, `jsonparse`, `data` | Gap | Core `GraphValue` has object and array cases `?`; a pack of object/array/JSON nodes is in scope |
-| `basic/array`, `set_array`, `array[]`, `table[][]` | Gap | Array pack: make, get, set, length, append, slice |
-| `basic/cast`, `math/converter`, `to_number` | Gap | Explicit convert node; runtime port conversion is still open (decision 61) |
+| `basic/object`, `object_property`, `set_object`, `merge_objects`, `object_keys`, `jsonparse`, `data` | Done | `DataPack`: get, set, merge, keys, parse and write JSON (decision 182). `data` (data_store) waits on graph variables |
+| `basic/array`, `set_array`, `array[]`, `table[][]` | Done | make, get, set, length, append, slice. `table[][]` Out |
+| `basic/cast`, `math/converter`, `to_number` | Done | `convert.toNumber`, `toBool`, `toInt`; runtime port conversion is still open (decision 61) |
 | `basic/CompareValues`, `string/compare` | Done | `logic.compare` |
 | `basic/script`, `math/formula` | Out | No embedded script runtime (non-goal: no JS). An expression-only node (`math.expression`) with a small parser is a reasonable Gap, with no `eval` |
 | `basic/file`, `download`, `network/*` | Deferred | Needs asset and IO policy; Phase 6/7 |
 | `graph/subgraph`, `graph/input`, `graph/output` | Done | |
 | `math/*` arithmetic: operation, abs, floor, scale, clamp, lerp | Done | |
-| `math/range` (remap), `smoothstep`, `frac`, `tendTo`, `average`, `accumulate` | Gap | Add range/remap, smoothstep, frac. Stateful ones (average, accumulate, tendTo) need per-node state: check Core state API |
-| `math/rand`, `noise`, `spikes` | Gap | Random must be seedable for deterministic runs: seed from the run context |
-| `math/trigonometry` | Partial | sin, cos done; tan, asin, acos, atan, atan2 Gap |
+| `math/range` (remap), `smoothstep`, `frac`, `tendTo`, `average`, `accumulate` | Partial | remap, smoothstep, frac done. Stateful ones (average, accumulate, tendTo) need per-node state, which Core does not have (decision 180) |
+| `math/rand`, `noise`, `spikes` | Partial | `math.random`, seeded and repeatable (decision 181). Noise and spikes Gap |
+| `math/trigonometry` | Done | sin, cos, tan, asin, acos, atan, atan2 |
 | `math/compare`, `condition`, `branch`, `gate` | Done | `logic.compare`, `logic.select`, `flow.gate` |
 | `math3d/vec2/3/4` split and combine | Gap | Needs vector types registered by a pack. Vec2/Vec3 for robotics and video |
 | `logic/AND`, `OR`, `NOT`, `selector`, `IF`, `CompareBool` | Done | plus xor |
 | `logic/sequence` (split and index) | Gap | with string split |
-| `events/*`: log, trigger, sequence, waitAll, stepper, filter, branch, counter, delay, timer, semaphore, once | Partial | `flow.delay`, `every`, `gate`, bool/trigger converters. Gap: sequence, waitAll, stepper, filter, counter, once, semaphore |
-| `string/*`: concat, contains, upper, split, toFixed, toString, toTable | Partial | Done: concat, contains, upper/lower, join, replace, trim, length, format. Gap: split, toString, number formatting (toFixed covered by `format`? `?`) |
+| `events/*`: log, trigger, sequence, waitAll, stepper, filter, branch, counter, delay, timer, semaphore, once | Partial | `flow.delay`, `every`, `gate`, `both`, bool/trigger converters, `util.log`. Filter is `gate`; sequence is meaningless within a pass. Gap, waiting on node state (decision 180): counter, once, stepper, semaphore, and a waitAll that remembers |
+| `string/*`: concat, contains, upper, split, toFixed, toString, toTable | Done | concat, contains, upper/lower, join, replace, trim, length, format (to string), split, `string.toFixed`. `toTable` Out |
 | `widget/*` (button, toggle, number, combo, knob, sliders, progress, text, panel) | Partial | Our widgets live inside nodes and edit properties. Gap: standalone output-widget nodes only where useful: knob, progress, text display, panel (a note covers panel) |
 | `audio/*`, `midi/*` | Out | Web Audio. A media pack belongs to the video proof |
 | `glfx/*`, `glshaders/*`, `gltextures/*`, `graphics/*`, `geometry/*` | Out | WebGL. Video/image effects come in Phase 7 on Apple frameworks |
