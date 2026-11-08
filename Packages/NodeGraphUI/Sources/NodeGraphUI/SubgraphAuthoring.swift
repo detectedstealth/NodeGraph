@@ -39,6 +39,7 @@ extension GraphEditorModel {
     /// Opens the Create Subgraph form for the selected nodes. Returns false if none are selected.
     @discardableResult
     public func beginCreateSubgraph() -> Bool {
+        guard isEditable else { return false }
         let nodes = graph.nodes.values.filter { selection.nodes.contains($0.id) }
         guard !nodes.isEmpty else { return false }
         var candidates: [PromotableProperty] = []

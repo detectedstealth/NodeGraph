@@ -98,7 +98,7 @@ Status: **Done** (implemented), **Partial**, **Gap** (in scope, not built), **De
 | Prompt dialog, property value editors | Done | widget editor overlays |
 | Subgraph input/output dialogs | Done | interface editor |
 | Live mode (hide graph, show node UI) | Deferred | Not a plain editor feature; a "presentation mode" showing only widgets and custom drawing suits the dashboards of the robotics and video proofs. Phase 7 |
-| Read-only / `allow_interaction` for the canvas | Gap | `GraphEditorModel.isEditable`, blocks every command and gesture. Needed for viewers and a server preview |
+| Read-only / `allow_interaction` for the canvas | Done | `GraphEditorModel.isEditable` (decision 175): blocks every edit in the model and the UI, keeps selecting, panning, zooming, copying and subgraph navigation |
 | Low quality rendering below zoom 0.6 | Done | level of detail |
 | Viewport culling | Done | |
 | Theme: colours, background image, shadows | Partial | `GraphTheme`; background image and shadows Gap, cosmetic |

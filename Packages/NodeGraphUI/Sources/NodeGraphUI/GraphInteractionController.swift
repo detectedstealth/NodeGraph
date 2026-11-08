@@ -163,7 +163,7 @@ public final class GraphInteractionController {
             break
         }
         // A slider follows the pointer from the moment it is pressed.
-        if case .widget(let id, let widget) = press.target, case .slider = widget.spec.kind {
+        if model.isEditable, case .widget(let id, let widget) = press.target, case .slider = widget.spec.kind {
             beginSlider(id, widget, atGraphX: graphPoint.x)
             return
         }
@@ -437,6 +437,15 @@ public final class GraphInteractionController {
     private func beginDrag(_ press: Press) {
         model.endCoalescing()
         appliedEdit = false
+        // A read-only canvas lets a drag select (marquee) and pan, but never move, resize or link.
+        if !model.isEditable {
+            switch press.target {
+            case .empty: break
+            default:
+                state = .idle
+                return
+            }
+        }
         switch press.target {
         case .empty:
             if press.kind == .touch {
@@ -514,7 +523,7 @@ public final class GraphInteractionController {
                 lastNodeClick = (id, time)
             }
         case .widget(let id, let widget):
-            activate(widget, on: id)
+            if model.isEditable { activate(widget, on: id) }
         case .empty:
             if !press.modifiers.extendsSelection { model.clearSelection() }
             let time = now()
@@ -670,7 +679,7 @@ public final class GraphInteractionController {
     /// Copies the selection, then removes it (a selected group goes with what is inside it).
     @discardableResult
     public func cutSelection() -> Bool {
-        guard copySelection() else { return false }
+        guard model.isEditable, copySelection() else { return false }
         let targets = copyTargets()
         return (try? model.group(name: "Cut") {
             for id in targets.nodes { try model.perform(.removeNode(id: id)) }
@@ -771,6 +780,7 @@ public final class GraphInteractionController {
     /// the view, when nil). With an `anchor`, only nodes the link can end on are offered, and the
     /// new node is linked to that port.
     public func beginAddNode(at screenPoint: CGPoint? = nil, from anchor: PortAddress? = nil) {
+        guard model.isEditable else { return }
         closeEditor(commit: true)
         let point = screenPoint ?? lastPointer ?? CGPoint(x: model.viewSize.width / 2, y: model.viewSize.height / 2)
         addNodeRequest = AddNodeRequest(

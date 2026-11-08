@@ -49,6 +49,22 @@ public enum CanvasCommand: Hashable, Sendable {
     case addWaypoint(LinkID, at: GraphPoint)
 }
 
+extension CanvasCommand {
+    /// Whether the command changes the graph. A read-only canvas (``GraphEditorModel/isEditable``
+    /// false) refuses these and keeps the rest: selecting, copying, zooming and navigating.
+    public var isEdit: Bool {
+        switch self {
+        case .deleteSelection, .nudge, .cut, .paste, .duplicate, .align, .distribute, .createSubgraph,
+             .unpackSubgraph, .addNode, .toggleCollapsed, .togglePinned, .setMode, .disconnectSelection,
+             .addWaypoint:
+            true
+        case .selectAll, .escape, .zoomToFit, .resetZoom, .zoomIn, .zoomOut, .toggleSnapToGrid, .copy,
+             .openSubgraph, .leaveSubgraph:
+            false
+        }
+    }
+}
+
 /// A key as the canvas understands it. The view converts platform key events into this.
 public enum CanvasKey: Hashable, Sendable {
     case delete
@@ -121,6 +137,22 @@ public struct CanvasMenuItem: Hashable, Sendable {
     }
 
     public static let separator = CanvasMenuItem(separatorOnly: ())
+
+    /// The items with every edit disabled, and any submenu left with nothing to do disabled too.
+    func disablingEdits() -> CanvasMenuItem {
+        var item = self
+        switch kind {
+        case .command(let command):
+            if command.isEdit { item.isEnabled = false }
+        case .submenu(let items):
+            let remaining = items.map { $0.disablingEdits() }
+            item.kind = .submenu(remaining)
+            if !remaining.contains(where: \.isEnabled) { item.isEnabled = false }
+        case .separator:
+            break
+        }
+        return item
+    }
 
     private init(separatorOnly: ()) {
         title = ""

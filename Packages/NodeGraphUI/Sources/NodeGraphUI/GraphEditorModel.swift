@@ -18,6 +18,12 @@ public struct GraphSelection: Hashable, Sendable {
     public var isEmpty: Bool { nodes.isEmpty && links.isEmpty && groups.isEmpty }
 }
 
+/// Why the model refused an edit.
+public enum GraphEditorModelError: Error, Hashable, Sendable {
+    /// ``GraphEditorModel/isEditable`` is false.
+    case readOnly
+}
+
 /// The state the editor views read and the one place they send edits.
 ///
 /// Wraps a ``GraphEditor`` and its ``GraphHistory`` and publishes the graph through Observation.
@@ -54,6 +60,13 @@ public final class GraphEditorModel {
     }
     /// ``GraphHistory/recordedStepCount`` when the undo manager was last told about a step.
     private var registeredStepCount = 0
+
+    /// Whether the graph can be edited. When false the canvas is a viewer: the camera, the
+    /// selection and navigating into subgraphs still work, but every edit, undo and redo is
+    /// refused with ``GraphEditorModelError/readOnly``, and the canvas, menus, inspector and
+    /// VoiceOver actions stop offering edits. Edits made directly on ``editor`` (a server
+    /// change, say) are not affected; call ``refresh()`` after them.
+    public var isEditable = true
 
     public var camera = GraphCamera()
     public var selection = GraphSelection()
@@ -161,6 +174,7 @@ public final class GraphEditorModel {
     public func perform(
         _ command: GraphCommand, name: String? = nil, coalescing: Bool = false, isScoped: Bool = false
     ) throws -> GraphChange {
+        try requireEditable()
         let change = try history.perform(isScoped ? command : scoped(command), name: name, coalescing: coalescing)
         didEdit(affectingDefinitions: command.changesDefinitions || isScoped)
         registerUndoIfStepRecorded()
@@ -170,6 +184,7 @@ public final class GraphEditorModel {
     /// Connects two ports and records it. See ``GraphHistory/connect(_:name:)``.
     @discardableResult
     public func connect(_ proposal: ConnectionProposal, name: String? = nil) throws -> GraphChange {
+        try requireEditable()
         let change = try history.connect(proposal, name: name, in: currentScope)
         didEdit(affectingDefinitions: false)
         registerUndoIfStepRecorded()
@@ -178,6 +193,7 @@ public final class GraphEditorModel {
 
     /// Runs `body` and records everything it performs as one undo step.
     public func group(name: String? = nil, _ body: () throws -> Void) throws {
+        try requireEditable()
         defer {
             didEdit(affectingDefinitions: true)
             registerUndoIfStepRecorded()
@@ -190,14 +206,20 @@ public final class GraphEditorModel {
         history.endCoalescing()
     }
 
-    public var canUndo: Bool { history.canUndo }
-    public var canRedo: Bool { history.canRedo }
+    /// Whether an edit is allowed right now; throws ``GraphEditorModelError/readOnly`` if not.
+    private func requireEditable() throws {
+        guard isEditable else { throw GraphEditorModelError.readOnly }
+    }
+
+    public var canUndo: Bool { isEditable && history.canUndo }
+    public var canRedo: Bool { isEditable && history.canRedo }
     public var undoName: String? { history.undoName }
     public var redoName: String? { history.redoName }
 
     /// Undoes the newest step. Goes through the undo manager when one is attached, so its
     /// stacks and the Edit menu stay in step.
     public func undo() throws {
+        try requireEditable()
         if let undoManager, undoManager.canUndo {
             undoManager.undo()
         } else {
@@ -206,6 +228,7 @@ public final class GraphEditorModel {
     }
 
     public func redo() throws {
+        try requireEditable()
         if let undoManager, undoManager.canRedo {
             undoManager.redo()
         } else {

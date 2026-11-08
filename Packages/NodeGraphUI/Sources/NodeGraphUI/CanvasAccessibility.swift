@@ -159,6 +159,12 @@ extension GraphEditorModel {
 
     private func accessibilityActions(for node: Node) -> [AccessibilityActionSpec] {
         var actions = [AccessibilityActionSpec(name: "Select", operation: .select)]
+        if !isEditable {
+            if subgraph(of: node.id) != nil {
+                actions.append(AccessibilityActionSpec(name: "Open Subgraph", operation: .command(.openSubgraph)))
+            }
+            return actions
+        }
         if let layout = layout(of: node.id) {
             for port in layout.outputs + layout.inputs {
                 let side = port.address.direction == .output ? "output" : "input"
@@ -201,7 +207,7 @@ extension GraphEditorModel {
     /// not exist or nothing can connect to it.
     @discardableResult
     public func beginConnection(from anchor: PortAddress) -> Bool {
-        guard let node = graph.nodes[anchor.node], let port = layout(of: anchor.node)?.port(anchor) else { return false }
+        guard isEditable, let node = graph.nodes[anchor.node], let port = layout(of: anchor.node)?.port(anchor) else { return false }
         let context = ValidationContext(graph: graph, nodes: editor.nodes, types: editor.types)
         var candidates: [ConnectionCandidate] = []
         for other in graph.nodes.values where other.id != anchor.node {

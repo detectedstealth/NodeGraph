@@ -6,6 +6,7 @@ extension GraphInteractionController {
     /// was otherwise meaningful, so a key handler knows whether to consume the key.
     @discardableResult
     public func perform(_ command: CanvasCommand) -> Bool {
+        if command.isEdit && !model.isEditable { return false }
         let selection = model.selection
         let nodes = model.graph.nodes.values.filter { selection.nodes.contains($0.id) }
         switch command {
@@ -135,6 +136,11 @@ extension GraphInteractionController {
     /// a right-click should: an unselected node, link or group becomes the selection, and
     /// empty canvas keeps nothing selected.
     public func contextMenu(at point: CGPoint, kind: PointerKind = .mouse) -> [CanvasMenuItem] {
+        let items = editableContextMenu(at: point, kind: kind)
+        return model.isEditable ? items : items.map { $0.disablingEdits() }
+    }
+
+    private func editableContextMenu(at point: CGPoint, kind: PointerKind) -> [CanvasMenuItem] {
         switch subject(at: point, kind: kind) {
         case .node(let id):
             if !model.selection.nodes.contains(id) { model.selection = GraphSelection(nodes: [id]) }

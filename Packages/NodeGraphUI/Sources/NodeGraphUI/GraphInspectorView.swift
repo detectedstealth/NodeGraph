@@ -24,6 +24,9 @@ public struct GraphInspectorView: View {
             }
         }
         .formStyle(.grouped)
+        // A viewer shows the same facts but offers no edits. Navigation buttons in here go with it;
+        // the breadcrumb, double click and Return still open and leave subgraphs.
+        .disabled(!model.isEditable)
     }
 }
 

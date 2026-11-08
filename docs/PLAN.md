@@ -114,7 +114,14 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
 
 - [x] Build checklist from litegraph.js docs and source (node features, canvas features, widgets, menus, dialogs, built-in node families). Read the README, guide, and `src/litegraph.js` up to 450k of 493k characters, plus the node files base, math, events, logic, interface, strings; the media and WebGL node files were not read
 - [x] Mark each as implemented, deferred, or out of scope; record in `docs/FEATURE_AUDIT.md`. Status was judged from the plan and a code search, not by running the app; rows marked `?` need confirming when picked up. Section 6 ranks the gaps
-- [ ] Fill the gaps that are in scope
+- [ ] Fill the gaps that are in scope, in the order of FEATURE_AUDIT section 6, one at a time:
+  - [x] Read-only canvas mode: `GraphEditorModel.isEditable` (decision 175; `ReadOnlyTests`, 19 tests; 328 UI tests). Not checked by eye, and the demo app has no switch for it yet
+  - [ ] Watch, time and log nodes, plus last run values on links
+  - [ ] Core node pack gaps (arrays and objects, remap, trigonometry, seeded random, event nodes, converters)
+  - [ ] Node shapes, title modes, slot shapes
+  - [ ] Graph variables and `extra` metadata (needs a decision)
+  - [ ] Small editor aids: delete with bridge, paste keeping connections, default node per slot type, node help text
+  - [ ] Auto-arrange; display extras. Vertical slot layout and vector types wait for a domain that needs them
 
 ## Phase 6: Persistence and server readiness
 
