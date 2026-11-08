@@ -57,7 +57,7 @@ struct GraphCanvasRenderer {
         }
         if let draft = controller?.draft { drawDraft(&context, draft) }
         if let marquee = controller?.marquee { drawMarquee(&context, marquee) }
-        if model.showsStats { drawStats(&screenContext) }
+        if model.showsStats { drawStats(&screenContext, in: size) }
     }
 
     // MARK: Interaction overlay

@@ -121,8 +121,9 @@ extension GraphCanvasRenderer {
         context.draw(resolved, at: CGPoint(x: pill.midX, y: pill.midY), anchor: .center)
     }
 
-    /// The stats panel, in screen space at the top-left of the view.
-    func drawStats(_ context: inout GraphicsContext) {
+    /// The stats panel, in screen space at the bottom-left of the view. The top edge is where a
+    /// window toolbar or the iPad's status bar can cover it; the bottom-left is free of both.
+    func drawStats(_ context: inout GraphicsContext, in size: CGSize) {
         let theme = model.theme
         let resolved = model.stats.lines.map {
             context.resolve(Text($0).font(.system(size: 11, design: .monospaced)).foregroundColor(Color(theme.nodeTitle)))
@@ -130,7 +131,7 @@ extension GraphCanvasRenderer {
         let sizes = resolved.map { $0.measure(in: CGSize(width: CGFloat.infinity, height: CGFloat.infinity)) }
         let width = (sizes.map(\.width).max() ?? 0) + 16
         let height = sizes.reduce(0) { $0 + $1.height } + 12
-        let panel = CGRect(x: 8, y: 8, width: width, height: height)
+        let panel = CGRect(x: 12, y: size.height - height - 24, width: width, height: height)
         context.fill(Path(roundedRect: panel, cornerRadius: 6), with: .color(Color(theme.nodeBody).opacity(0.9)))
         context.stroke(Path(roundedRect: panel, cornerRadius: 6), with: .color(Color(theme.nodeBorder)), lineWidth: 1)
         var y = panel.minY + 6
