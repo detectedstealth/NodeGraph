@@ -112,8 +112,8 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
 
 ## Phase 5: litegraph feature audit
 
-- [ ] Build checklist from litegraph.js docs and source (node features, canvas features, widgets, menus, dialogs, built-in node families)
-- [ ] Mark each as implemented, deferred, or out of scope; record in `docs/FEATURE_AUDIT.md`
+- [x] Build checklist from litegraph.js docs and source (node features, canvas features, widgets, menus, dialogs, built-in node families). Read the README, guide, and `src/litegraph.js` up to 450k of 493k characters, plus the node files base, math, events, logic, interface, strings; the media and WebGL node files were not read
+- [x] Mark each as implemented, deferred, or out of scope; record in `docs/FEATURE_AUDIT.md`. Status was judged from the plan and a code search, not by running the app; rows marked `?` need confirming when picked up. Section 6 ranks the gaps
 - [ ] Fill the gaps that are in scope
 
 ## Phase 6: Persistence and server readiness
