@@ -14,6 +14,9 @@
       location = "group:Packages/NodeGraphSync">
    </FileRef>
    <FileRef
+      location = "group:Packages/NodeGraphRobotics">
+   </FileRef>
+   <FileRef
       location = "group:Packages/NodeGraphVideo">
    </FileRef>
    <FileRef
