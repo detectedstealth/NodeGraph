@@ -8,6 +8,9 @@ public enum CanvasCommand: Hashable, Sendable {
     /// Cancels a drag in progress, otherwise clears the selection.
     case escape
     case deleteSelection
+    /// Deletes the selection, but joins what fed each selected node to what it fed, where the
+    /// connection rules allow.
+    case deleteAndReconnect
     /// Moves the selection by whole grid cells (`dx`, `dy` in cells, usually -1, 0 or 1; times
     /// ten with Shift).
     case nudge(dx: Int, dy: Int)
@@ -58,7 +61,7 @@ extension CanvasCommand {
     /// false) refuses these and keeps the rest: selecting, copying, zooming and navigating.
     public var isEdit: Bool {
         switch self {
-        case .deleteSelection, .nudge, .cut, .paste, .duplicate, .align, .distribute, .createSubgraph,
+        case .deleteSelection, .deleteAndReconnect, .nudge, .cut, .paste, .duplicate, .align, .distribute, .createSubgraph,
              .unpackSubgraph, .addNode, .toggleCollapsed, .togglePinned, .setMode, .setShape, .setTitleMode,
              .disconnectSelection,
              .addWaypoint:
@@ -85,7 +88,7 @@ public enum CanvasKeyMap {
     public static func command(for key: CanvasKey, modifiers: InputModifiers) -> CanvasCommand? {
         let step = modifiers.contains(.shift) ? 10 : 1
         switch key {
-        case .delete: return .deleteSelection
+        case .delete: return modifiers.contains(.shift) ? .deleteAndReconnect : .deleteSelection
         case .escape: return .escape
         case .return: return .openSubgraph
         case .left: return .nudge(dx: -step, dy: 0)

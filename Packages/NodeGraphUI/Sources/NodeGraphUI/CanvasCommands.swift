@@ -32,15 +32,22 @@ extension GraphInteractionController {
             model.clearSelection()
             return true
 
-        case .deleteSelection:
+        case .deleteSelection, .deleteAndReconnect:
             guard !selection.isEmpty else { return false }
-            return edit("Delete") {
+            let bridging = command == .deleteAndReconnect
+            return edit(bridging ? "Delete and Reconnect" : "Delete") {
                 // Links first, so each removal is its own step in the batch and links that
                 // vanish with their node are not removed twice.
                 for id in model.graph.links.keys where selection.links.contains(id) {
                     try model.perform(.removeLink(id: id))
                 }
-                for node in nodes { try model.perform(.removeNode(id: node.id)) }
+                for node in nodes {
+                    // Read the bridge before the node goes; connect it after, when its links no
+                    // longer block the ports. A refused connection is skipped, not an error.
+                    let bridges = bridging ? model.editor.bridgeProposals(deleting: node.id, in: model.currentScope) : []
+                    try model.perform(.removeNode(id: node.id))
+                    for proposal in bridges { _ = try? model.connect(proposal) }
+                }
                 for id in model.graph.groups.keys where selection.groups.contains(id) {
                     try model.perform(.removeGroup(id: id))
                 }
@@ -185,6 +192,9 @@ extension GraphInteractionController {
             ] + (arrange.isEmpty ? [] : [.separator] + arrange) + [.separator] + authoring + [
                 .separator,
                 CanvasMenuItem("Delete", .deleteSelection),
+                CanvasMenuItem(
+                    "Delete and Reconnect", .deleteAndReconnect,
+                    isEnabled: nodes.contains { !model.editor.bridgeProposals(deleting: $0.id, in: model.currentScope).isEmpty }),
             ]
         case .link(let id, let graphPoint):
             model.selection = GraphSelection(links: [id])

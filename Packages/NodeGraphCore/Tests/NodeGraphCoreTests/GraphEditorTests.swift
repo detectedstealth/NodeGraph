@@ -359,3 +359,47 @@ private func connection(_ a: NodeID, _ b: NodeID) -> ConnectionProposal {
     let change = try editor.apply(.setNodeAttribute(node: id, attribute: .color(value: RGBAColor(red: 1, green: 0, blue: 0))))
     #expect(change.revision == editor.revision && editor.revision == 2)
 }
+
+// MARK: Bridging a deleted node
+
+@Suite struct BridgeTests {
+    private func rig() throws -> (editor: GraphEditor, a: NodeID, b: NodeID, c: NodeID) {
+        let (nodes, types) = registries()
+        let editor = GraphEditor(nodes: nodes, types: types)
+        let a = Node(typeID: "add"), b = Node(typeID: "add"), c = Node(typeID: "add")
+        for node in [a, b, c] { try editor.apply(.addNode(node: node)) }
+        return (editor, a.id, b.id, c.id)
+    }
+
+    private func link(_ editor: GraphEditor, _ from: NodeID, _ to: NodeID, _ port: PortID) throws {
+        try editor.apply(.addLink(link: Link(sourceNode: from, sourcePort: "out", targetNode: to, targetPort: port)))
+    }
+
+    @Test func proposesJoiningWhatFeedsTheFirstLinkedInputToWhatItsOutputFeeds() throws {
+        let (editor, a, b, c) = try rig()
+        try link(editor, a, b, "b")
+        try link(editor, b, c, "a")
+        let proposals = editor.bridgeProposals(deleting: b)
+        #expect(proposals.count == 1)
+        #expect(proposals[0].source == PortAddress(node: a, port: "out", direction: .output))
+        #expect(proposals[0].target == PortAddress(node: c, port: "a", direction: .input))
+    }
+
+    @Test func proposesNothingWhenOneSideIsMissing() throws {
+        let (editor, a, b, c) = try rig()
+        try link(editor, a, b, "a")
+        #expect(editor.bridgeProposals(deleting: b).isEmpty)
+        #expect(editor.bridgeProposals(deleting: c).isEmpty)
+        #expect(editor.bridgeProposals(deleting: NodeID()).isEmpty)
+    }
+
+    @Test func everySourceJoinsEveryTarget() throws {
+        let (editor, a, b, c) = try rig()
+        let d = Node(typeID: "add")
+        try editor.apply(.addNode(node: d))
+        try link(editor, a, b, "a")
+        try link(editor, b, c, "a")
+        try link(editor, b, d.id, "a")
+        #expect(editor.bridgeProposals(deleting: b).count == 2)
+    }
+}

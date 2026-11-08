@@ -82,7 +82,7 @@ Status: **Done** (implemented), **Partial**, **Gap** (in scope, not built), **De
 | Rubber-band selection, shift/ctrl multi-select, select all | Done | |
 | Shift-drag to move, alt-drag to clone | Partial | Duplicate command exists; alt-drag clone `?` |
 | Ctrl+C / V / X, paste keeping connections (Ctrl+Shift+V) | Partial | `GraphFragment`; paste keeping links to unselected nodes Gap `?` |
-| Delete with auto-bridge of first input/output | Gap | Delete-and-reconnect is a good editing aid |
+| Delete with auto-bridge of first input/output | Done | Shift-Delete or the node menu (decision 195) |
 | Double-click empty canvas for search | Done | |
 | Search box with type filters, keyboard navigation | Partial | Search and keyboard done; filter by the slot type when released from a link `?` |
 | Release link on empty space shows menu | Done | opens add-node with the port as filter |

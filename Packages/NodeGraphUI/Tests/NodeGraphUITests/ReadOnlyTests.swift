@@ -211,7 +211,7 @@ private struct Rig {
         rig.model.selection = GraphSelection(nodes: [rig.source.id, rig.sink.id])
         let before = rig.model.graph
         let edits: [CanvasCommand] = [
-            .deleteSelection, .nudge(dx: 1, dy: 0), .cut, .paste(at: nil), .duplicate, .align(.left),
+            .deleteSelection, .deleteAndReconnect, .nudge(dx: 1, dy: 0), .cut, .paste(at: nil), .duplicate, .align(.left),
             .distribute(.horizontal), .createSubgraph, .unpackSubgraph, .addNode(at: nil), .toggleCollapsed,
             .togglePinned, .setMode(.muted), .disconnectSelection, .addWaypoint(rig.link.id, at: GraphPoint(x: 5, y: 5)),
         ]

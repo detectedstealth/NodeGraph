@@ -6,6 +6,7 @@ import NodeGraphCore
 @Suite struct CanvasKeyMapTests {
     @Test func editingKeys() {
         #expect(CanvasKeyMap.command(for: .delete, modifiers: []) == .deleteSelection)
+        #expect(CanvasKeyMap.command(for: .delete, modifiers: .shift) == .deleteAndReconnect)
         #expect(CanvasKeyMap.command(for: .escape, modifiers: []) == .escape)
         #expect(CanvasKeyMap.command(for: .character("a"), modifiers: .command) == .selectAll)
         #expect(CanvasKeyMap.command(for: .character("a"), modifiers: []) == nil)
@@ -98,6 +99,37 @@ import NodeGraphCore
         #expect(controller.perform(.deleteSelection))
         #expect(model.graph.links.isEmpty && model.graph.groups.isEmpty)
         #expect(model.graph.nodes.count == 2)
+    }
+
+    @Test func deleteAndReconnectJoinsTheNeighboursAsOneStep() throws {
+        let source = try add(TestKit.source, x: 0)
+        let relay = try add(TestKit.relay, x: 200)
+        let sink = try add(TestKit.sink, x: 400)
+        try model.connect(ConnectionProposal(
+            source: PortAddress(node: source.id, port: "out", direction: .output),
+            target: PortAddress(node: relay.id, port: "in", direction: .input)))
+        try connect(relay, sink, port: "b")
+        model.select(node: relay.id)
+        let before = model.history.undoStack.count
+        #expect(controller.perform(.deleteAndReconnect))
+        #expect(model.graph.nodes[relay.id] == nil)
+        let link = try #require(model.graph.links.values.first)
+        #expect(model.graph.links.count == 1)
+        #expect(link.source.node == source.id && link.target.node == sink.id && link.target.port == "b")
+        #expect(model.history.undoStack.count == before + 1)
+        try model.undo()
+        #expect(model.graph.nodes[relay.id] != nil && model.graph.links.count == 2)
+    }
+
+    @Test func deleteAndReconnectOnAnUnlinkedSideJustDeletes() throws {
+        let source = try add(TestKit.source, x: 0)
+        let relay = try add(TestKit.relay, x: 200)
+        try model.connect(ConnectionProposal(
+            source: PortAddress(node: source.id, port: "out", direction: .output),
+            target: PortAddress(node: relay.id, port: "in", direction: .input)))
+        model.select(node: relay.id)
+        #expect(controller.perform(.deleteAndReconnect))
+        #expect(model.graph.nodes.keys.elements == [source.id] && model.graph.links.isEmpty)
     }
 
     @Test func deleteWithNothingSelectedDoesNothing() {
@@ -218,7 +250,7 @@ import NodeGraphCore
         model.select(node: b.id)
         let items = controller.contextMenu(at: CGPoint(x: 60, y: 40))
         #expect(model.selection.nodes == [a.id])
-        #expect(titles(items) == ["Copy", "Cut", "Duplicate", "Collapse", "Pin", "Mode", "Shape", "Title Bar", "Disconnect All", "Create Subgraph…", "Delete"])
+        #expect(titles(items) == ["Copy", "Cut", "Duplicate", "Collapse", "Pin", "Mode", "Shape", "Title Bar", "Disconnect All", "Create Subgraph…", "Delete", "Delete and Reconnect"])
         #expect(items.first { $0.title == "Disconnect All" }?.isEnabled == false)
     }
 
