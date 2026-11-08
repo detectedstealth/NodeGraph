@@ -60,6 +60,27 @@ enum DemoGraph {
             let gainWatch = add("util.watch", 820, -260)
             link(read, gainWatch)
         }
+        // A control loop from the robotics pack: the PID steers a simulated plant toward the
+        // setpoint through an actuator. The plant is a feedback node, so its reading reaches the
+        // PID one pass late. Run it in continuous mode and watch the reading approach 1.
+        let setpoint = add("robotics.signal", 0, 420, title: "Setpoint")
+        let pid = add("robotics.pid", 300, 420)
+        let actuator = add("robotics.actuator", 560, 420)
+        let plant = add("robotics.plant", 820, 420)
+        let reading = add("util.watch", 1080, 420, title: "Reading")
+        for (id, property, value) in [
+            (setpoint, "waveform", GraphValue.string("constant")), (pid, "kp", .double(4)), (pid, "ki", .double(4)),
+            (pid, "min", .double(-5)), (pid, "max", .double(5)), (actuator, "min", .double(-2)), (actuator, "max", .double(2)),
+        ] {
+            _ = try? model.perform(.setNodeProperty(node: id, property: PropertyID(property), value: value))
+        }
+        link(setpoint, pid, input: 0)
+        link(pid, actuator)
+        link(actuator, plant)
+        link(plant, pid, input: 1)
+        link(plant, reading)
+        _ = try? model.perform(.addGroup(group: NodeGroup(
+            title: "Control loop", bounds: GraphRect(x: -30, y: 380, width: 1330, height: 260))))
         // A few nodes drawn differently, to show shapes and title bar styles.
         _ = try? model.perform(.setNodeAttribute(node: compare, attribute: .shape(value: .card)))
         _ = try? model.perform(.setNodeAttribute(node: timeWatch, attribute: .shape(value: .box)))
