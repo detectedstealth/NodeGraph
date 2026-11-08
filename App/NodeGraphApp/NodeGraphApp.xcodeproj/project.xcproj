@@ -26,6 +26,9 @@
     }, {
       "kind": "local",
       "path": "../../Packages/NodeGraphRobotics",
+    }, {
+      "kind": "local",
+      "path": "../../Packages/NodeGraphVideo",
     },
   ],
   "files": [
@@ -71,6 +74,12 @@
           "build-phase": { "build-phase": "frameworks" },
         }, {
           "product-name": "NodeGraphNodes",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "NodeGraphRobotics",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "NodeGraphVideo",
           "build-phase": { "build-phase": "frameworks" },
         }, {
           "product-name": "NodeGraphSync",

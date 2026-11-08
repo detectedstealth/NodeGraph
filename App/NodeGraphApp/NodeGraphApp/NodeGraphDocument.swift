@@ -1,7 +1,9 @@
 import NodeGraphCore
 import NodeGraphNodes
+import NodeGraphRobotics
 import NodeGraphSync
 import NodeGraphUI
+import NodeGraphVideo
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -74,6 +76,8 @@ enum GraphModels {
         var nodes = NodeRegistry()
         var types = TypeRegistry()
         StandardPack.register(nodes: &nodes, types: &types)
+        RoboticsPack.register(nodes: &nodes, types: &types)
+        VideoPack.register(nodes: &nodes, types: &types)
         let editor: GraphEditor
         if let document {
             editor = GraphEditor(

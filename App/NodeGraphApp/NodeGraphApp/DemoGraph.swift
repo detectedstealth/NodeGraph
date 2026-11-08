@@ -1,6 +1,8 @@
 import NodeGraphCore
 import NodeGraphNodes
+import NodeGraphRobotics
 import NodeGraphUI
+import NodeGraphVideo
 
 /// A small graph from the built-in packs, so the canvas has something to show until documents
 /// are wired in (Phase 6).
@@ -10,6 +12,8 @@ enum DemoGraph {
         var nodes = NodeRegistry()
         var types = TypeRegistry()
         StandardPack.register(nodes: &nodes, types: &types)
+        RoboticsPack.register(nodes: &nodes, types: &types)
+        VideoPack.register(nodes: &nodes, types: &types)
         let editor = GraphEditor(nodes: nodes, types: types)
         let model = GraphEditorModel(editor: editor)
         // Watch nodes show the value they pass on, from the latest run.
