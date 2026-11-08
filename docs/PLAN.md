@@ -143,8 +143,8 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
 ## Phase 7: Domain proofs of concept
 
 - [x] `NodeGraphRobotics`: sensor, PID/filter, state machine, actuator nodes, deterministic fixed-step runner: `RoboticsPack` (11 `robotics.*` node types: signal source, low-pass, rate limiter, deadband, threshold, PID, first-order plant, event, state machine, actuator), `FixedStepScenario` and `ScenarioTrace` over the Core deterministic mode (decision 209). 26 tests, including a closed PID loop that settles. Not linked into the app yet, so not seen in the editor; no Core gaps found so far (see decision 209 for one workaround)
-- [ ] `NodeGraphVideo`: clip, trim, transition, effect, render nodes; time-based evaluation (frame at t); asset handles
-- [ ] Fix any Core abstraction gaps they expose
+- [x] `NodeGraphVideo`: clip, trim, transition, effect, render nodes; time-based evaluation (frame at t); asset handles: `VideoPack` (`video.clip`, `trim`, `sequence`, `transition` with crossfade, dip to black and wipe, `effect`, `render`), `AssetLibrary` and `FrameSink` services, `VideoRenderer.frame(at:)`. Frames are descriptions (which asset, which moment, how blended); no pixels or decoding. 13 tests; iOS builds (decision 210). Not linked into the app
+- [x] Fix any Core abstraction gaps they expose: one found and fixed, `GraphRunner.step(at:delta:)` to evaluate any moment without running the ones before it (decision 210; Core 477 tests). Robotics found none. Still open and not built: vertical slot layout and vector types (deferred in Phase 5 until a domain needs them; neither domain did), a decoded-media handle store
 
 ## Quality gates (every phase)
 
