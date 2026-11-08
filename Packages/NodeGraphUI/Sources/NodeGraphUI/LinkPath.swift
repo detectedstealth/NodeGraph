@@ -1,3 +1,4 @@
+import Foundation
 import NodeGraphCore
 
 /// How links are drawn.
@@ -87,17 +88,23 @@ public struct LinkPath: Hashable, Sendable {
 
     /// The point halfway along the path, by length, for labels that sit on a link.
     public func midpoint(curveSteps: Int = 16) -> GraphPoint {
+        midpointWithDirection(curveSteps: curveSteps).point
+    }
+
+    /// The point halfway along the path and the way the path is heading there, in radians
+    /// (0 is toward +x, as in graph space where y grows downward), for arrowheads.
+    public func midpointWithDirection(curveSteps: Int = 16) -> (point: GraphPoint, angle: Double) {
         let points = polyline(curveSteps: curveSteps)
         let pieces = zip(points, points.dropFirst()).map { ($0, $1, $0.distance(to: $1)) }
         var remaining = pieces.reduce(0) { $0 + $1.2 } / 2
         for (a, b, length) in pieces {
             if remaining <= length, length > 0 {
                 let t = remaining / length
-                return GraphPoint(x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t)
+                return (GraphPoint(x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t), atan2(b.y - a.y, b.x - a.x))
             }
             remaining -= length
         }
-        return points[points.count - 1]
+        return (points[points.count - 1], 0)
     }
 
     /// Shortest distance from `point` to the path.

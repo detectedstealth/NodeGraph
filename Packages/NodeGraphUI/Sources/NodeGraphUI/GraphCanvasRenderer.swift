@@ -29,6 +29,8 @@ struct GraphCanvasRenderer {
         }
 
         let visible = camera.visibleRect(in: size)
+        // Drawn last, in screen space, so it keeps a copy of the context before the camera is applied.
+        var screenContext = context
         // Everything below is drawn in graph space.
         context.scaleBy(x: camera.zoom, y: camera.zoom)
         context.translateBy(x: -camera.origin.x, y: -camera.origin.y)
@@ -46,8 +48,16 @@ struct GraphCanvasRenderer {
                 if let layout = model.layout(of: id) { drawNode(&context, layout, lod: lod) }
             }
         }
+        if model.showsExecutionOrder, lod.tier == .full {
+            for (id, number) in model.executionOrder {
+                if let frame = model.layout(of: id)?.frame, frame.intersects(visible) {
+                    drawOrderBadge(&context, number: number, on: frame)
+                }
+            }
+        }
         if let draft = controller?.draft { drawDraft(&context, draft) }
         if let marquee = controller?.marquee { drawMarquee(&context, marquee) }
+        if model.showsStats { drawStats(&screenContext) }
     }
 
     // MARK: Interaction overlay
@@ -177,6 +187,7 @@ struct GraphCanvasRenderer {
         let hovered = controller?.hover == .link(link.id)
         let width = max(theme.linkWidth, 1.5 / model.camera.zoom) * (selected ? 1.5 : hovered ? 1.35 : 1)
         context.stroke(path, with: .color(Color(color)), style: StrokeStyle(lineWidth: width, lineCap: .round, lineJoin: .round))
+        if model.showsLinkArrows, lod.tier == .full { drawLinkArrow(&context, link, color: color) }
         // The value passing along a link, while the pointer is on it or it is selected.
         if (selected || hovered), lod.tier == .full, let text = model.valueLabel(of: link),
            let route = model.linkPath(of: link) {

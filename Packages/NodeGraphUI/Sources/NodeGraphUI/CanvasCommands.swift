@@ -85,6 +85,17 @@ extension GraphInteractionController {
         case .toggleSnapToGrid:
             model.snapsToGrid.toggle()
             return true
+        case .toggleLinkArrows:
+            model.showsLinkArrows.toggle()
+            return true
+        case .toggleExecutionOrder:
+            model.showsExecutionOrder.toggle()
+            return true
+        case .toggleStats:
+            model.showsStats.toggle()
+            return true
+        case .exportImage:
+            return model.exportImage()
         case .copy:
             return copySelection()
         case .cut:
@@ -245,6 +256,13 @@ extension GraphInteractionController {
                 CanvasMenuItem("Zoom to Fit", .zoomToFit, isEnabled: !model.graph.nodes.isEmpty),
                 CanvasMenuItem("Actual Size", .resetZoom),
                 CanvasMenuItem("Snap to Grid", .toggleSnapToGrid, isChecked: model.snapsToGrid),
+                .separator,
+                CanvasMenuItem("Show Link Arrows", .toggleLinkArrows, isChecked: model.showsLinkArrows),
+                CanvasMenuItem("Show Execution Order", .toggleExecutionOrder, isChecked: model.showsExecutionOrder),
+                CanvasMenuItem("Show Statistics", .toggleStats, isChecked: model.showsStats),
+                CanvasMenuItem(
+                    "Export as Image…", .exportImage,
+                    isEnabled: model.onExportImage != nil && !model.graph.nodes.isEmpty),
             ]
         }
     }

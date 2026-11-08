@@ -127,7 +127,7 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
     - [x] Default node per slot type: `PortTypeInfo.defaultProducer`/`defaultConsumer`, `addDefaultNode(for:)`, port context menu (decision 197). Core 455, Nodes 64, UI 360 tests. Not checked by eye; no middle-click yet
     - [x] Node help text: `NodeDefinition.help`, `NodeHelp`, palette caption and inspector (decision 198). Core 456, Nodes 65, UI 361 tests. Not checked by eye; no canvas hover tooltip yet
   - [x] Auto-arrange: `Arrangement.layered` (columns by data flow, loops tolerated, barycenter ordering), `GraphEditorModel.autoArrange`, `CanvasCommand.autoArrange`, node and canvas menus, inspector button (decision 199). UI 373 tests. Not checked by eye
-  - [ ] Display extras: execution order overlay, stats overlay, export to image, link arrows. Vertical slot layout and vector types wait for a domain that needs them
+  - [x] Display extras: link arrows, execution order numbers, stats panel (counts, visible, zoom; no FPS), export to PNG (`DisplayExtras.swift`; `showsLinkArrows`, `showsExecutionOrder`, `showsStats`, `onExportImage`; toggles in the empty-canvas menu; decision 200). UI 383 tests, iOS builds. Not checked by eye; the demo app does not set `onExportImage` yet. Vertical slot layout and vector types wait for a domain that needs them
 
 ## Phase 6: Persistence and server readiness
 

@@ -74,6 +74,20 @@ public final class GraphEditorModel {
     /// Whether moving and resizing snap to the theme's grid spacing. Holding Option while
     /// dragging inverts it.
     public var snapsToGrid = false
+    /// Whether a small arrowhead at the middle of each link shows which way it flows.
+    public var showsLinkArrows = false
+    /// Whether each node shows its place in the run order (1 runs first). Nothing is shown while
+    /// the graph has a loop that no feedback node breaks, since it has no order.
+    public var showsExecutionOrder = false {
+        didSet { cachedExecutionOrder = nil }
+    }
+    /// Whether a small panel on the canvas shows node, link and visible counts and the zoom.
+    public var showsStats = false
+    /// Called with PNG data when the user asks to export the graph as an image. The host decides
+    /// where it goes (a file exporter, the share sheet). While nil, the menu item is disabled.
+    @ObservationIgnored public var onExportImage: ((Data) -> Void)?
+    /// The run order, rebuilt after any edit or move to another level. Not observed.
+    @ObservationIgnored var cachedExecutionOrder: [NodeID: Int]?
     /// The size of the canvas view, kept up to date by the view. Actions that depend on the
     /// visible area, such as ``zoomToFit()``, use it.
     public var viewSize = CGSize(width: 800, height: 600)
@@ -289,6 +303,7 @@ public final class GraphEditorModel {
     private func didEdit(affectingDefinitions: Bool) {
         if affectingDefinitions { layoutCache.removeAll() }
         cachedSpatialIndex = nil
+        cachedExecutionOrder = nil
         // A subgraph that no longer exists (an undone creation) cannot be shown; step out to
         // the nearest level that does.
         if let missing = scopePath.firstIndex(where: { editor.subgraphs[$0] == nil }) {
@@ -345,6 +360,7 @@ public final class GraphEditorModel {
     private func move(to path: [SubgraphID]) {
         savedCameras[currentScope] = camera
         scopePath = path
+        cachedExecutionOrder = nil
         selection = GraphSelection()
         layoutCache.removeAll()
         cachedSpatialIndex = nil

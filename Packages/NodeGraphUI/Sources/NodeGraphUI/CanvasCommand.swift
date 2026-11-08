@@ -19,6 +19,14 @@ public enum CanvasCommand: Hashable, Sendable {
     case zoomIn
     case zoomOut
     case toggleSnapToGrid
+    /// Shows or hides an arrowhead on each link.
+    case toggleLinkArrows
+    /// Shows or hides each node's place in the run order.
+    case toggleExecutionOrder
+    /// Shows or hides the stats panel.
+    case toggleStats
+    /// Sends a PNG of the whole graph to ``GraphEditorModel/onExportImage``.
+    case exportImage
     /// Copies the selection (and the contents of selected groups) to the clipboard.
     case copy
     /// Copies, then removes.
@@ -73,7 +81,8 @@ extension CanvasCommand {
              .disconnectSelection,
              .addWaypoint:
             true
-        case .selectAll, .escape, .zoomToFit, .resetZoom, .zoomIn, .zoomOut, .toggleSnapToGrid, .copy,
+        case .selectAll, .escape, .zoomToFit, .resetZoom, .zoomIn, .zoomOut, .toggleSnapToGrid, .toggleLinkArrows,
+             .toggleExecutionOrder, .toggleStats, .exportImage, .copy,
              .openSubgraph, .leaveSubgraph:
             false
         }
