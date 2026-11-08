@@ -104,6 +104,7 @@ final class TouchInputView: UIView, UIGestureRecognizerDelegate, UIContextMenuIn
             command("Zoom Out", "-", "zoomOut"),
             command("Leave Subgraph", "[", "leaveSubgraph"),
             command("Duplicate", "d", "duplicate"),
+            command("Group Selection", "g", "groupSelection", flags: [.command, .alternate]),
             command("Create Subgraph", "g", "createSubgraph"),
             command("Unpack Subgraph", "g", "unpackSubgraph", flags: [.command, .shift]),
         ]
@@ -132,6 +133,7 @@ final class TouchInputView: UIView, UIGestureRecognizerDelegate, UIContextMenuIn
         case "zoomOut": .zoomOut
         case "leaveSubgraph": .leaveSubgraph
         case "duplicate": .duplicate
+        case "groupSelection": .groupSelection
         case "createSubgraph": .createSubgraph
         case "unpackSubgraph": .unpackSubgraph
         default: nil

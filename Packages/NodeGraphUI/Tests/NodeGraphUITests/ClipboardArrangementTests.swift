@@ -461,6 +461,39 @@ import NodeGraphCore
         #expect(!titles().contains("Align"))
     }
 
+    @Test func groupSelectionAddsAGroupAroundTheNodesAsOneUndoStep() throws {
+        let a = try add(x: 100, y: 100), b = try add(x: 500, y: 300)
+        model.selection = GraphSelection(nodes: [a.id, b.id])
+        let before = model.history.undoStack.count
+        #expect(controller.perform(.groupSelection))
+        #expect(model.history.undoStack.count == before + 1)
+        let group = try #require(model.graph.groups.values.first)
+        for node in [a, b] {
+            let frame = try #require(model.layout(of: node.id)?.frame)
+            #expect(group.bounds.contains(frame))
+            // The title bar must not overlap the nodes.
+            #expect(frame.minY >= group.bounds.minY + GraphInteractionController.groupTitleHeight)
+        }
+        #expect(model.selection == GraphSelection(groups: [group.id]))
+        try model.undo()
+        #expect(model.graph.groups.isEmpty)
+    }
+
+    @Test func groupSelectionNeedsNodesButAddGroupDoesNot() throws {
+        #expect(!controller.perform(.groupSelection))
+        #expect(controller.perform(.addGroup(at: GraphPoint(x: 0, y: 0))))
+        #expect(model.graph.groups.count == 1)
+    }
+
+    @Test func groupKeyAndMenuItems() throws {
+        #expect(CanvasKeyMap.command(for: .character("g"), modifiers: [.command, .option]) == .groupSelection)
+        #expect(CanvasKeyMap.command(for: .character("g"), modifiers: .command) == .createSubgraph)
+        let a = try add(x: 0, y: 0)
+        model.selection = GraphSelection(nodes: [a.id])
+        #expect(controller.contextMenu(at: CGPoint(x: 60, y: 40)).map(\.title).contains("Group"))
+        #expect(controller.contextMenu(at: CGPoint(x: 5000, y: 5000)).map(\.title).contains("Add Group"))
+    }
+
     @Test func autoArrangeLaysTheSelectionOutByDataFlowAsOneUndoStep() throws {
         let a = try add(x: 700, y: 300)
         let b = try add(x: 0, y: 0, type: TestKit.sink)

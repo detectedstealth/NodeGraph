@@ -110,6 +110,34 @@ extension GraphEditorModel {
         return arrange(ids, name: "Auto-Arrange") { Arrangement.layered($0, links: edges) }
     }
 
+    /// Adds a group around the nodes, with room for its title bar, and selects it. One undoable
+    /// step. Returns whether a group was added.
+    @discardableResult
+    public func groupNodes(_ ids: some Collection<NodeID>) -> Bool {
+        let frames = ids.compactMap { layout(of: $0)?.frame }
+        guard let first = frames.first else { return false }
+        let padding = 20.0, titleHeight = GraphInteractionController.groupTitleHeight
+        let minX = frames.reduce(first.minX) { min($0, $1.minX) }, maxX = frames.reduce(first.maxX) { max($0, $1.maxX) }
+        let minY = frames.reduce(first.minY) { min($0, $1.minY) }, maxY = frames.reduce(first.maxY) { max($0, $1.maxY) }
+        let bounds = GraphRect(
+            x: minX - padding, y: minY - padding - titleHeight,
+            width: maxX - minX + 2 * padding, height: maxY - minY + 2 * padding + titleHeight)
+        return addGroup(bounds)
+    }
+
+    /// Adds an empty group of a default size centered on a graph-space point, and selects it.
+    @discardableResult
+    public func addGroup(centeredAt point: GraphPoint) -> Bool {
+        addGroup(GraphRect(x: point.x - 200, y: point.y - 150, width: 400, height: 300))
+    }
+
+    private func addGroup(_ bounds: GraphRect) -> Bool {
+        let group = NodeGroup(title: "Group", bounds: bounds)
+        guard attempt(.addGroup(group: group), name: "Add Group") else { return false }
+        selection = GraphSelection(groups: [group.id])
+        return true
+    }
+
     private func arrange(_ ids: some Collection<NodeID>, name: String, _ compute: ([Arrangement.Item]) -> [NodePlacement]) -> Bool {
         let items = graph.nodes.values.filter { ids.contains($0.id) }.compactMap { node in
             layout(of: node.id).map { Arrangement.Item(node: node.id, frame: $0.frame, isPinned: node.isPinned) }

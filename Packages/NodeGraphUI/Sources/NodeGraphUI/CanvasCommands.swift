@@ -112,6 +112,10 @@ extension GraphInteractionController {
             return model.distribute(selection.nodes, along: axis)
         case .autoArrange:
             return model.autoArrange(selection.nodes.count >= 2 ? selection.nodes : Set(model.graph.nodes.keys))
+        case .groupSelection:
+            return model.groupNodes(selection.nodes)
+        case .addGroup(let point):
+            return model.addGroup(centeredAt: point)
         case .createSubgraph:
             closeEditor(commit: true)
             cancelAddNode()
@@ -192,7 +196,7 @@ extension GraphInteractionController {
             let shapes = Set(nodes.map { $0.resolvedShape(in: model.definition(of: $0)) })
             let titleModes = Set(nodes.map { $0.resolvedTitleMode(in: model.definition(of: $0)) })
             let opens = nodes.count == 1 && model.subgraph(of: id) != nil
-            let authoring = [CanvasMenuItem("Create Subgraph…", .createSubgraph)]
+            let authoring = [CanvasMenuItem("Group", .groupSelection), CanvasMenuItem("Create Subgraph…", .createSubgraph)]
                 + (opens ? [CanvasMenuItem("Unpack Subgraph", .unpackSubgraph)] : [])
             var arrange: [CanvasMenuItem] = []
             if nodes.count >= 2 {
@@ -248,6 +252,7 @@ extension GraphInteractionController {
             model.clearSelection()
             return (model.currentScope == nil ? [] : [CanvasMenuItem("Leave Subgraph", .leaveSubgraph), .separator]) + [
                 CanvasMenuItem("Add Node…", .addNode(at: model.camera.graphPoint(forScreen: point))),
+                CanvasMenuItem("Add Group", .addGroup(at: model.camera.graphPoint(forScreen: point))),
                 CanvasMenuItem("Paste", .paste(at: model.camera.graphPoint(forScreen: point)), isEnabled: clipboard.mayHaveFragment),
                 CanvasMenuItem(
                     "Paste with Connections", .pasteWithConnections(at: model.camera.graphPoint(forScreen: point)),

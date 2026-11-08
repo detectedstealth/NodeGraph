@@ -305,7 +305,7 @@ import NodeGraphCore
         model.select(node: b.id)
         let items = controller.contextMenu(at: CGPoint(x: 60, y: 40))
         #expect(model.selection.nodes == [a.id])
-        #expect(titles(items) == ["Copy", "Cut", "Duplicate", "Collapse", "Pin", "Mode", "Shape", "Title Bar", "Disconnect All", "Create Subgraph…", "Delete", "Delete and Reconnect"])
+        #expect(titles(items) == ["Copy", "Cut", "Duplicate", "Collapse", "Pin", "Mode", "Shape", "Title Bar", "Disconnect All", "Group", "Create Subgraph…", "Delete", "Delete and Reconnect"])
         #expect(items.first { $0.title == "Disconnect All" }?.isEnabled == false)
     }
 
@@ -354,7 +354,7 @@ import NodeGraphCore
         model.snapsToGrid = true
         let items = controller.contextMenu(at: CGPoint(x: 900, y: 900))
         #expect(model.selection.isEmpty)
-        #expect(titles(items) == ["Add Node…", "Paste", "Paste with Connections", "Select All", "Auto-Arrange All", "Zoom to Fit", "Actual Size", "Snap to Grid", "Show Link Arrows", "Show Execution Order", "Show Statistics", "Export as Image…"])
+        #expect(titles(items) == ["Add Node…", "Add Group", "Paste", "Paste with Connections", "Select All", "Auto-Arrange All", "Zoom to Fit", "Actual Size", "Snap to Grid", "Show Link Arrows", "Show Execution Order", "Show Statistics", "Export as Image…"])
         #expect(items.first { $0.title == "Snap to Grid" }?.isChecked == true)
     }
 
