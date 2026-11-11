@@ -67,4 +67,5 @@ Tests use Swift Testing (`import Testing`, `@Test`, `#expect`). UI flows use XCU
 ## Gotchas
 
 - The legacy prototype has known bugs (see PLAN.md "Known defects"). Don't copy its slot addressing, UUID slot IDs, or `ObservableObject` patterns into new code.
+- `GraphValue` is `ExpressibleByNilLiteral`, so in `cond ? nil : value` the `nil` becomes `.null`, not an absent optional. Write `Optional<GraphValue>.none` or give the result a `GraphValue?` type first (this cost a bug in `proposeEdit`).
 - `Canvas` redraws everything on any observed change. Keep render state in a small `@Observable` object and cull to the viewport.

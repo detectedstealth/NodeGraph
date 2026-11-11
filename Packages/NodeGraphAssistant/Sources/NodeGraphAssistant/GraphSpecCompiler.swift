@@ -202,7 +202,7 @@ public struct GraphSpecCompiler: Sendable {
 
     /// Models write whole numbers for any number. Accept an int for a double property and a whole
     /// double for an int property, which are the same number.
-    private static func coerced(_ value: GraphValue, for property: PropertyDefinition) -> GraphValue {
+    static func coerced(_ value: GraphValue, for property: PropertyDefinition) -> GraphValue {
         switch (property.kind, value) {
         case (.double, .int(let number)): return .double(Double(number))
         case (.int, .double(let number)) where number.rounded() == number && abs(number) < 1e15:
@@ -268,20 +268,5 @@ extension GraphSpecCompiler.Compilation {
         into editor: GraphEditor, at origin: GraphPoint = .zero, in scope: SubgraphID? = nil
     ) throws -> GraphPaste {
         try editor.pasteCommand(fragment, translatedBy: origin, in: scope)
-    }
-}
-
-extension GraphValue {
-    /// The value for plain JSON, as a model writes it: numbers stay ints when they are whole.
-    fileprivate init(json: JSONValue) {
-        switch json {
-        case .null: self = .null
-        case .bool(let value): self = .bool(value)
-        case .int(let value): self = .int(value)
-        case .double(let value): self = .double(value)
-        case .string(let value): self = .string(value)
-        case .array(let items): self = .array(items.map(GraphValue.init(json:)))
-        case .object(let fields): self = .object(fields.mapValues(GraphValue.init(json:)))
-        }
     }
 }
