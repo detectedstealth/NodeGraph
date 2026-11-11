@@ -29,6 +29,9 @@
     }, {
       "kind": "local",
       "path": "../../Packages/NodeGraphVideo",
+    }, {
+      "kind": "local",
+      "path": "../../Packages/NodeGraphAssistant",
     },
   ],
   "files": [
@@ -70,6 +73,9 @@
       ],
       "package-product-members": [
         {
+          "product-name": "NodeGraphAssistant",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
           "product-name": "NodeGraphCore",
           "build-phase": { "build-phase": "frameworks" },
         }, {
@@ -79,13 +85,13 @@
           "product-name": "NodeGraphRobotics",
           "build-phase": { "build-phase": "frameworks" },
         }, {
-          "product-name": "NodeGraphVideo",
-          "build-phase": { "build-phase": "frameworks" },
-        }, {
           "product-name": "NodeGraphSync",
           "build-phase": { "build-phase": "frameworks" },
         }, {
           "product-name": "NodeGraphUI",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "product-name": "NodeGraphVideo",
           "build-phase": { "build-phase": "frameworks" },
         },
       ],

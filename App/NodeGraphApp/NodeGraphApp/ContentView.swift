@@ -25,12 +25,24 @@ struct ContentView: View {
     @State private var runTask: Task<Void, Never>?
     @State private var isRunning = false
     @State private var showsRunOptions = false
+    @State private var assistant: AssistantPanelModel
+    @State private var inspectorTab = InspectorTab.node
     @State private var console = ConsoleModel()
     @AppStorage("showsConsole") private var showsConsole = true
     @AppStorage("consoleHeight") private var consoleHeight = ConsolePanel.defaultHeight
     @AppStorage("showsMiniMap") private var showsMiniMap = true
     @State private var exportedImage: GraphImageDocument?
     @State private var showsExporter = false
+
+    private enum InspectorTab: String, CaseIterable {
+        case node = "Inspector"
+        case assistant = "Assistant"
+    }
+
+    init(controller: GraphInteractionController) {
+        self.controller = controller
+        _assistant = State(initialValue: AssistantPanelModel(model: controller.model))
+    }
 
     var body: some View {
         GeometryReader { window in
@@ -44,8 +56,19 @@ struct ContentView: View {
             }
         }
         .inspector(isPresented: $showsInspector) {
-            GraphInspectorView(model: controller.model)
-                .inspectorColumnWidth(min: 260, ideal: 300, max: 420)
+            VStack(spacing: 0) {
+                Picker("Panel", selection: $inspectorTab) {
+                    ForEach(InspectorTab.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .padding(8)
+                switch inspectorTab {
+                case .node: GraphInspectorView(model: controller.model)
+                case .assistant: AssistantPanel(assistant: assistant)
+                }
+            }
+            .inspectorColumnWidth(min: 260, ideal: 320, max: 460)
         }
         .fileExporter(
             isPresented: $showsExporter, document: exportedImage, contentType: .png,
