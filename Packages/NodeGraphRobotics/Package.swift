@@ -8,6 +8,7 @@ let package = Package(
     dependencies: [
         .package(path: "../NodeGraphCore"),
         .package(path: "../NodeGraphNodes"),
+        .package(path: "../NodeGraphVideo"),  // tests only: the showcase graph uses every pack
     ],
     targets: [
         .target(
@@ -17,6 +18,9 @@ let package = Package(
                 .product(name: "NodeGraphNodes", package: "NodeGraphNodes"),
             ]
         ),
-        .testTarget(name: "NodeGraphRoboticsTests", dependencies: ["NodeGraphRobotics"]),
+        .testTarget(name: "NodeGraphRoboticsTests", dependencies: [
+            "NodeGraphRobotics",
+            .product(name: "NodeGraphVideo", package: "NodeGraphVideo"),
+        ]),
     ]
 )
