@@ -657,6 +657,7 @@ private struct GroupSection: View {
             }
             ColorRow(title: "Color", color: info.color, allowsClear: true) { model.setGroupColor($0, of: info.id) }
             LabeledContent("Contains", value: info.memberCount == 1 ? "1 node" : "\(info.memberCount) nodes")
+            LabeledContent("Position", value: "\(Int(info.bounds.origin.x)), \(Int(info.bounds.origin.y))")
             LabeledContent("Size", value: "\(Int(info.bounds.size.width)) × \(Int(info.bounds.size.height))")
         }
     }
