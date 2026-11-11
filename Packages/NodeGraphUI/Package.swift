@@ -7,11 +7,15 @@ let package = Package(
     products: [.library(name: "NodeGraphUI", targets: ["NodeGraphUI"])],
     dependencies: [
         .package(path: "../NodeGraphCore"),
+        .package(url: "https://github.com/apple/swift-log", from: "1.5.0"),
     ],
     targets: [
         .target(
             name: "NodeGraphUI",
-            dependencies: [.product(name: "NodeGraphCore", package: "NodeGraphCore")]
+            dependencies: [
+                .product(name: "NodeGraphCore", package: "NodeGraphCore"),
+                .product(name: "Logging", package: "swift-log"),
+            ]
         ),
         .testTarget(name: "NodeGraphUITests", dependencies: ["NodeGraphUI"]),
     ]

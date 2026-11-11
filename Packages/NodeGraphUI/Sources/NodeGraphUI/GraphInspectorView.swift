@@ -255,6 +255,8 @@ private struct NodeSections: View {
             }
         }
 
+        LastRunSection(model: model, node: info.id)
+
         Section("Layout") {
             LabeledContent("Position") {
                 HStack {
@@ -770,4 +772,41 @@ private extension AlignEdge {
 
 private extension DistributeAxis {
     var symbol: String { self == .horizontal ? "distribute.horizontal.center" : "distribute.vertical.center" }
+}
+
+/// What the node did in the last run: its status, and the value at each output port. This is the
+/// way to read a result without adding a Watch node.
+private struct LastRunSection: View {
+    let model: GraphEditorModel
+    let node: NodeID
+
+    var body: some View {
+        let values = model.runValues[node].sorted { $0.key.rawValue < $1.key.rawValue }
+        let status = model.executionState[node]
+        if !values.isEmpty || status != .idle {
+            Section("Last Run") {
+                switch status {
+                case .finished(.failed(let message), _):
+                    Label(message, systemImage: "xmark.octagon.fill").foregroundStyle(.red)
+                case .finished(.skipped, _):
+                    Label("Skipped", systemImage: "forward.fill").foregroundStyle(.secondary)
+                case .finished(.cached, _):
+                    Label("Cached: inputs unchanged", systemImage: "memorychip").foregroundStyle(.secondary)
+                case .running:
+                    Label("Running", systemImage: "play.fill").foregroundStyle(.secondary)
+                default:
+                    EmptyView()
+                }
+                ForEach(values, id: \.key) { port, value in
+                    LabeledContent(port.rawValue) {
+                        Text(value.summary(limit: 300))
+                            .font(.system(.callout, design: .monospaced))
+                            .multilineTextAlignment(.trailing)
+                            .textSelection(.enabled)
+                    }
+                }
+                if values.isEmpty { Text("No values published.").foregroundStyle(.secondary) }
+            }
+        }
+    }
 }

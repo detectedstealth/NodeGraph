@@ -23,10 +23,45 @@ struct ContentView: View {
     let controller: GraphInteractionController
     @State private var showsInspector = true
     @State private var runTask: Task<Void, Never>?
+    @State private var isRunning = false
+    @State private var console = ConsoleModel()
+    @AppStorage("showsConsole") private var showsConsole = true
+    @AppStorage("consoleHeight") private var consoleHeight = ConsolePanel.defaultHeight
+    @AppStorage("showsMiniMap") private var showsMiniMap = true
     @State private var exportedImage: GraphImageDocument?
     @State private var showsExporter = false
 
     var body: some View {
+        GeometryReader { window in
+            VStack(spacing: 0) {
+                canvas
+                if showsConsole {
+                    ConsolePanel(
+                        console: console, model: controller.model, height: $consoleHeight,
+                        maximumHeight: window.size.height * 0.8)
+                }
+            }
+        }
+        .inspector(isPresented: $showsInspector) {
+            GraphInspectorView(model: controller.model)
+                .inspectorColumnWidth(min: 260, ideal: 300, max: 420)
+        }
+        .fileExporter(
+            isPresented: $showsExporter, document: exportedImage, contentType: .png,
+            defaultFilename: "Graph"
+        ) { _ in exportedImage = nil }
+        .onAppear {
+            // Export as Image in the canvas menu hands over the PNG; the user picks where it goes.
+            controller.model.onExportImage = { data in
+                exportedImage = GraphImageDocument(data: data)
+                showsExporter = true
+            }
+        }
+    }
+
+    /// The graph with its controls laid over it. The console sits below, not over it, so neither
+    /// the mini-map nor the toolbar can cover a log line.
+    private var canvas: some View {
         GraphCanvasView(controller: controller)
             // UI tests pass this so XCUIAutomation can see the nodes, links and groups.
             .environment(\.exposesCanvasElements, ProcessInfo.processInfo.arguments.contains("-ExposeCanvasElements"))
@@ -34,7 +69,17 @@ struct ContentView: View {
             .overlay(alignment: .topTrailing) {
                 HStack {
                     GraphUndoControls(model: controller.model)
-                    Button("Run", systemImage: "play.fill") { runOnce() }
+                    Menu {
+                        Button("Run Once", systemImage: "play.fill") { startRun(.once) }
+                        Button("Run Continuously", systemImage: "repeat") { startRun(.continuous(interval: .milliseconds(500))) }
+                        if isRunning { Button("Stop", systemImage: "stop.fill") { stopRun() } }
+                    } label: {
+                        Label(isRunning ? "Running" : "Run", systemImage: isRunning ? "stop.fill" : "play.fill")
+                    } primaryAction: {
+                        if isRunning { stopRun() } else { startRun(.once) }
+                    }
+                    Button("Console", systemImage: showsConsole ? "terminal.fill" : "terminal") { showsConsole.toggle() }
+                    Button("Mini-map", systemImage: showsMiniMap ? "map.fill" : "map") { showsMiniMap.toggle() }
                     Button("Add Node", systemImage: "plus") { controller.beginAddNode() }
                     Button("Inspector", systemImage: "sidebar.trailing") { showsInspector.toggle() }
                 }
@@ -46,40 +91,54 @@ struct ContentView: View {
                 GraphBreadcrumbView(controller: controller).padding()
             }
             .overlay(alignment: .bottomTrailing) {
-                GraphMiniMapView(model: controller.model).padding()
-            }
-            .inspector(isPresented: $showsInspector) {
-                GraphInspectorView(model: controller.model)
-                    .inspectorColumnWidth(min: 260, ideal: 300, max: 420)
-            }
-            .fileExporter(
-                isPresented: $showsExporter, document: exportedImage, contentType: .png,
-                defaultFilename: "Graph"
-            ) { _ in exportedImage = nil }
-            .onAppear {
-                // Export as Image in the canvas menu hands over the PNG; the user picks where it goes.
-                controller.model.onExportImage = { data in
-                    exportedImage = GraphImageDocument(data: data)
-                    showsExporter = true
-                }
+                if showsMiniMap { GraphMiniMapView(model: controller.model).padding() }
             }
     }
 }
 
 extension ContentView {
-    /// Runs the root graph once and shows each node's progress and result on the canvas.
-    private func runOnce() {
+    /// Runs the root graph and shows each node's progress and result on the canvas, what nodes
+    /// log and what fails in the console. Edits made while it runs take effect on the next run.
+    private func startRun(_ mode: RunMode) {
         let model = controller.model
-        runTask?.cancel()
+        stopRun()
         model.clearExecutionState()
-        guard let runner = try? GraphRunner(
-            graph: model.editor.graph, registry: model.editor.nodes,
-            subgraphs: model.editor.subgraphs.map(\.value))
-        else { return }
-        model.observeExecution(runner.events())
+        let name = model.consoleName(of:)
+        console.beginRun(mode.isOnce ? "Run once" : "Run continuously")
+        console.record(GraphValidator(connections: model.editor.connectionValidator).validate(model.editor.validationContext), name: name)
+        let runner: GraphRunner
+        do {
+            runner = try GraphRunner(
+                graph: model.editor.graph, registry: model.editor.nodes,
+                subgraphs: model.editor.subgraphs.map(\.value), logger: console.logger)
+        } catch {
+            console.append(.error, "The graph cannot run: \(error)", source: .run)
+            return
+        }
+        isRunning = true
+        let events = model.observeExecution(runner.events())
+        let summarize = mode.isOnce
         // Ends with the run, and cancelling it stops the run.
-        runTask = model.observeResults(runner.run(.once))
+        runTask = Task {
+            for await result in runner.run(mode) {
+                model.apply(result)
+                console.record(result, summarize: summarize, name: name)
+            }
+            events.cancel()
+            if !Task.isCancelled { isRunning = false }
+        }
     }
+
+    private func stopRun() {
+        guard isRunning else { return }
+        runTask?.cancel()
+        isRunning = false
+        console.append(.info, "Stopped", source: .run)
+    }
+}
+
+private extension RunMode {
+    var isOnce: Bool { if case .once = self { true } else { false } }
 }
 
 #Preview {
