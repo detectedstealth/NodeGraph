@@ -234,3 +234,51 @@ private func workspace(_ editor: GraphEditor, run: Bool = true) async throws -> 
         #expect(change.rendered(in: space).contains("n7 now fails: Division by zero"))
     }
 }
+
+@Suite struct GenerationStageTests {
+    @Test func candidateTypesFallBackToTheFirstTypesWhenNothingMatches() throws {
+        let space = AssistantWorkspace(editor: try arithmetic())
+        #expect(space.candidateNodeTypes(for: "add numbers").first?.typeID == "math.add")
+        #expect(space.candidateNodeTypes(for: "zzzz", limit: 5).count == 5)
+    }
+
+    @Test func candidateTypesAlwaysIncludeSomethingThatMakesAValue() throws {
+        let space = AssistantWorkspace(editor: try arithmetic())
+        // "four" and "eight" match no node, but the graph still needs numbers.
+        let ids = space.candidateNodeTypes(for: "add four and eight").map(\.typeID)
+        #expect(ids.contains("math.add"))
+        #expect(ids.contains("util.number"))
+        #expect(ids.count == 12)
+        #expect(Set(ids).count == ids.count)
+    }
+
+    @Test func slotsListWhatAModelCanSetAndSkipWhatItCannot() throws {
+        let space = AssistantWorkspace(editor: try arithmetic())
+        let number = space.propertySlots(type: "util.number")
+        #expect(number.contains { $0.id == "value" && $0.shape == .double(min: nil, max: nil) })
+        #expect(space.propertySlots(type: "nope").isEmpty)
+        // Every slot has a model-writable shape; no color or vector kinds leak through.
+        for definition in space.nodes.registeredDefinitions {
+            let kept = Set(space.propertySlots(type: definition.typeID.rawValue).map(\.id))
+            let writable = definition.properties.filter { property in
+                switch property.kind {
+                case .variable, .color, .vector, .custom: false
+                default: true
+                }
+            }
+            #expect(kept == Set(writable.map { $0.id.rawValue }))
+        }
+    }
+
+    @Test func linkCandidatesAreOnlyLinksTheEditorWouldAccept() throws {
+        let space = AssistantWorkspace(editor: try arithmetic())
+        let specs = [N(alias: "number1", type: "util.number"), N(alias: "add1", type: "math.add")]
+        let links = space.linkCandidates(among: specs)
+        #expect(links.contains(L(from: "number1.value", to: "add1.a")))
+        #expect(links.contains(L(from: "number1.value", to: "add1.b")))
+        // Outputs never go to outputs, and a node never links to itself.
+        #expect(!links.contains { $0.from.hasPrefix("add1") && $0.to.hasPrefix("add1") })
+        #expect(!links.contains { $0.to.hasPrefix("number1") })
+        #expect(space.linkCandidates(among: specs, limit: 1).count == 1)
+    }
+}
