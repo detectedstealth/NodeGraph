@@ -199,7 +199,7 @@ public struct GraphDigest: Sendable {
         return "subgraph(\(quote(definition?.displayName ?? "unknown")))"
     }
 
-    private static func format(_ value: GraphValue, limit: Int) -> String {
+    static func format(_ value: GraphValue, limit: Int) -> String {
         guard case .string(let text) = value else { return value.summary(limit: limit) }
         let clipped = text.count > limit ? text.prefix(limit - 1) + "…" : text
         return quote(String(clipped))
