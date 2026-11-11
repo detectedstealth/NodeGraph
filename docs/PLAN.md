@@ -151,8 +151,8 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
 
 Design, tool list, providers and backlog are in `docs/ASSISTANT.md`. Rules: the assistant proposes and never edits (decision 211); the model is the user's choice (decision 212); analysis is deterministic and the model narrates (decision 213). Steps A and B need no model and are useful alone. Phase 6's server decision does not block this phase.
 
-- [ ] A. Model-independent core (new pure-Swift package, builds on Linux, depends on Core only):
-  - [ ] Graph digest: compact text/JSON of a graph, selection or neighborhood, with size tiers; measure against a 4K token budget
+- [ ] A. Model-independent core (new pure-Swift package `NodeGraphAssistant`, builds on Linux, depends on Core only):
+  - [x] Graph digest: compact text of a graph, selection or neighborhood, with size tiers: new package `NodeGraphAssistant`, `GraphDigest` (scopes `all`/`nodes`/`neighborhood`, details `outline`/`compact`/`full`, `fitting(tokenBudget:)` that steps detail down and then drops nodes; decision 215). 9 tests. Token count is an estimate (3 characters a token); not measured against the real tokenizer, and the format is not tried on a model yet. Not checked on Linux or iOS
   - [ ] `GraphSpec` and `GraphSpecCompiler` (spec to `GraphFragment` to paste command, laid out with `Arrangement`), with specific errors a model can repair from
   - [ ] Lint set producing `Diagnostic`s with suggested fix commands; pack-registered lints
   - [ ] Run tracing: `traceUpstream(port)` over `RunValues` for "why is this value X"
