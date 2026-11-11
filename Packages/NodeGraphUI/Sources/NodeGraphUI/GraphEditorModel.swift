@@ -48,13 +48,15 @@ public final class GraphEditorModel {
     /// The platform undo manager to keep in step with ``history``, typically the one SwiftUI
     /// provides as `@Environment(\.undoManager)`. Set it from the view; set nil to detach.
     ///
-    /// The model sets `groupsByEvent` to false on it and groups each step itself, so one Undo
-    /// command always reverts exactly one history step, however many edits arrive in one event.
+    /// The model groups each step itself while it registers one, so one Undo command always
+    /// reverts exactly one history step, however many edits arrive in one event. It does that
+    /// by turning `groupsByEvent` off only for that moment: the manager is the window's, shared
+    /// with its text views, and a text view registering undo with `groupsByEvent` off and no open
+    /// group raises an exception, which stops it taking any typing.
     public var undoManager: UndoManager? {
         didSet {
             guard undoManager !== oldValue else { return }
             oldValue?.removeAllActions(withTarget: self)
-            undoManager?.groupsByEvent = false
             undoManager?.levelsOfUndo = history.limit
         }
     }
@@ -294,6 +296,9 @@ public final class GraphEditorModel {
         guard history.recordedStepCount != registeredStepCount else { return }
         registeredStepCount = history.recordedStepCount
         guard let undoManager else { return }
+        let groupsByEvent = undoManager.groupsByEvent
+        undoManager.groupsByEvent = false
+        defer { undoManager.groupsByEvent = groupsByEvent }
         undoManager.beginUndoGrouping()
         undoManager.registerUndo(withTarget: self) { model in
             try? model.performHistoryStep(redo: false)

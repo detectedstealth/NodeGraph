@@ -137,3 +137,19 @@ import NodeGraphCore
         #expect(!model.canUndo)
     }
 }
+
+@MainActor
+@Suite struct UndoManagerSharingTests {
+    /// The manager is the window's, shared with its text views, which need it to group by event.
+    @Test func theManagerKeepsGroupingByEventAfterAnEdit() throws {
+        let model = TestKit.makeModel()
+        let undoManager = UndoManager()
+        model.undoManager = undoManager
+        #expect(undoManager.groupsByEvent)
+        try model.perform(.addNode(node: Node(typeID: TestKit.source, position: GraphPoint(x: 0, y: 0))))
+        #expect(undoManager.groupsByEvent)
+        #expect(undoManager.canUndo)
+        undoManager.undo()
+        #expect(model.graph.nodes.isEmpty)
+    }
+}
