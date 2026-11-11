@@ -55,6 +55,9 @@ struct GraphCanvasRenderer {
                 }
             }
         }
+        if let preview = model.preview, model.currentScope == nil {
+            drawPreview(&context, preview, visible: visible, lod: lod)
+        }
         if let draft = controller?.draft { drawDraft(&context, draft) }
         if let marquee = controller?.marquee { drawMarquee(&context, marquee) }
         if model.showsStats { drawStats(&screenContext, in: size) }
@@ -279,7 +282,7 @@ struct GraphCanvasRenderer {
         context.stroke(glyph, with: .color(color), style: style)
     }
 
-    private func drawNodeContents(
+    func drawNodeContents(
         _ context: inout GraphicsContext, _ node: Node, _ layout: NodeLayout, lod: LevelOfDetail
     ) {
         let theme = model.theme

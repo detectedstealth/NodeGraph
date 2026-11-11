@@ -160,6 +160,11 @@ public final class GraphEditorModel {
     /// ``clearExecutionState()``. Like ``executionState`` it is not part of the graph or history.
     public internal(set) var runValues = RunValues()
 
+    /// A pending change drawn over the root graph as a ghost: what it would add, remove and alter.
+    /// Nothing is applied. The host accepts by performing the change's command (one undo step) and
+    /// rejects by setting this to nil. Not drawn inside a subgraph.
+    public var preview: GraphPreview?
+
     /// The Create Subgraph form, while it is open.
     public var createSubgraphRequest: CreateSubgraphRequest?
 

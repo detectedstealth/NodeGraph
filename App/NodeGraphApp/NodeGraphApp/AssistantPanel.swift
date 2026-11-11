@@ -19,7 +19,10 @@ final class AssistantPanelModel {
     private(set) var traceText = ""
 
     var proposalText = ""
-    private(set) var pending: PendingChange?
+    /// The proposal under review. It is drawn on the canvas as a ghost while it is current.
+    private(set) var pending: PendingChange? {
+        didSet { showPreview() }
+    }
     private(set) var pendingText = ""
     private(set) var isComparing = false
 
@@ -52,6 +55,17 @@ final class AssistantPanelModel {
         // A proposal made on an older graph is stale, and is shown as such rather than dropped.
         if let pending, pending.isStale(for: model.editor) {
             proposalMessage = "The graph changed since this was proposed. Propose it again."
+        }
+        showPreview()
+    }
+
+    /// Draws `pending` on the canvas, unless the graph has changed since it was proposed: then
+    /// the ghost would be in the wrong place.
+    private func showPreview() {
+        if let pending, !pending.isStale(for: model.editor) {
+            model.preview = GraphPreview(base: model.editor.graph, result: pending.resultGraph)
+        } else {
+            model.preview = nil
         }
     }
 
