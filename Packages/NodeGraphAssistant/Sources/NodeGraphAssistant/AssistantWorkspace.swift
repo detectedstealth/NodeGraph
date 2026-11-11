@@ -90,10 +90,19 @@ public struct AssistantWorkspace: Sendable {
         if let found = tried.first(where: { definition.port(id, direction: $0) != nil }) {
             return PortAddress(node: node.id, port: id, direction: found)
         }
-        let valid = definition.ports.filter { direction == nil || $0.direction == direction }
-            .map { "\($0.id.rawValue) (\($0.direction.rawValue))" }.joined(separator: ", ")
-        throw AssistantToolError(
-            "\(aliases.alias(for: node.id) ?? "?") (\(node.typeID.rawValue)) has no port \"\(id.rawValue)\". Ports: \(valid).")
+        func list(_ direction: PortDirection?) -> String {
+            definition.ports.filter { direction == nil || $0.direction == direction }
+                .map { "\($0.id.rawValue) (\($0.direction.rawValue))" }.joined(separator: ", ")
+        }
+        let name = "\(aliases.alias(for: node.id) ?? "?") (\(node.typeID.rawValue))"
+        let valid = list(direction)
+        if valid.isEmpty, let direction {
+            // Name what it does have, so "no inputs" is not read as "no ports".
+            let all = list(nil)
+            throw AssistantToolError(
+                "\(name) has no \(direction.rawValue) ports.\(all.isEmpty ? "" : " Its ports: \(all).")")
+        }
+        throw AssistantToolError("\(name) has no port \"\(id.rawValue)\". Ports: \(valid).")
     }
 
     func name(_ node: NodeID) -> String { aliases.alias(for: node) ?? "?" }

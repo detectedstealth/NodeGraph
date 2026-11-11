@@ -184,7 +184,9 @@ private func workspace(_ editor: GraphEditor, run: Bool = true) async throws -> 
         let space = AssistantWorkspace(editor: try arithmetic())
         let change = space.proposeEdit([.connect("n3.result", "n1.value")])  // an output into nothing
         #expect(change.isEmpty && change.errors.count == 1)
-        #expect(change.errors[0].contains("has no port"))
+        #expect(change.errors[0].contains("has no input ports") && change.errors[0].contains("value (output)"))
+        let misspelled = space.proposeEdit([.connect("n1.value", "n3.nope")])
+        #expect(misspelled.errors.count == 1 && misspelled.errors[0].contains("has no port \"nope\""))
         let cycle = space.proposeEdit([.connect("n5.result", "n3.a")])  // closes a loop
         #expect(cycle.isEmpty && cycle.errors[0].contains("not allowed"))
     }

@@ -98,4 +98,15 @@ private func emptyWorkspace() -> AssistantWorkspace {
         #expect(filled.selectedOutputReferences() == ["n1.value", "n2.result"])
         #expect(AssistantWorkspace(editor: editor).selectedOutputReferences().isEmpty)
     }
+
+    @Test func anOriginPlacesTheNewNodesAndIsCheckedLikeTheOtherKeys() throws {
+        let space = emptyWorkspace()
+        let placed = try space.propose(json: #"{ "origin": { "x": 400, "y": 600 }, "nodes": [ { "alias": "a", "type": "util.number" } ] }"#)
+        #expect(placed.canApply)
+        #expect(placed.resultGraph.nodes.values.first?.position == GraphPoint(x: 400, y: 600))
+        for bad in [#"{ "origin": 5, "nodes": [] }"#, #"{ "origin": { "x": 1 }, "nodes": [] }"#, #"{ "origin": { "x": 1, "y": "2" }, "nodes": [] }"#] {
+            #expect(throws: AssistantToolError.self) { try space.propose(json: bad) }
+        }
+        #expect(throws: AssistantToolError.self) { try space.propose(json: #"{ "orign": { "x": 1, "y": 2 }, "nodes": [] }"#) }
+    }
 }

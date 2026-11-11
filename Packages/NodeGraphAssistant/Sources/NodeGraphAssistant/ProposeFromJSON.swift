@@ -4,7 +4,9 @@ import NodeGraphCore
 extension AssistantWorkspace {
     /// Proposes the change written in `text`, so a person can try the propose tools without a
     /// model. Three forms are read:
-    /// - a ``GraphSpec`` object (`{"nodes": [...], "links": [...]}`), proposed as a generation;
+    /// - a ``GraphSpec`` object (`{"nodes": [...], "links": [...]}`), proposed as a generation. An
+    ///   optional `"origin": {"x": 400, "y": 600}` puts the new nodes' top-left corner there instead
+    ///   of to the right of the graph;
     /// - an array of ``EditOperation``s, proposed as an edit;
     /// - an object `{"operations": [...]}`, the same.
     ///
@@ -37,7 +39,7 @@ extension AssistantWorkspace {
                 throw AssistantToolError("Expected \"nodes\", \"links\", \"groups\" or \"operations\".")
             }
             if let object { try Self.requireKnownKeys(spec: object) }
-            return proposeGeneration(try GraphSpec.decode(from: data))
+            return proposeGeneration(try GraphSpec.decode(from: data), at: try Self.origin(in: object))
         } catch let error as AssistantToolError {
             throw error
         } catch {
@@ -79,9 +81,9 @@ extension AssistantWorkspace {
 
     private static func requireKnownKeys(spec: [String: Any]) throws {
         var problems: [String] = []
-        let unknownTop = spec.keys.filter { key in !specKeys.contains { $0.list == key } }.sorted()
+        let unknownTop = spec.keys.filter { key in key != "origin" && !specKeys.contains { $0.list == key } }.sorted()
         if !unknownTop.isEmpty {
-            problems.append("A graph spec does not use \(quoted(unknownTop)). It takes \(quoted(specKeys.map(\.list))).")
+            problems.append("A graph spec does not use \(quoted(unknownTop)). It takes \(quoted(specKeys.map(\.list) + ["origin"])).")
         }
         for kind in specKeys {
             for (index, item) in (spec[kind.list] as? [Any] ?? []).enumerated() {
@@ -93,6 +95,16 @@ extension AssistantWorkspace {
             }
         }
         try throwIfAny(problems)
+    }
+
+    /// The spec's `"origin"`, or nil when it has none.
+    private static func origin(in spec: [String: Any]?) throws -> GraphPoint? {
+        guard let raw = spec?["origin"] else { return nil }
+        guard let point = raw as? [String: Any], Set(point.keys) == ["x", "y"],
+              let x = (point["x"] as? NSNumber)?.doubleValue, let y = (point["y"] as? NSNumber)?.doubleValue else {
+            throw AssistantToolError("\"origin\" is a point such as {\"x\": 400, \"y\": 600}.")
+        }
+        return GraphPoint(x: x, y: y)
     }
 
     private static func quoted(_ keys: [String]) -> String {
