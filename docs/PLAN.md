@@ -153,7 +153,7 @@ Design, tool list, providers and backlog are in `docs/ASSISTANT.md`. Rules: the 
 
 - [ ] A. Model-independent core (new pure-Swift package `NodeGraphAssistant`, builds on Linux, depends on Core only):
   - [x] Graph digest: compact text of a graph, selection or neighborhood, with size tiers: new package `NodeGraphAssistant`, `GraphDigest` (scopes `all`/`nodes`/`neighborhood`, details `outline`/`compact`/`full`, `fitting(tokenBudget:)` that steps detail down and then drops nodes; decision 215). 9 tests. Token count is an estimate (3 characters a token); not measured against the real tokenizer, and the format is not tried on a model yet. Not checked on Linux or iOS
-  - [ ] `GraphSpec` and `GraphSpecCompiler` (spec to `GraphFragment` to paste command, laid out with `Arrangement`), with specific errors a model can repair from
+  - [x] `GraphSpec` and `GraphSpecCompiler` (spec to `GraphFragment` to paste command), with specific errors a model can repair from: JSON spec (nodes, links as `alias.port`, groups), `compile` keeps what is valid and lists `SpecError`s naming what would have been valid; every link goes through the editor's `ConnectionValidator`; `Compilation.pasteCommand(into:)` (decision 216). 14 tests, 23 in the package. Not tried on a model. Not built: linking a new node to existing nodes (needs digest aliases; for the edit feature), colors written as text
   - [ ] Lint set producing `Diagnostic`s with suggested fix commands; pack-registered lints
   - [ ] Run tracing: `traceUpstream(port)` over `RunValues` for "why is this value X"
 - [ ] B. Tool layer and review UI:
