@@ -56,6 +56,35 @@ private func emptyWorkspace() -> AssistantWorkspace {
     }
 }
 
+@Suite struct UnknownKeyTests {
+    private func message(_ json: String) -> String? {
+        do { _ = try emptyWorkspace().propose(json: json); return nil } catch { return "\(error)" }
+    }
+
+    @Test func aKeyFromAnotherKindOfEditIsNamedWithTheOnesItTakes() {
+        let text = message(#"[ { "op": "setMode", "node": "n1", "to": "always" } ]"#)
+        #expect(text?.contains(#"Edit 1 (setMode) does not use "to""#) == true)
+        #expect(text?.contains(#"It takes "node", "value""#) == true)
+    }
+
+    @Test func everyBadEditIsReportedAtOnceAndOperationsObjectsAreChecked() {
+        let text = message(#"{ "operations": [ { "op": "removeNode", "node": "n1", "id": 3 }, { "op": "connect", "from": "n1.out", "too": "n2.a" } ] }"#)
+        #expect(text?.contains("Edit 1 (removeNode)") == true)
+        #expect(text?.contains("Edit 2 (connect)") == true)
+    }
+
+    @Test func specKeysAreCheckedAtEveryLevel() {
+        #expect(message(#"{ "nodes": [ { "alias": "a", "typ": "math.add" } ] }"#)?.contains(#"node 1 does not use "typ""#) == true)
+        #expect(message(#"{ "nodes": [], "links": [ { "from": "a.out", "into": "b.a" } ] }"#)?.contains(#"link 1 does not use "into""#) == true)
+        #expect(message(#"{ "nodes": [], "linkz": [] }"#)?.contains(#"does not use "linkz""#) == true)
+    }
+
+    @Test func validInputsStillPass() {
+        #expect(message(#"[ { "op": "setMode", "node": "n1", "value": "muted" } ]"#)?.contains("does not use") != true)
+        #expect(message(#"{ "nodes": [ { "alias": "a", "type": "util.number", "properties": { "value": 1 }, "mode": "muted" } ] }"#) == nil)
+    }
+}
+
 @Suite struct SelectedOutputTests {
     @Test func listsTheOutputsOfSelectedNodesByAlias() throws {
         let space = emptyWorkspace()
