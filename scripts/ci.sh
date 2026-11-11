@@ -9,7 +9,7 @@ for pkg in Packages/*/; do
 done
 
 if [[ "${1:-}" == "--ios" ]]; then
-    for scheme in NodeGraphCore NodeGraphNodes NodeGraphUI NodeGraphSync NodeGraphRobotics NodeGraphVideo NodeGraphAssistant; do
+    for scheme in NodeGraphCore NodeGraphNodes NodeGraphUI NodeGraphSync NodeGraphRobotics NodeGraphVideo NodeGraphAssistant NodeGraphAI; do
         echo "==> xcodebuild iOS $scheme"
         (cd "Packages/$scheme" && xcodebuild -scheme "$scheme" \
             -destination 'generic/platform=iOS Simulator' build -quiet)

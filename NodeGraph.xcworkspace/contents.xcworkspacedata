@@ -23,6 +23,9 @@
       location = "group:Packages/NodeGraphAssistant">
    </FileRef>
    <FileRef
+      location = "group:Packages/NodeGraphAI">
+   </FileRef>
+   <FileRef
       location = "group:docs">
    </FileRef>
    <FileRef

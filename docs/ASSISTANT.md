@@ -2,7 +2,7 @@
 
 Design and working notes for the AI graph assistant (PLAN.md Phase 8). This file is allowed to change faster than ARCHITECTURE.md. Architectural rulings go in DECISIONS.md (211-214).
 
-Status: **design only, nothing built.** Package names below are proposals.
+Status: **steps A and most of B built; step C slice 1 (`NodeGraphAI` tools, provider and availability types) built.** Package names below are proposals.
 
 ## Goal
 
@@ -63,6 +63,7 @@ Tool logic is plain Swift, wrapped for FoundationModels later.
 | Apple Private Cloud Compute (`PrivateCloudComputeLanguageModel`) | 32K | Yes | Yes | Per-user daily quota | Managed entitlement from Apple (not requested yet), iOS/macOS 27+ |
 | Claude (custom `LanguageModel` and executor) | Large | Yes | Yes | The user's own API key and billing | User enters a key |
 
+- **Any OpenAI-compatible server** (OpenAI, OpenRouter, Ollama, LM Studio, llama.cpp, vLLM) is one more kind of `ModelEndpoint` (decision 227), with its own address, model name, context size and key. A server on this machine stays on the device; one elsewhere does not, and the privacy prompt follows that. Tool calling varies by model, so the executor declares what each can do.
 - PCC is **not an automatic fallback**: a session uses the model it was created with. Switching is one line, and the same tools, instructions and schemas carry over. Fallback is our own routing.
 - PCC `availability` leaves out the network. Try the request and handle `.networkFailure`, `.quotaLimitReached` (reset date, upgrade suggestion) and `.serviceUnavailable`.
 - The Claude executor is ours to write: transcript to messages, tool calls, `GenerationSchema` (which is `Codable`) to JSON schema, streaming events back through the executor channel, and a declared `capabilities` set so the framework refuses what the model can't do. It uses `URLSession`, no SDK (decision 214).
