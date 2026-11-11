@@ -24,6 +24,7 @@ struct ContentView: View {
     @State private var showsInspector = true
     @State private var runTask: Task<Void, Never>?
     @State private var isRunning = false
+    @State private var showsRunOptions = false
     @State private var console = ConsoleModel()
     @AppStorage("showsConsole") private var showsConsole = true
     @AppStorage("consoleHeight") private var consoleHeight = ConsolePanel.defaultHeight
@@ -69,15 +70,34 @@ struct ContentView: View {
             .overlay(alignment: .topTrailing) {
                 HStack {
                     GraphUndoControls(model: controller.model)
-                    Menu {
-                        Button("Run Once", systemImage: "play.fill") { startRun(.once) }
-                        Button("Run Continuously", systemImage: "repeat") { startRun(.continuous(interval: .milliseconds(500))) }
-                        if isRunning { Button("Stop", systemImage: "stop.fill") { stopRun() } }
-                    } label: {
-                        Label(isRunning ? "Running" : "Run", systemImage: isRunning ? "stop.fill" : "play.fill")
-                    } primaryAction: {
+                    // Two buttons rather than a Menu with a primary action: macOS draws that as a
+                    // system split control that ignores the button style, so it had no fill.
+                    Button(isRunning ? "Stop" : "Run", systemImage: isRunning ? "stop.fill" : "play.fill") {
                         if isRunning { stopRun() } else { startRun(.once) }
                     }
+                    // A popover from a plain Button, since a Menu draws itself without the fill.
+                    Button("Run Options", systemImage: "chevron.down") { showsRunOptions.toggle() }
+                        .popover(isPresented: $showsRunOptions) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Button("Run Once", systemImage: "play.fill") {
+                                    showsRunOptions = false
+                                    startRun(.once)
+                                }
+                                Button("Run Continuously", systemImage: "repeat") {
+                                    showsRunOptions = false
+                                    startRun(.continuous(interval: .milliseconds(500)))
+                                }
+                                if isRunning {
+                                    Button("Stop", systemImage: "stop.fill") {
+                                        showsRunOptions = false
+                                        stopRun()
+                                    }
+                                }
+                            }
+                            .labelStyle(.titleAndIcon)
+                            .buttonStyle(.borderless)
+                            .padding(12)
+                        }
                     Button("Console", systemImage: showsConsole ? "terminal.fill" : "terminal") { showsConsole.toggle() }
                     Button("Mini-map", systemImage: showsMiniMap ? "map.fill" : "map") { showsMiniMap.toggle() }
                     Button("Add Node", systemImage: "plus") { controller.beginAddNode() }
