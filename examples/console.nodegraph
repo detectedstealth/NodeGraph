@@ -1,0 +1,739 @@
+{
+  "graph" : {
+    "groups" : [
+      {
+        "bounds" : {
+          "origin" : {
+            "x" : -28.40523158585222,
+            "y" : -197.3553216322647
+          },
+          "size" : {
+            "height" : 342.3523386730795,
+            "width" : 1192.3590430502209
+          }
+        },
+        "id" : "8B7A8830-4485-4A3D-8666-BF8A0177D84B",
+        "title" : "Sensor"
+      },
+      {
+        "bounds" : {
+          "origin" : {
+            "x" : -24,
+            "y" : 168
+          },
+          "size" : {
+            "height" : 400,
+            "width" : 928
+          }
+        },
+        "id" : "9F8CCC4A-8170-4E88-9C7E-88B50AC13EC2",
+        "title" : "Alarm"
+      },
+      {
+        "bounds" : {
+          "origin" : {
+            "x" : -24,
+            "y" : 628
+          },
+          "size" : {
+            "height" : 280,
+            "width" : 688
+          }
+        },
+        "id" : "9DE8717F-9D7D-4795-B8AC-50A1B9165096",
+        "title" : "Report"
+      },
+      {
+        "bounds" : {
+          "origin" : {
+            "x" : -24,
+            "y" : 968
+          },
+          "size" : {
+            "height" : 204.60080471914694,
+            "width" : 692.3994580188983
+          }
+        },
+        "id" : "E4F3A52B-4EDD-41F6-997A-41D27E47504E",
+        "title" : "Heartbeat: a trigger every 3rd pass"
+      },
+      {
+        "bounds" : {
+          "origin" : {
+            "x" : -24,
+            "y" : 1188
+          },
+          "size" : {
+            "height" : 203.40567635968273,
+            "width" : 688
+          }
+        },
+        "id" : "6C0984F7-2B19-41E6-83CE-200F990F1EB6",
+        "title" : "Fault injection: set the variable margin above 0 to clear the error"
+      }
+    ],
+    "links" : [
+      {
+        "id" : "F5DAB42F-2842-447C-A312-B7744FA1CDA5",
+        "source" : {
+          "direction" : "output",
+          "node" : "9CEF88BA-2F0E-431B-A636-8C2BE2C1D3A2",
+          "port" : "value"
+        },
+        "target" : {
+          "direction" : "input",
+          "node" : "770A53E7-1FDA-4E2F-9EAA-AD0FF66CBEC3",
+          "port" : "value"
+        }
+      },
+      {
+        "id" : "F512AAC5-3502-4EFA-BE19-6E99511A13B8",
+        "source" : {
+          "direction" : "output",
+          "node" : "770A53E7-1FDA-4E2F-9EAA-AD0FF66CBEC3",
+          "port" : "result"
+        },
+        "target" : {
+          "direction" : "input",
+          "node" : "FD66A375-73E3-432A-A00D-D3763037D25B",
+          "port" : "value"
+        }
+      },
+      {
+        "id" : "8844A689-0E0A-465E-AF0D-5FAF4A6653FC",
+        "source" : {
+          "direction" : "output",
+          "node" : "FD66A375-73E3-432A-A00D-D3763037D25B",
+          "port" : "result"
+        },
+        "target" : {
+          "direction" : "input",
+          "node" : "F258F678-423C-4671-9D90-C27305ECBB7E",
+          "port" : "value"
+        }
+      },
+      {
+        "id" : "628C0DFA-F249-4902-8A04-DBA0A6048532",
+        "source" : {
+          "direction" : "output",
+          "node" : "F258F678-423C-4671-9D90-C27305ECBB7E",
+          "port" : "result"
+        },
+        "target" : {
+          "direction" : "input",
+          "node" : "6D06C355-6E69-42AD-8415-06FD175ACD67",
+          "port" : "value"
+        }
+      },
+      {
+        "id" : "AA76DF30-C8FC-4767-925C-3FB664ADD103",
+        "source" : {
+          "direction" : "output",
+          "node" : "CCE3C720-AE6D-4D42-AA1F-4A5CCB89A2AB",
+          "port" : "value"
+        },
+        "target" : {
+          "direction" : "input",
+          "node" : "BE301BD1-E688-4371-8191-DAD8366F549B",
+          "port" : "b"
+        }
+      },
+      {
+        "id" : "43ED237E-6595-4735-89AC-5A4AAE0E0A74",
+        "source" : {
+          "direction" : "output",
+          "node" : "BE301BD1-E688-4371-8191-DAD8366F549B",
+          "port" : "result"
+        },
+        "target" : {
+          "direction" : "input",
+          "node" : "B52D6F34-8323-426B-B672-FA4EF44C08AC",
+          "port" : "condition"
+        }
+      },
+      {
+        "id" : "E42388AB-5D01-4181-8299-47856CBC25CE",
+        "source" : {
+          "direction" : "output",
+          "node" : "56740E0B-9F50-4BEA-9C57-98EB6DEB7523",
+          "port" : "value"
+        },
+        "target" : {
+          "direction" : "input",
+          "node" : "B52D6F34-8323-426B-B672-FA4EF44C08AC",
+          "port" : "ifTrue"
+        }
+      },
+      {
+        "id" : "602ED8F1-9765-483D-838A-939A555FA12A",
+        "source" : {
+          "direction" : "output",
+          "node" : "6ABDAF0C-3425-4057-A26E-AF5E381570B6",
+          "port" : "value"
+        },
+        "target" : {
+          "direction" : "input",
+          "node" : "B52D6F34-8323-426B-B672-FA4EF44C08AC",
+          "port" : "ifFalse"
+        }
+      },
+      {
+        "id" : "FAD96392-24FE-41E4-824F-CA48A8E9CF9B",
+        "source" : {
+          "direction" : "output",
+          "node" : "B52D6F34-8323-426B-B672-FA4EF44C08AC",
+          "port" : "result"
+        },
+        "target" : {
+          "direction" : "input",
+          "node" : "12C66830-BC42-4047-BC12-0B49CAE953BA",
+          "port" : "value"
+        }
+      },
+      {
+        "id" : "BE58532A-45D1-42C5-ABD7-F1787E797575",
+        "source" : {
+          "direction" : "output",
+          "node" : "C00E84A3-5CEB-4FBA-B13A-2B54F069A9FB",
+          "port" : "value"
+        },
+        "target" : {
+          "direction" : "input",
+          "node" : "8C7E6CFD-5E43-4549-A504-4100FF866BB3",
+          "port" : "in_1"
+        }
+      },
+      {
+        "id" : "AE87571D-F9DD-4F3E-8E3B-92F2FACA7D3D",
+        "source" : {
+          "direction" : "output",
+          "node" : "03A1DBE3-FA97-4C73-B83B-37F0CD5F327D",
+          "port" : "result"
+        },
+        "target" : {
+          "direction" : "input",
+          "node" : "8C7E6CFD-5E43-4549-A504-4100FF866BB3",
+          "port" : "in_2"
+        }
+      },
+      {
+        "id" : "AB5E444F-11C9-44E2-A0C7-F79CDC5EC05B",
+        "source" : {
+          "direction" : "output",
+          "node" : "8C7E6CFD-5E43-4549-A504-4100FF866BB3",
+          "port" : "result"
+        },
+        "target" : {
+          "direction" : "input",
+          "node" : "4EAB0DDA-3FFB-4A60-8190-3ED4D1689F70",
+          "port" : "value"
+        }
+      },
+      {
+        "id" : "2746204D-D67C-4BE3-BE29-5DD433EFEDDB",
+        "source" : {
+          "direction" : "output",
+          "node" : "EF6D3BE8-2E01-47E1-BCC6-A9DE6A25F764",
+          "port" : "fire"
+        },
+        "target" : {
+          "direction" : "input",
+          "node" : "EB6E7005-88DF-4B9B-A7A4-71D7CAABFD4E",
+          "port" : "increment"
+        }
+      },
+      {
+        "id" : "C2F4FE1E-B7D2-47F4-A45A-AAEB6AAA7519",
+        "source" : {
+          "direction" : "output",
+          "node" : "EB6E7005-88DF-4B9B-A7A4-71D7CAABFD4E",
+          "port" : "count"
+        },
+        "target" : {
+          "direction" : "input",
+          "node" : "BCFBC3FC-53A3-42E9-870E-DD42F368C0D6",
+          "port" : "value"
+        }
+      },
+      {
+        "id" : "2FC97F73-E715-41C7-98F4-1A5E1FCCAE51",
+        "source" : {
+          "direction" : "output",
+          "node" : "A375AEBD-9424-41C7-B4A5-1C2CB0F94145",
+          "port" : "value"
+        },
+        "target" : {
+          "direction" : "input",
+          "node" : "BE84916D-7B46-4BC5-AA5D-24C76C38DC2D",
+          "port" : "b"
+        }
+      },
+      {
+        "id" : "274C6DF9-C972-4671-8935-978A34855553",
+        "source" : {
+          "direction" : "output",
+          "node" : "BE84916D-7B46-4BC5-AA5D-24C76C38DC2D",
+          "port" : "result"
+        },
+        "target" : {
+          "direction" : "input",
+          "node" : "42AE4177-0403-4514-95C1-CA84B6AB31D7",
+          "port" : "value"
+        }
+      },
+      {
+        "id" : "F4E15CCF-B0AF-4803-BA0E-8CAC1B4274E1",
+        "source" : {
+          "direction" : "output",
+          "node" : "F258F678-423C-4671-9D90-C27305ECBB7E",
+          "port" : "result"
+        },
+        "target" : {
+          "direction" : "input",
+          "node" : "BE301BD1-E688-4371-8191-DAD8366F549B",
+          "port" : "a"
+        }
+      },
+      {
+        "id" : "AF79A1C1-40C8-4F8E-81E7-A5E87116C5D0",
+        "source" : {
+          "direction" : "output",
+          "node" : "F258F678-423C-4671-9D90-C27305ECBB7E",
+          "port" : "result"
+        },
+        "target" : {
+          "direction" : "input",
+          "node" : "03A1DBE3-FA97-4C73-B83B-37F0CD5F327D",
+          "port" : "value"
+        }
+      },
+      {
+        "id" : "4B8C9AAB-1E7D-4F42-9496-F34232F7BBD2",
+        "source" : {
+          "direction" : "output",
+          "node" : "F258F678-423C-4671-9D90-C27305ECBB7E",
+          "port" : "result"
+        },
+        "target" : {
+          "direction" : "input",
+          "node" : "BE84916D-7B46-4BC5-AA5D-24C76C38DC2D",
+          "port" : "a"
+        }
+      }
+    ],
+    "nodes" : [
+      {
+        "id" : "9CEF88BA-2F0E-431B-A636-8C2BE2C1D3A2",
+        "isCollapsed" : false,
+        "isPinned" : false,
+        "mode" : "always",
+        "position" : {
+          "x" : -4.405231585852221,
+          "y" : -145.3553216322647
+        },
+        "properties" : {
+          "amplitude" : {
+            "type" : "double",
+            "value" : 8
+          },
+          "frequency" : {
+            "type" : "double",
+            "value" : 0.2
+          },
+          "noise" : {
+            "type" : "double",
+            "value" : 1.5
+          },
+          "offset" : {
+            "type" : "double",
+            "value" : 25
+          },
+          "seed" : {
+            "type" : "int",
+            "value" : 7
+          }
+        },
+        "title" : "Temperature sensor",
+        "typeID" : "robotics.signal"
+      },
+      {
+        "id" : "770A53E7-1FDA-4E2F-9EAA-AD0FF66CBEC3",
+        "isCollapsed" : false,
+        "isPinned" : false,
+        "mode" : "always",
+        "position" : {
+          "x" : 235.59476841414778,
+          "y" : -145.3553216322647
+        },
+        "properties" : {
+          "label" : {
+            "type" : "string",
+            "value" : "raw"
+          },
+          "level" : {
+            "type" : "string",
+            "value" : "debug"
+          }
+        },
+        "typeID" : "util.log"
+      },
+      {
+        "id" : "FD66A375-73E3-432A-A00D-D3763037D25B",
+        "isCollapsed" : false,
+        "isPinned" : false,
+        "mode" : "always",
+        "position" : {
+          "x" : 475.5947684141478,
+          "y" : -145.3553216322647
+        },
+        "properties" : {
+          "tau" : {
+            "type" : "double",
+            "value" : 1
+          }
+        },
+        "title" : "Smoother",
+        "typeID" : "robotics.lowPass"
+      },
+      {
+        "id" : "F258F678-423C-4671-9D90-C27305ECBB7E",
+        "isCollapsed" : false,
+        "isPinned" : false,
+        "mode" : "always",
+        "position" : {
+          "x" : 715.5947684141478,
+          "y" : -145.3553216322647
+        },
+        "properties" : {
+          "label" : {
+            "type" : "string",
+            "value" : "smoothed"
+          }
+        },
+        "typeID" : "util.log"
+      },
+      {
+        "id" : "6D06C355-6E69-42AD-8415-06FD175ACD67",
+        "isCollapsed" : false,
+        "isPinned" : false,
+        "mode" : "always",
+        "position" : {
+          "x" : 955.5947684141478,
+          "y" : -145.3553216322647
+        },
+        "properties" : {
+
+        },
+        "title" : "Temperature",
+        "typeID" : "util.watch"
+      },
+      {
+        "id" : "CCE3C720-AE6D-4D42-AA1F-4A5CCB89A2AB",
+        "isCollapsed" : false,
+        "isPinned" : false,
+        "mode" : "always",
+        "position" : {
+          "x" : 0,
+          "y" : 220
+        },
+        "properties" : {
+          "name" : {
+            "type" : "string",
+            "value" : "limit"
+          }
+        },
+        "title" : "Alarm limit",
+        "typeID" : "util.variable"
+      },
+      {
+        "id" : "BE301BD1-E688-4371-8191-DAD8366F549B",
+        "isCollapsed" : false,
+        "isPinned" : false,
+        "mode" : "always",
+        "position" : {
+          "x" : 240,
+          "y" : 220
+        },
+        "properties" : {
+          "operator" : {
+            "type" : "string",
+            "value" : ">"
+          }
+        },
+        "title" : "Over the limit?",
+        "typeID" : "logic.compare"
+      },
+      {
+        "id" : "56740E0B-9F50-4BEA-9C57-98EB6DEB7523",
+        "isCollapsed" : false,
+        "isPinned" : false,
+        "mode" : "always",
+        "position" : {
+          "x" : 0,
+          "y" : 340
+        },
+        "properties" : {
+          "value" : {
+            "type" : "string",
+            "value" : "ALARM"
+          }
+        },
+        "typeID" : "util.string"
+      },
+      {
+        "id" : "6ABDAF0C-3425-4057-A26E-AF5E381570B6",
+        "isCollapsed" : false,
+        "isPinned" : false,
+        "mode" : "always",
+        "position" : {
+          "x" : 0,
+          "y" : 460
+        },
+        "properties" : {
+          "value" : {
+            "type" : "string",
+            "value" : "normal"
+          }
+        },
+        "typeID" : "util.string"
+      },
+      {
+        "id" : "B52D6F34-8323-426B-B672-FA4EF44C08AC",
+        "isCollapsed" : false,
+        "isPinned" : false,
+        "mode" : "always",
+        "position" : {
+          "x" : 480,
+          "y" : 220
+        },
+        "properties" : {
+
+        },
+        "title" : "State",
+        "typeID" : "logic.select"
+      },
+      {
+        "id" : "12C66830-BC42-4047-BC12-0B49CAE953BA",
+        "isCollapsed" : false,
+        "isPinned" : false,
+        "mode" : "always",
+        "position" : {
+          "x" : 720,
+          "y" : 220
+        },
+        "properties" : {
+          "label" : {
+            "type" : "string",
+            "value" : "alarm state"
+          },
+          "level" : {
+            "type" : "string",
+            "value" : "warning"
+          }
+        },
+        "typeID" : "util.log"
+      },
+      {
+        "id" : "C00E84A3-5CEB-4FBA-B13A-2B54F069A9FB",
+        "isCollapsed" : false,
+        "isPinned" : false,
+        "mode" : "always",
+        "position" : {
+          "x" : 0,
+          "y" : 680
+        },
+        "properties" : {
+          "value" : {
+            "type" : "string",
+            "value" : "Temperature"
+          }
+        },
+        "typeID" : "util.string"
+      },
+      {
+        "id" : "03A1DBE3-FA97-4C73-B83B-37F0CD5F327D",
+        "isCollapsed" : false,
+        "isPinned" : false,
+        "mode" : "always",
+        "position" : {
+          "x" : 0,
+          "y" : 800
+        },
+        "properties" : {
+          "decimals" : {
+            "type" : "int",
+            "value" : 1
+          }
+        },
+        "title" : "One decimal",
+        "typeID" : "string.toFixed"
+      },
+      {
+        "id" : "8C7E6CFD-5E43-4549-A504-4100FF866BB3",
+        "isCollapsed" : false,
+        "isPinned" : false,
+        "mode" : "always",
+        "portCounts" : {
+          "in" : 3
+        },
+        "position" : {
+          "x" : 240,
+          "y" : 680
+        },
+        "properties" : {
+          "separator" : {
+            "type" : "string",
+            "value" : ": "
+          }
+        },
+        "title" : "Report line",
+        "typeID" : "string.join"
+      },
+      {
+        "id" : "4EAB0DDA-3FFB-4A60-8190-3ED4D1689F70",
+        "isCollapsed" : false,
+        "isPinned" : false,
+        "mode" : "always",
+        "position" : {
+          "x" : 480,
+          "y" : 680
+        },
+        "properties" : {
+          "label" : {
+            "type" : "string",
+            "value" : "report"
+          }
+        },
+        "typeID" : "util.log"
+      },
+      {
+        "id" : "EF6D3BE8-2E01-47E1-BCC6-A9DE6A25F764",
+        "isCollapsed" : false,
+        "isPinned" : false,
+        "mode" : "always",
+        "position" : {
+          "x" : 0,
+          "y" : 1020
+        },
+        "properties" : {
+          "interval" : {
+            "type" : "int",
+            "value" : 3
+          }
+        },
+        "title" : "Every 3 passes",
+        "typeID" : "flow.every"
+      },
+      {
+        "id" : "EB6E7005-88DF-4B9B-A7A4-71D7CAABFD4E",
+        "isCollapsed" : false,
+        "isPinned" : false,
+        "mode" : "always",
+        "position" : {
+          "x" : 240,
+          "y" : 1020
+        },
+        "properties" : {
+
+        },
+        "title" : "Beats",
+        "typeID" : "flow.counter"
+      },
+      {
+        "id" : "BCFBC3FC-53A3-42E9-870E-DD42F368C0D6",
+        "isCollapsed" : false,
+        "isPinned" : false,
+        "mode" : "always",
+        "position" : {
+          "x" : 480,
+          "y" : 1020
+        },
+        "properties" : {
+          "label" : {
+            "type" : "string",
+            "value" : "heartbeat"
+          }
+        },
+        "typeID" : "util.log"
+      },
+      {
+        "id" : "A375AEBD-9424-41C7-B4A5-1C2CB0F94145",
+        "isCollapsed" : false,
+        "isPinned" : false,
+        "mode" : "always",
+        "position" : {
+          "x" : 0,
+          "y" : 1240
+        },
+        "properties" : {
+          "name" : {
+            "type" : "string",
+            "value" : "margin"
+          }
+        },
+        "title" : "Margin",
+        "typeID" : "util.variable"
+      },
+      {
+        "id" : "BE84916D-7B46-4BC5-AA5D-24C76C38DC2D",
+        "isCollapsed" : false,
+        "isPinned" : false,
+        "mode" : "muted",
+        "position" : {
+          "x" : 205.61874473513842,
+          "y" : 1239.708263734073
+        },
+        "properties" : {
+
+        },
+        "size" : {
+          "height" : 88.35444593056536,
+          "width" : 236.2685847362389
+        },
+        "title" : "Normalise (fails while margin is 0)",
+        "typeID" : "math.divide"
+      },
+      {
+        "id" : "42AE4177-0403-4514-95C1-CA84B6AB31D7",
+        "isCollapsed" : false,
+        "isPinned" : false,
+        "mode" : "always",
+        "position" : {
+          "x" : 480,
+          "y" : 1240
+        },
+        "properties" : {
+          "label" : {
+            "type" : "string",
+            "value" : "normalised"
+          }
+        },
+        "typeID" : "util.log"
+      }
+    ],
+    "variables" : [
+      {
+        "name" : "limit",
+        "summary" : "The temperature that raises the alarm.",
+        "type" : "number",
+        "value" : {
+          "type" : "double",
+          "value" : 30
+        }
+      },
+      {
+        "name" : "margin",
+        "summary" : "Divides the reading in the fault cluster. While it is 0 the Divide node fails; set it above 0 to clear the error.",
+        "type" : "number",
+        "value" : {
+          "type" : "double",
+          "value" : 0
+        }
+      }
+    ]
+  },
+  "metadata" : {
+
+  },
+  "schemaVersion" : 1
+}

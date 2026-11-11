@@ -26,6 +26,9 @@ public enum Lints {
             for (node, definition) in Lints.resolved(context)
             where node.mode != .never && !context.graph.links(attachedTo: node.id).isEmpty {  // an unlinked node is reported as isolated
                 for port in definition.inputs where port.kind == .data && port.defaultValue == nil {
+                    // A self-resizing group always ends in one free port, ready for the next link.
+                    if let group = port.group,
+                       definition.dynamicPorts.first(where: { $0.id == group })?.resizing == .keepOneFree { continue }
                     let address = PortAddress(node: node.id, port: port.id, direction: .input)
                     guard context.validation.links(into: address).isEmpty else { continue }
                     found.append(LintFinding(lint: id, level: .problem, diagnostic: GraphDiagnostic(
