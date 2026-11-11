@@ -678,7 +678,7 @@
         "id" : "BE84916D-7B46-4BC5-AA5D-24C76C38DC2D",
         "isCollapsed" : false,
         "isPinned" : false,
-        "mode" : "muted",
+        "mode" : "always",
         "position" : {
           "x" : 205.61874473513842,
           "y" : 1239.708263734073
