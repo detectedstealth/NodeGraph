@@ -67,6 +67,8 @@ public enum CanvasCommand: Hashable, Sendable {
     /// Pins the selected nodes, or unpins them if all are already pinned.
     case togglePinned
     case setMode(NodeMode)
+    /// Sets the mode on the selected nodes, or back to `always` if they all have it already.
+    case toggleMode(NodeMode)
     /// Sets the outline of the selected nodes.
     case setShape(NodeShape)
     /// Sets how the selected nodes' title bars are shown.
@@ -83,7 +85,7 @@ extension CanvasCommand {
     public var isEdit: Bool {
         switch self {
         case .deleteSelection, .deleteAndReconnect, .nudge, .cut, .paste, .pasteWithConnections, .duplicate, .align, .distribute, .autoArrange, .groupSelection, .addGroup, .createSubgraph,
-             .unpackSubgraph, .addNode, .addDefaultNode, .renamePort, .toggleCollapsed, .togglePinned, .setMode, .setShape, .setTitleMode,
+             .unpackSubgraph, .addNode, .addDefaultNode, .renamePort, .toggleCollapsed, .togglePinned, .setMode, .toggleMode, .setShape, .setTitleMode,
              .disconnectSelection,
              .addWaypoint:
             true
@@ -133,6 +135,9 @@ public enum CanvasKeyMap {
             case "=" where commandKey, "+" where commandKey: return .zoomIn
             case "-" where commandKey: return .zoomOut
             case "[" where commandKey: return .leaveSubgraph
+            case "m" where modifiers.isEmpty: return .toggleMode(.muted)
+            case "b" where modifiers.isEmpty: return .toggleMode(.bypassed)
+            case "d" where modifiers.isEmpty: return .toggleMode(.never)
             case "a" where modifiers == .shift: return .addNode(at: nil)
             case "f" where modifiers.isDisjoint(with: [.command, .control, .option]): return .zoomToFit
             default: return nil

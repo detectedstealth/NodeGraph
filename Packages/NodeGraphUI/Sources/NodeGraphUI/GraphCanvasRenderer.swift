@@ -186,7 +186,11 @@ struct GraphCanvasRenderer {
         }
         let hovered = controller?.hover == .link(link.id)
         let width = max(theme.linkWidth, 1.5 / model.camera.zoom) * (selected ? 1.5 : hovered ? 1.35 : 1)
-        context.stroke(path, with: .color(Color(color)), style: StrokeStyle(lineWidth: width, lineCap: .round, lineJoin: .round))
+        // Nothing flows out of an off or muted node, so its links are drawn faded and dashed.
+        let inactive = model.isLinkInactive(link) && !selected
+        context.stroke(
+            path, with: .color(Color(inactive ? color.withAlpha(color.alpha * theme.inactiveOpacity) : color)),
+            style: StrokeStyle(lineWidth: width, lineCap: .round, lineJoin: .round, dash: inactive ? [width * 2.5, width * 2.5] : []))
         if model.showsLinkArrows, lod.tier == .full { drawLinkArrow(&context, link, color: color) }
         // The value passing along a link, while the pointer is on it or it is selected.
         if (selected || hovered), lod.tier == .full, let text = model.valueLabel(of: link),
@@ -215,7 +219,8 @@ struct GraphCanvasRenderer {
         guard let node = model.graph.nodes[layout.node] else { return }
         // Only a dimmed node needs an offscreen layer, to fade the node as one piece. Layers are
         // costly (each is a canvas-sized buffer), so every other node is drawn straight on.
-        if node.mode == .never || node.mode == .muted || node.mode == .bypassed {
+        let display = NodeModeDisplay(node.mode)
+        if display?.isFaded == true {
             context.drawLayer { layer in
                 layer.opacity = model.theme.inactiveOpacity
                 drawNodeContents(&layer, node, layout, lod: lod)
@@ -223,6 +228,55 @@ struct GraphCanvasRenderer {
         } else {
             drawNodeContents(&context, node, layout, lod: lod)
         }
+        // Drawn after the fade so the mark stays readable on a faded node.
+        if let display, lod.drawsTitles { drawModeMark(&context, display.mark, node: node, layout: layout) }
+    }
+
+    private func drawModeMark(_ context: inout GraphicsContext, _ mark: NodeModeDisplay.Mark, node: Node, layout: NodeLayout) {
+        let header = layout.header
+        let r = 5.5
+        // Left of the subgraph mark when the node has one.
+        let offset = node.typeID.subgraphID != nil ? 44.0 : 16.0
+        let c = CGPoint(x: header.maxX - offset, y: header.minY + header.size.height / 2)
+        let color = Color(model.theme.nodeTitle)
+        let style = StrokeStyle(lineWidth: 1.4, lineCap: .round, lineJoin: .round)
+        var glyph = Path()
+        switch mark {
+        case .off:
+            context.stroke(Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r)), with: .color(color), style: style)
+            glyph.move(to: CGPoint(x: c.x, y: c.y - r - 1.5))
+            glyph.addLine(to: CGPoint(x: c.x, y: c.y - 1))
+        case .muted:
+            // A speaker, crossed out.
+            glyph.move(to: CGPoint(x: c.x - r, y: c.y - 2))
+            glyph.addLine(to: CGPoint(x: c.x - 2, y: c.y - 2))
+            glyph.addLine(to: CGPoint(x: c.x + 1.5, y: c.y - r))
+            glyph.addLine(to: CGPoint(x: c.x + 1.5, y: c.y + r))
+            glyph.addLine(to: CGPoint(x: c.x - 2, y: c.y + 2))
+            glyph.addLine(to: CGPoint(x: c.x - r, y: c.y + 2))
+            glyph.closeSubpath()
+            glyph.move(to: CGPoint(x: c.x + 4, y: c.y - 3))
+            glyph.addLine(to: CGPoint(x: c.x + r + 2, y: c.y + 3))
+            glyph.move(to: CGPoint(x: c.x + r + 2, y: c.y - 3))
+            glyph.addLine(to: CGPoint(x: c.x + 4, y: c.y + 3))
+        case .bypass:
+            // An arrow that goes straight through.
+            glyph.move(to: CGPoint(x: c.x - r - 1, y: c.y))
+            glyph.addLine(to: CGPoint(x: c.x + r + 1, y: c.y))
+            glyph.move(to: CGPoint(x: c.x + 1.5, y: c.y - 3.5))
+            glyph.addLine(to: CGPoint(x: c.x + r + 1, y: c.y))
+            glyph.addLine(to: CGPoint(x: c.x + 1.5, y: c.y + 3.5))
+        case .trigger:
+            // A bolt.
+            glyph.move(to: CGPoint(x: c.x + 1.5, y: c.y - r - 1))
+            glyph.addLine(to: CGPoint(x: c.x - 3, y: c.y + 1))
+            glyph.addLine(to: CGPoint(x: c.x + 0.5, y: c.y + 1))
+            glyph.addLine(to: CGPoint(x: c.x - 1.5, y: c.y + r + 1))
+            glyph.addLine(to: CGPoint(x: c.x + 3, y: c.y - 1))
+            glyph.addLine(to: CGPoint(x: c.x - 0.5, y: c.y - 1))
+            glyph.closeSubpath()
+        }
+        context.stroke(glyph, with: .color(color), style: style)
     }
 
     private func drawNodeContents(

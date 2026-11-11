@@ -241,6 +241,7 @@ private struct NodeSections: View {
             Picker("Mode", selection: Binding(get: { info.mode }, set: { model.setMode($0, of: [info.id]) })) {
                 ForEach(NodeMode.allCases, id: \.self) { Text($0.menuTitle).tag($0) }
             }
+            if info.mode != .always { Text(info.mode.effectSummary).font(.callout).foregroundStyle(.secondary) }
             Toggle("Pinned", isOn: Binding(get: { info.isPinned }, set: { model.setPinned($0, of: [info.id]) }))
             Toggle("Collapsed", isOn: Binding(get: { info.isCollapsed }, set: { model.setCollapsed($0, of: [info.id]) }))
             ColorRow(title: "Color", color: info.color, allowsClear: true) { model.setColor($0, of: [info.id]) }

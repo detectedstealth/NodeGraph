@@ -144,6 +144,9 @@ extension GraphInteractionController {
             return setAttribute(on: nodes, name: pin ? "Pin" : "Unpin", .isPinned(value: pin))
         case .setMode(let mode):
             return setAttribute(on: nodes, name: "Set Mode", .mode(value: mode))
+        case .toggleMode(let mode):
+            let target = NodeMode.toggled(mode, among: nodes.map(\.mode))
+            return setAttribute(on: nodes, name: target == .always ? "Enable" : "Set Mode", .mode(value: target))
         case .setShape(let shape):
             return setAttribute(on: nodes, name: "Set Shape", .shape(value: shape))
         case .setTitleMode(let mode):
