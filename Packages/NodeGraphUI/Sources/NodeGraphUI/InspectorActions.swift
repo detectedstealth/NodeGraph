@@ -55,6 +55,27 @@ extension GraphEditorModel {
         return attempt(.setNodeAttribute(node: id, attribute: .size(value: clamped)), name: "Resize")
     }
 
+    /// Moves a group to an exact position, taking the nodes inside it and the groups nested in it
+    /// along, as dragging it does. One undo step.
+    @discardableResult
+    public func setGroupPosition(_ position: GraphPoint, of id: GroupID) -> Bool {
+        guard let group = graph.groups[id] else { return false }
+        let delta = GraphPoint(x: position.x - group.bounds.origin.x, y: position.y - group.bounds.origin.y)
+        guard delta.x != 0 || delta.y != 0, let move = try? editor.beginGroupMove(id, in: currentScope) else { return false }
+        return attempt(move.command(delta: delta), name: "Move Group")
+    }
+
+    /// Sets a group's size, keeping its top-left corner and never smaller than a few handles.
+    /// The nodes inside do not move, so a smaller group can leave some outside it.
+    @discardableResult
+    public func setGroupSize(_ size: GraphSize, of id: GroupID) -> Bool {
+        updateGroup(id, name: "Resize Group") {
+            $0.bounds.size = GraphSize(
+                width: max(size.width, GraphInteractionController.minimumGroupSize),
+                height: max(size.height, GraphInteractionController.minimumGroupSize))
+        }
+    }
+
     /// Sets a property, limited to its range. A nil value removes the override, so the property
     /// goes back to its default. With `coalescing`, repeated calls (a slider sweep) are one step.
     @discardableResult

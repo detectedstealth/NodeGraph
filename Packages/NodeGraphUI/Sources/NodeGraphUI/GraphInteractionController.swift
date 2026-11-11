@@ -3,6 +3,27 @@ import Foundation
 import NodeGraphCore
 import Observation
 
+/// The sides of a group (or node) a resize drag moves.
+public struct ResizeEdges: OptionSet, Hashable, Sendable {
+    public let rawValue: Int
+    public init(rawValue: Int) { self.rawValue = rawValue }
+    public static let left = ResizeEdges(rawValue: 1)
+    public static let right = ResizeEdges(rawValue: 2)
+    public static let top = ResizeEdges(rawValue: 4)
+    public static let bottom = ResizeEdges(rawValue: 8)
+}
+
+/// The pointer shape the canvas wants: a hand over what can be dragged, a resize arrow over
+/// something's edge or corner.
+public enum CanvasCursor: Hashable, Sendable {
+    case arrow
+    /// Over something a drag moves.
+    case grab
+    /// While one is being moved, or the view is being panned.
+    case grabbing
+    case resize(ResizeEdges)
+}
+
 /// Turns pointer and gesture input into edits and camera moves.
 ///
 /// A state machine with no SwiftUI in it, so every behavior is unit-tested by calling
@@ -43,6 +64,21 @@ public final class GraphInteractionController {
     }
     public private(set) var hover: Hover?
 
+    /// What the pointer would do if pressed where it is, set as it moves.
+    private var hoverCursor = CanvasCursor.arrow
+
+    /// The pointer shape to show: the drag in progress decides it, otherwise what is under the
+    /// pointer. Always the arrow on a read-only canvas.
+    public var cursor: CanvasCursor {
+        switch state {
+        case .movingNodes, .movingGroup, .panning: return .grabbing
+        case .resizingNode: return .resize([.right, .bottom])
+        case .resizingGroup(let group, _): return .resize(group.edges)
+        case .idle, .pressed: return model.isEditable ? hoverCursor : .arrow
+        default: return .arrow
+        }
+    }
+
     /// What a right-click landed on.
     enum Subject {
         case node(NodeID)
@@ -66,7 +102,10 @@ public final class GraphInteractionController {
         case nodeResize(NodeID)
         case link(LinkID)
         case groupTitle(GroupID)
-        case groupResize(GroupID)
+        case groupResize(GroupID, ResizeEdges)
+        /// Inside a group, away from its title, edges and nodes: a click selects the group, a drag
+        /// does what a drag on empty canvas does.
+        case groupBody(GroupID)
         case widget(NodeID, WidgetLayout)
     }
 
@@ -101,6 +140,7 @@ public final class GraphInteractionController {
     private struct GroupNode {
         var id: GroupID
         var startBounds: GraphRect
+        var edges: ResizeEdges
     }
 
     /// A widget being edited in an overlay (text, number, choice, color), or nil.
@@ -160,11 +200,11 @@ public final class GraphInteractionController {
             if modifiers.extendsSelection { model.selection.links.insert(id) } else {
                 model.selection = GraphSelection(links: [id])
             }
-        case .groupTitle(let id), .groupResize(let id):
+        case .groupTitle(let id), .groupResize(let id, _):
             if modifiers.extendsSelection { model.selection.groups.insert(id) } else {
                 model.selection = GraphSelection(groups: [id])
             }
-        case .port, .empty:
+        case .port, .empty, .groupBody:
             break
         }
         // A slider follows the pointer from the moment it is pressed.
@@ -214,16 +254,8 @@ public final class GraphInteractionController {
             let size = GraphSize(width: max(width, minimum.width), height: max(height, minimum.height))
             apply(.setNodeAttribute(node: id, attribute: .size(value: size)), name: "Resize")
         case .resizingGroup(let group, let startGraph):
-            var width = group.startBounds.size.width + graphPoint.x - startGraph.x
-            var height = group.startBounds.size.height + graphPoint.y - startGraph.y
-            if snaps(modifiers) {
-                width = snap(width)
-                height = snap(height)
-            }
             guard var updated = model.graph.groups[group.id] else { break }
-            updated.bounds = GraphRect(
-                origin: group.startBounds.origin,
-                size: GraphSize(width: max(width, Self.minimumGroupSize), height: max(height, Self.minimumGroupSize)))
+            updated.bounds = resized(group.startBounds, edges: group.edges, by: GraphPoint(x: graphPoint.x - startGraph.x, y: graphPoint.y - startGraph.y), modifiers: modifiers)
             apply(.updateGroup(group: updated), name: "Resize Group")
         case .marquee(let start, let base):
             let rect = GraphRect(
@@ -287,15 +319,25 @@ public final class GraphInteractionController {
     public func hover(at point: CGPoint?) {
         lastPointer = point
         var result: Hover?
+        var shape = CanvasCursor.arrow
         if let point, !isActive {
             switch target(at: model.camera.graphPoint(forScreen: point)) {
             case .port(let port): result = .port(port.address)
-            case .node(let id), .nodeResize(let id), .widget(let id, _): result = .node(id)
+            case .node(let id):
+                result = .node(id)
+                if model.graph.nodes[id]?.isPinned == false { shape = .grab }
+            case .nodeResize(let id): result = .node(id); shape = .resize([.right, .bottom])
+            case .widget(let id, _): result = .node(id)
             case .link(let id): result = .link(id)
-            case .empty, .groupTitle, .groupResize: result = nil
+            case .groupTitle: shape = .grab
+            case .groupResize(_, let edges): shape = .resize(edges)
+            case .empty, .groupBody: result = nil
             }
+        } else if isActive {
+            shape = hoverCursor
         }
         if result != hover { hover = result }
+        if shape != hoverCursor { hoverCursor = shape }
     }
 
     /// Handles a scroll wheel or trackpad scroll at `point`.
@@ -318,7 +360,7 @@ public final class GraphInteractionController {
         case .node(let id), .nodeResize(let id), .widget(let id, _): return .node(id)
         case .port(let port): return .port(port.address)
         case .link(let id): return .link(id, graphPoint)
-        case .groupTitle(let id), .groupResize(let id): return .group(id)
+        case .groupTitle(let id), .groupResize(let id, _), .groupBody(let id): return .group(id)
         case .empty: return .empty
         }
     }
@@ -425,9 +467,27 @@ public final class GraphInteractionController {
         }
         if let id = model.link(at: point, tolerance: linkPickDistance * reach / zoom) { return .link(id) }
         if let id = model.group(at: point), let group = model.graph.groups[id] {
-            let corner = Self.groupHandleSize
-            if point.x >= group.bounds.maxX - corner, point.y >= group.bounds.maxY - corner { return .groupResize(id) }
-            if point.y <= group.bounds.minY + Self.groupTitleHeight { return .groupTitle(id) }
+            let bounds = group.bounds
+            // Handles keep their size on screen, but never take over a small group.
+            let grip = min(Self.groupEdgeGrip * reach / zoom, bounds.size.width / 4, bounds.size.height / 4)
+            let corner = min(Self.groupHandleSize * reach / zoom, bounds.size.width / 3, bounds.size.height / 3)
+            func sides(_ reach: Double) -> ResizeEdges {
+                var edges: ResizeEdges = []
+                if point.x <= bounds.minX + reach { edges.insert(.left) }
+                if point.x >= bounds.maxX - reach { edges.insert(.right) }
+                if point.y <= bounds.minY + reach { edges.insert(.top) }
+                if point.y >= bounds.maxY - reach { edges.insert(.bottom) }
+                return edges
+            }
+            // A corner takes both of its sides; an edge takes just its own.
+            let atCorner = sides(corner)
+            if !atCorner.intersection([.left, .right]).isEmpty, !atCorner.intersection([.top, .bottom]).isEmpty {
+                return .groupResize(id, atCorner)
+            }
+            let atEdge = sides(grip)
+            if !atEdge.isEmpty { return .groupResize(id, atEdge) }
+            if point.y <= bounds.minY + Self.groupTitleHeight { return .groupTitle(id) }
+            return .groupBody(id)
         }
         return .empty
     }
@@ -435,6 +495,8 @@ public final class GraphInteractionController {
     static let gripSlop = 4.0
     static let groupTitleHeight = 28.0
     static let groupHandleSize = 16.0
+    /// How far in from a group's edge, in screen points, a press grabs that edge.
+    static let groupEdgeGrip = 6.0
     static let minimumGroupSize = 40.0
 
     // MARK: Starting a drag
@@ -445,14 +507,14 @@ public final class GraphInteractionController {
         // A read-only canvas lets a drag select (marquee) and pan, but never move, resize or link.
         if !model.isEditable {
             switch press.target {
-            case .empty: break
+            case .empty, .groupBody: break
             default:
                 state = .idle
                 return
             }
         }
         switch press.target {
-        case .empty:
+        case .empty, .groupBody:
             if press.kind == .touch {
                 state = .panning(startCamera: model.camera, startScreen: press.startScreen)
             } else {
@@ -485,9 +547,9 @@ public final class GraphInteractionController {
         case .groupTitle(let id):
             guard let move = try? model.editor.beginGroupMove(id, in: model.currentScope) else { state = .idle; return }
             state = .movingGroup(move, startGraph: press.startGraph)
-        case .groupResize(let id):
+        case .groupResize(let id, let edges):
             guard let group = model.graph.groups[id] else { state = .idle; return }
-            state = .resizingGroup(GroupNode(id: id, startBounds: group.bounds), startGraph: press.startGraph)
+            state = .resizingGroup(GroupNode(id: id, startBounds: group.bounds, edges: edges), startGraph: press.startGraph)
         case .port(let port):
             beginLinkDrag(from: port, press: press)
         }
@@ -538,18 +600,31 @@ public final class GraphInteractionController {
             } else {
                 lastPortClick = (port.address, time)
             }
-        case .empty:
-            if !press.modifiers.extendsSelection { model.clearSelection() }
-            let time = now()
-            if let last = lastEmptyClick, time - last.time <= doubleClickInterval,
-               hypot(press.startScreen.x - last.point.x, press.startScreen.y - last.point.y) <= doubleClickDistance {
-                lastEmptyClick = nil
-                beginAddNode(at: press.startScreen)
+        case .groupBody(let id):
+            emptyClick(press)
+            if press.modifiers.extendsSelection {
+                if model.selection.groups.contains(id) { model.selection.groups.remove(id) } else { model.selection.groups.insert(id) }
             } else {
-                lastEmptyClick = (press.startScreen, time)
+                model.selection = GraphSelection(groups: [id])
             }
+        case .empty:
+            emptyClick(press)
         default:
             break
+        }
+    }
+
+    /// A click on empty canvas or a group's body: clears the selection, and two in a row open the
+    /// add-node search.
+    private func emptyClick(_ press: Press) {
+        if !press.modifiers.extendsSelection { model.clearSelection() }
+        let time = now()
+        if let last = lastEmptyClick, time - last.time <= doubleClickInterval,
+           hypot(press.startScreen.x - last.point.x, press.startScreen.y - last.point.y) <= doubleClickDistance {
+            lastEmptyClick = nil
+            beginAddNode(at: press.startScreen)
+        } else {
+            lastEmptyClick = (press.startScreen, time)
         }
     }
 
@@ -566,6 +641,18 @@ public final class GraphInteractionController {
     private func snap(_ value: Double) -> Double {
         let spacing = model.theme.gridSpacing
         return spacing > 0 ? (value / spacing).rounded() * spacing : value
+    }
+
+    /// `start` with the sides in `edges` moved by `delta`, no smaller than ``minimumGroupSize``.
+    /// A side that moves snaps to the grid; the opposite side stays where it was.
+    private func resized(_ start: GraphRect, edges: ResizeEdges, by delta: GraphPoint, modifiers: InputModifiers) -> GraphRect {
+        var minX = start.minX, maxX = start.maxX, minY = start.minY, maxY = start.maxY
+        let snapping = snaps(modifiers)
+        if edges.contains(.left) { minX = min(snapping ? snap(minX + delta.x) : minX + delta.x, maxX - Self.minimumGroupSize) }
+        if edges.contains(.right) { maxX = max(snapping ? snap(maxX + delta.x) : maxX + delta.x, minX + Self.minimumGroupSize) }
+        if edges.contains(.top) { minY = min(snapping ? snap(minY + delta.y) : minY + delta.y, maxY - Self.minimumGroupSize) }
+        if edges.contains(.bottom) { maxY = max(snapping ? snap(maxY + delta.y) : maxY + delta.y, minY + Self.minimumGroupSize) }
+        return GraphRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
     }
 
     /// `delta`, adjusted when snapping so the item that started at `origin` lands on the grid.

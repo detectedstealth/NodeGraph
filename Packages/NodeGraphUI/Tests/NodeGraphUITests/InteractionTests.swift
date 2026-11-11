@@ -430,4 +430,89 @@ private func pt(_ x: Double, _ y: Double) -> CGPoint { CGPoint(x: x, y: y) }
         let size = try #require(rig.model.graph.groups[group.id]).bounds.size
         #expect(size == GraphSize(width: 40, height: 40))
     }
+
+    @Test func clickingAnywhereInTheBodySelectsTheGroupAndShiftTogglesIt() throws {
+        let rig = Rig()
+        let group = NodeGroup(title: "G", bounds: GraphRect(x: 50, y: 50, width: 400, height: 300))
+        try rig.model.perform(.addGroup(group: group))
+        rig.click(pt(250, 200))
+        #expect(rig.model.selection.groups == [group.id])
+        rig.click(pt(900, 900))
+        #expect(rig.model.selection.isEmpty)
+        rig.click(pt(250, 200))
+        rig.click(pt(250, 200), modifiers: .shift)
+        #expect(rig.model.selection.groups.isEmpty)
+    }
+
+    @Test func aNodeInsideAGroupStillWinsTheClick() throws {
+        let rig = Rig()
+        let node = try rig.add(TestKit.source, x: 100, y: 100)
+        try rig.model.perform(.addGroup(group: NodeGroup(title: "G", bounds: GraphRect(x: 50, y: 50, width: 400, height: 300))))
+        rig.click(pt(160, 140))
+        #expect(rig.model.selection.nodes == [node.id] && rig.model.selection.groups.isEmpty)
+    }
+
+    @Test func everyEdgeAndCornerResizesAndTheOppositeSideStaysPut() throws {
+        let rig = Rig()
+        let group = NodeGroup(title: "G", bounds: GraphRect(x: 50, y: 50, width: 400, height: 300))
+        try rig.model.perform(.addGroup(group: group))
+        rig.drag(from: pt(52, 200), to: pt(22, 200))  // left edge
+        #expect(rig.model.graph.groups[group.id]?.bounds == GraphRect(x: 20, y: 50, width: 430, height: 300))
+        rig.drag(from: pt(250, 348), to: pt(250, 378))  // bottom edge
+        #expect(rig.model.graph.groups[group.id]?.bounds == GraphRect(x: 20, y: 50, width: 430, height: 330))
+        rig.drag(from: pt(22, 52), to: pt(42, 72))  // top-left corner
+        #expect(rig.model.graph.groups[group.id]?.bounds == GraphRect(x: 40, y: 70, width: 410, height: 310))
+        rig.drag(from: pt(40, 200), to: pt(900, 200))  // left edge dragged past the right one
+        let bounds = try #require(rig.model.graph.groups[group.id]).bounds
+        #expect(bounds.maxX == 450 && bounds.size.width == 40)
+    }
+
+    @Test func theCursorFollowsWhatAPressWouldDo() throws {
+        let rig = Rig()
+        let node = try rig.add(TestKit.source, x: 600, y: 600)
+        try rig.model.perform(.addGroup(group: NodeGroup(title: "G", bounds: GraphRect(x: 50, y: 50, width: 400, height: 300))))
+        let controller = rig.controller
+        controller.hover(at: pt(250, 200))
+        #expect(controller.cursor == .arrow)  // the body is not a drag handle
+        controller.hover(at: pt(250, 60))
+        #expect(controller.cursor == .grab)  // the title bar
+        controller.hover(at: pt(448, 200))
+        #expect(controller.cursor == .resize(.right))
+        controller.hover(at: pt(448, 348))
+        #expect(controller.cursor == .resize([.right, .bottom]))
+        controller.hover(at: pt(CGFloat(rig.position(node).x) + 40, CGFloat(rig.position(node).y) + 10))
+        #expect(controller.cursor == .grab)  // a node
+        controller.hover(at: nil)
+        #expect(controller.cursor == .arrow)
+        controller.hover(at: pt(250, 60))
+        controller.pointerDown(at: pt(250, 60))
+        controller.pointerMoved(to: pt(260, 80))
+        #expect(controller.cursor == .grabbing)
+        controller.pointerUp(at: pt(260, 80))
+    }
+
+    @Test func theInspectorMovesAGroupWithItsContentsAsOneStep() throws {
+        let rig = Rig()
+        let node = try rig.add(TestKit.source, x: 100, y: 100)
+        let group = NodeGroup(title: "G", bounds: GraphRect(x: 50, y: 50, width: 400, height: 300))
+        try rig.model.perform(.addGroup(group: group))
+        let before = rig.model.history.undoStack.count
+        #expect(rig.model.setGroupPosition(GraphPoint(x: 70, y: 40), of: group.id))
+        #expect(rig.model.graph.groups[group.id]?.bounds.origin == GraphPoint(x: 70, y: 40))
+        #expect(rig.position(node) == GraphPoint(x: 120, y: 90))
+        #expect(rig.model.history.undoStack.count == before + 1)
+        #expect(!rig.model.setGroupPosition(GraphPoint(x: 70, y: 40), of: group.id))  // already there
+        try rig.model.undo()
+        #expect(rig.position(node) == GraphPoint(x: 100, y: 100))
+    }
+
+    @Test func theInspectorResizesAGroupWithoutMovingItsNodes() throws {
+        let rig = Rig()
+        let node = try rig.add(TestKit.source, x: 100, y: 100)
+        let group = NodeGroup(title: "G", bounds: GraphRect(x: 50, y: 50, width: 400, height: 300))
+        try rig.model.perform(.addGroup(group: group))
+        #expect(rig.model.setGroupSize(GraphSize(width: 600, height: 10), of: group.id))
+        #expect(rig.model.graph.groups[group.id]?.bounds == GraphRect(x: 50, y: 50, width: 600, height: 40))
+        #expect(rig.position(node) == GraphPoint(x: 100, y: 100))
+    }
 }

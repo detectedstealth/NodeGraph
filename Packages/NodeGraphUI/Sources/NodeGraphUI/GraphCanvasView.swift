@@ -94,6 +94,9 @@ public struct GraphCanvasView: View {
                 .onEnded { _ in controller.endMagnify() }
         )
         #endif
+        #if os(macOS)
+        .pointerStyle(controller.cursor.pointerStyle)
+        #endif
         .accessibilityLabel("Node graph")
         .accessibilityChildren {
             // The canvas is one drawn view; these stand in for its nodes, links and groups. Only
@@ -138,3 +141,29 @@ public struct GraphCanvasView: View {
     }
     #endif
 }
+
+#if os(macOS)
+extension CanvasCursor {
+    /// The SwiftUI pointer style for this shape. SwiftUI has no pointer styles on iOS.
+    var pointerStyle: PointerStyle {
+        switch self {
+        case .arrow: return .default
+        case .grab: return .grabIdle
+        case .grabbing: return .grabActive
+        case .resize(let edges):
+            let horizontal = edges.contains(.left) ? -1 : edges.contains(.right) ? 1 : 0
+            let vertical = edges.contains(.top) ? -1 : edges.contains(.bottom) ? 1 : 0
+            switch (horizontal, vertical) {
+            case (-1, -1): return .frameResize(position: .topLeading)
+            case (1, -1): return .frameResize(position: .topTrailing)
+            case (-1, 1): return .frameResize(position: .bottomLeading)
+            case (1, 1): return .frameResize(position: .bottomTrailing)
+            case (-1, _): return .frameResize(position: .leading)
+            case (1, _): return .frameResize(position: .trailing)
+            case (_, -1): return .frameResize(position: .top)
+            default: return .frameResize(position: .bottom)
+            }
+        }
+    }
+}
+#endif

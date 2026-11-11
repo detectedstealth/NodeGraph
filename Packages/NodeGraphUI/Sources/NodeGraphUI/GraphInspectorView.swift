@@ -657,8 +657,18 @@ private struct GroupSection: View {
             }
             ColorRow(title: "Color", color: info.color, allowsClear: true) { model.setGroupColor($0, of: info.id) }
             LabeledContent("Contains", value: info.memberCount == 1 ? "1 node" : "\(info.memberCount) nodes")
-            LabeledContent("Position", value: "\(Int(info.bounds.origin.x)), \(Int(info.bounds.origin.y))")
-            LabeledContent("Size", value: "\(Int(info.bounds.size.width)) × \(Int(info.bounds.size.height))")
+            LabeledContent("Position") {
+                HStack {
+                    NumberField(value: info.bounds.origin.x) { model.setGroupPosition(GraphPoint(x: $0, y: info.bounds.origin.y), of: info.id) }
+                    NumberField(value: info.bounds.origin.y) { model.setGroupPosition(GraphPoint(x: info.bounds.origin.x, y: $0), of: info.id) }
+                }
+            }
+            LabeledContent("Size") {
+                HStack {
+                    NumberField(value: info.bounds.size.width) { model.setGroupSize(GraphSize(width: $0, height: info.bounds.size.height), of: info.id) }
+                    NumberField(value: info.bounds.size.height) { model.setGroupSize(GraphSize(width: info.bounds.size.width, height: $0), of: info.id) }
+                }
+            }
         }
     }
 }
