@@ -147,6 +147,26 @@ Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new 
 - [x] `NodeGraphVideo`: clip, trim, transition, effect, render nodes; time-based evaluation (frame at t); asset handles: `VideoPack` (`video.clip`, `trim`, `sequence`, `transition` with crossfade, dip to black and wipe, `effect`, `render`), `AssetLibrary` and `FrameSink` services, `VideoRenderer.frame(at:)`. Frames are descriptions (which asset, which moment, how blended); no pixels or decoding. 13 tests; iOS builds (decision 210). Not linked into the app
 - [x] Fix any Core abstraction gaps they expose: one found and fixed, `GraphRunner.step(at:delta:)` to evaluate any moment without running the ones before it (decision 210; Core 477 tests). Robotics found none. Still open and not built: vertical slot layout and vector types (deferred in Phase 5 until a domain needs them; neither domain did), a decoded-media handle store
 
+## Phase 8: Graph assistant
+
+Design, tool list, providers and backlog are in `docs/ASSISTANT.md`. Rules: the assistant proposes and never edits (decision 211); the model is the user's choice (decision 212); analysis is deterministic and the model narrates (decision 213). Steps A and B need no model and are useful alone. Phase 6's server decision does not block this phase.
+
+- [ ] A. Model-independent core (new pure-Swift package, builds on Linux, depends on Core only):
+  - [ ] Graph digest: compact text/JSON of a graph, selection or neighborhood, with size tiers; measure against a 4K token budget
+  - [ ] `GraphSpec` and `GraphSpecCompiler` (spec to `GraphFragment` to paste command, laid out with `Arrangement`), with specific errors a model can repair from
+  - [ ] Lint set producing `Diagnostic`s with suggested fix commands; pack-registered lints
+  - [ ] Run tracing: `traceUpstream(port)` over `RunValues` for "why is this value X"
+- [ ] B. Tool layer and review UI:
+  - [ ] Tool logic (read-only, run, propose) and `PendingChange` (batch, description, validation and lint of the result, optional before/after run comparison)
+  - [ ] Pending-change preview in the editor: ghost overlay, accept and reject, one undo step
+  - [ ] Lint results panel with apply-fix buttons (useful with no model)
+- [ ] C. Provider abstraction and Apple on-device (new Apple-only package): model picker and availability UI, `Tool` wrappers, dynamic schema builders, staged generation with repair loop, explain
+- [ ] D. Apple Private Cloud Compute: provider, quota and network error handling, routing policy. Needs the managed entitlement, not requested yet (decision 214)
+- [ ] E. Claude provider: `LanguageModel` and executor over `URLSession`, Keychain key storage (per device), capability gating, streaming
+- [ ] F. Edit, lint triage, suggestions, run-aware features (explain values, what-if, test generation)
+- [ ] G. Eval harness: golden tasks run against each provider, results recorded in ASSISTANT.md
+- [ ] Later: iCloud Keychain sync of the API key (after the server decision), App Intents, domain assistant extensions in packs
+
 ## Quality gates (every phase)
 
 - Swift 6 strict concurrency clean; zero warnings.
