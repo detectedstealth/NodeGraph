@@ -34,7 +34,9 @@ final class AssistantPanelModel {
     init(model: GraphEditorModel) {
         self.model = model
         workspace = AssistantWorkspace(editor: model.editor)
-        refresh()
+        // Not refresh(): this runs for every throwaway copy SwiftUI makes while it evaluates
+        // ContentView.init, and a copy must not touch the canvas model it shares with the real one.
+        takeSnapshot()
     }
 
     /// Whether the open graph is a subgraph's inside. The snapshot is of the root graph, so
@@ -43,6 +45,15 @@ final class AssistantPanelModel {
 
     /// Takes a new snapshot of the graph, its selection and the last run, and redoes the checks.
     func refresh() {
+        takeSnapshot()
+        // A proposal made on an older graph is stale, and is shown as such rather than dropped.
+        if let pending, pending.isStale(for: model.editor) {
+            proposalMessage = "The graph changed since this was proposed. Propose it again."
+        }
+        showPreview()
+    }
+
+    private func takeSnapshot() {
         workspace = AssistantWorkspace(
             editor: model.editor, runValues: model.runValues, selection: model.selection.nodes)
         findings = workspace.lint()
@@ -52,11 +63,6 @@ final class AssistantPanelModel {
                 + ", about \(shown.estimatedTokens) tokens"
                 + (shown.omittedNodeCount > 0 ? ", \(shown.omittedNodeCount) nodes left out" : "")
         }
-        // A proposal made on an older graph is stale, and is shown as such rather than dropped.
-        if let pending, pending.isStale(for: model.editor) {
-            proposalMessage = "The graph changed since this was proposed. Propose it again."
-        }
-        showPreview()
     }
 
     /// Draws `pending` on the canvas, unless the graph has changed since it was proposed: then
