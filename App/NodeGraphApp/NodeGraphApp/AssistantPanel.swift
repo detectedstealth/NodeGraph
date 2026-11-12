@@ -1,11 +1,14 @@
+import NodeGraphAI
 import NodeGraphAssistant
 import NodeGraphCore
 import NodeGraphUI
 import SwiftUI
 
-/// What the assistant panel shows and does, on top of a frozen ``AssistantWorkspace``. There is
-/// no model behind it: it lets a person see the digest, lint findings, traces and proposals the
-/// tools produce, and try the propose tools with hand-written JSON.
+/// What the assistant panel shows and does, on top of a frozen ``AssistantWorkspace``. It shows the
+/// digest, lint findings, traces and proposals the tools produce, lets a person try the propose
+/// tools with hand-written JSON, and, with a model available, explains a value and generates a
+/// graph from a description. The model only phrases or chooses; the proposal still goes through
+/// the same preview and Apply as any other (decisions 211 and 229).
 @MainActor
 @Observable
 final class AssistantPanelModel {
@@ -30,6 +33,31 @@ final class AssistantPanelModel {
     private(set) var traceMessage = ""
     private(set) var proposalMessage = ""
     private(set) var fixMessage = ""
+
+    // MARK: Model state
+
+    /// The models the picker offers. Endpoints a person adds themselves come with step E2.
+    static let endpoints: [ModelEndpoint] = [.appleOnDevice, .applePrivateCloud, .claude()]
+    private static let endpointKey = "assistant.endpoint"
+
+    /// The chosen model, kept between launches.
+    var endpointID: String = UserDefaults.standard.string(forKey: AssistantPanelModel.endpointKey)
+        ?? ModelEndpoint.appleOnDevice.id {
+        didSet {
+            UserDefaults.standard.set(endpointID, forKey: Self.endpointKey)
+            modelMessage = ""
+            explanation = nil
+        }
+    }
+    var generateRequest = ""
+    private(set) var explanation: Explanation?
+    private(set) var modelMessage = ""
+    private(set) var isAsking = false
+    private var modelTask: Task<Void, Never>?
+
+    var endpoint: ModelEndpoint { Self.endpoints.first { $0.id == endpointID } ?? .appleOnDevice }
+    /// Asked each time it is read: a person can turn Apple Intelligence on while the app is open.
+    var availability: ModelAvailability { endpoint.availability }
 
     init(model: GraphEditorModel) {
         self.model = model
@@ -97,6 +125,7 @@ final class AssistantPanelModel {
     // MARK: Trace
 
     func trace() {
+        explanation = nil
         let reference = traceReference.trimmingCharacters(in: .whitespaces)
         guard !reference.isEmpty else {
             traceMessage = "Type a port such as n3.result, or pick one from the selected nodes."
@@ -109,6 +138,74 @@ final class AssistantPanelModel {
         } catch {
             traceText = ""
             traceMessage = "\(error)"
+        }
+    }
+
+    // MARK: Model
+
+    /// Asks the model to put the trace of `traceReference` in words. The trace itself is shown too.
+    func explain() {
+        let reference = traceReference.trimmingCharacters(in: .whitespaces)
+        guard !reference.isEmpty else {
+            traceMessage = "Type a port such as n3.result, or pick one from the selected nodes."
+            return
+        }
+        guard let generator = endpoint.makeGenerator() else {
+            modelMessage = availability.summary
+            return
+        }
+        refresh()
+        let explainer = ValueExplainer(workspace: workspace, generator: generator, contextTokens: endpoint.contextTokens)
+        ask {
+            let result = try await explainer.explain(reference)
+            self.traceText = result.trace
+            self.traceMessage = ""
+            self.explanation = result
+        }
+    }
+
+    /// Builds a graph from `generateRequest` in stages and shows it as a pending change.
+    func generate() {
+        let request = generateRequest.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !request.isEmpty, !isInsideSubgraph else { return }
+        guard let generator = endpoint.makeGenerator() else {
+            modelMessage = availability.summary
+            return
+        }
+        refresh()
+        let space = workspace
+        let builder = GraphGenerator(
+            workspace: space, generator: generator, maxNodes: endpoint.contextTokens <= 4_096 ? 8 : 12)
+        ask {
+            let outcome = try await builder.generate(request)
+            self.pending = outcome.change
+            var text = outcome.change.rendered(in: space)
+            if !outcome.notes.isEmpty { text += "\nLeft out:\n" + outcome.notes.map { "- " + $0 }.joined(separator: "\n") }
+            if outcome.repairs > 0 { text += "\nRepaired links in \(outcome.repairs) extra round(s)." }
+            self.pendingText = text
+            self.proposalMessage = outcome.change.isEmpty ? "The model proposed nothing." : ""
+        }
+    }
+
+    func stopAsking() { modelTask?.cancel() }
+
+    /// Runs one model request at a time and turns its failure into words for the person.
+    private func ask(_ work: @escaping @MainActor () async throws -> Void) {
+        guard !isAsking else { return }
+        isAsking = true
+        modelMessage = ""
+        modelTask = Task {
+            defer {
+                isAsking = false
+                modelTask = nil
+            }
+            do {
+                try await work()
+            } catch is CancellationError {
+                modelMessage = "Stopped."
+            } catch {
+                modelMessage = (error as? LocalizedError)?.errorDescription ?? "\(error)"
+            }
         }
     }
 
@@ -181,10 +278,13 @@ struct AssistantPanel: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
+                modelSection
                 checksSection
                 digestSection
                 traceSection
+                generateSection
                 proposeSection
+                pendingSection
             }
             .padding(12)
         }
@@ -198,6 +298,33 @@ struct AssistantPanel: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title).font(.headline)
             content()
+        }
+    }
+
+    private var modelSection: some View {
+        section("Model") {
+            Picker("Model", selection: $assistant.endpointID) {
+                ForEach(AssistantPanelModel.endpoints) { endpoint in
+                    Text(endpoint.name).tag(endpoint.id)
+                }
+            }
+            .labelsHidden()
+            let availability = assistant.availability
+            Label(availability.summary, systemImage: availability.isAvailable ? "checkmark.circle.fill" : "exclamationmark.circle")
+                .foregroundStyle(availability.isAvailable ? .green : .secondary)
+                .font(.callout)
+            if assistant.endpoint.sendsDataOffDevice {
+                Text("This model is not on your device: the graph and run values it is asked about would be sent to it.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            if assistant.isAsking {
+                HStack {
+                    ProgressView().controlSize(.small)
+                    Text("Asking the model…").font(.callout)
+                    Button("Stop") { assistant.stopAsking() }.controlSize(.small)
+                }
+            }
+            note(assistant.modelMessage)
         }
     }
 
@@ -268,14 +395,43 @@ struct AssistantPanel: View {
                     .help("Outputs of the selected nodes")
                 }
                 Button("Trace") { assistant.trace() }
+                Button("Explain", systemImage: "sparkles") { assistant.explain() }
+                    .disabled(!assistant.availability.isAvailable || assistant.isAsking)
+                    .help("Ask the model to put the trace in words")
             }
             note(assistant.traceMessage)
+            if let explanation = assistant.explanation {
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("From the run", systemImage: "checkmark.seal")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Text(explanation.summary).textSelection(.enabled)
+                    Label("The model's reading. It can be wrong.", systemImage: "sparkles")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Text(explanation.narration).textSelection(.enabled)
+                }
+                .padding(8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 6))
+            }
             if !assistant.traceText.isEmpty {
                 Text(assistant.traceText)
                     .font(.system(.caption, design: .monospaced))
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
+        }
+    }
+
+    private var generateSection: some View {
+        section("Generate a graph") {
+            Text("Describe what to add. The result is previewed under Pending change; nothing is applied until you press Apply.")
+                .font(.caption).foregroundStyle(.secondary)
+            TextField("For example: add two numbers and show the sum", text: $assistant.generateRequest, axis: .vertical)
+                .textFieldStyle(.roundedBorder)
+                .lineLimit(2...4)
+            Button("Generate", systemImage: "sparkles") { assistant.generate() }
+                .disabled(assistant.generateRequest.isEmpty || !assistant.availability.isAvailable
+                    || assistant.isAsking || assistant.isInsideSubgraph)
         }
     }
 
@@ -300,7 +456,12 @@ struct AssistantPanel: View {
             Button("Propose") { assistant.propose() }
                 .disabled(assistant.proposalText.isEmpty || assistant.isInsideSubgraph)
             note(assistant.proposalMessage)
-            if let pending = assistant.pending {
+        }
+    }
+
+    @ViewBuilder private var pendingSection: some View {
+        if let pending = assistant.pending {
+            section("Pending change") {
                 Text(assistant.pendingText)
                     .font(.system(.caption, design: .monospaced))
                     .textSelection(.enabled)

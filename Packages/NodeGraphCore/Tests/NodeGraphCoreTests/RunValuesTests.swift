@@ -120,4 +120,48 @@ private struct Rig {
         let deep = GraphValue.array([.array([.array([.array([.array([.int(1)])])])])])
         #expect(deep.summary() == "[[[[…]]]]")
     }
+
+    @Test func remembersWhyANodeHasNoValuesAndForgetsItWhenTheNodeRunsAgain() async throws {
+        var rig = Rig()
+        rig.registry.register(NodeDefinition(
+            typeID: "pass", displayName: "Pass",
+            ports: [PortDefinition(id: "in", direction: .input), PortDefinition(id: "out", direction: .output)])
+        ) { ctx in ["out": try ctx.input("in")] }
+        let id = rig.add(["fail": true])
+        let downstream = Node(typeID: "pass")
+        rig.graph.insert(downstream)
+        rig.graph.insert(Link(sourceNode: id, sourcePort: "out", targetNode: downstream.id, targetPort: "in"))
+        let runner = try GraphRunner(graph: rig.graph, registry: rig.registry)
+        var values = RunValues()
+        values.apply(await runner.step())
+        #expect(values.failures[id] == "boom")
+        #expect(values.failures[downstream.id] == nil)
+        #expect(values.skipped[downstream.id] == .upstreamFailed)
+        #expect(values[id].isEmpty)
+
+        var next = rig.graph
+        next.insert(Node(id: id, typeID: "const", properties: ["value": 5.0]))
+        try await runner.update(graph: next, registry: rig.registry)
+        values.apply(await runner.step())
+        #expect(values.failures.isEmpty)
+        #expect(values.skipped.isEmpty)
+        #expect(values[id, "out"] == .double(5))
+
+        values.prune(keeping: [])
+        #expect(values.failures.isEmpty && values.skipped.isEmpty && values[id].isEmpty)
+    }
+
+    @Test func aNodeThatDidNotFireIsNotRecordedAsSkippedAndKeepsItsValues() async throws {
+        var rig = Rig()
+        let id = rig.add(["value": 3.0])
+        let runner = try GraphRunner(graph: rig.graph, registry: rig.registry)
+        var values = RunValues()
+        values.apply(await runner.step())
+        var next = rig.graph
+        next.insert(Node(id: id, typeID: "const", mode: .onTrigger, properties: ["value": 3.0]))
+        try await runner.update(graph: next, registry: rig.registry)
+        values.apply(await runner.step())
+        #expect(values.skipped[id] == nil)
+        #expect(values[id, "out"] == .double(3))
+    }
 }

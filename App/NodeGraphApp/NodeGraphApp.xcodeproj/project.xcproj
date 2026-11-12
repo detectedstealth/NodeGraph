@@ -32,6 +32,9 @@
     }, {
       "kind": "local",
       "path": "../../Packages/NodeGraphAssistant",
+    }, {
+      "kind": "local",
+      "path": "../../Packages/NodeGraphAI",
     },
   ],
   "files": [
@@ -73,6 +76,9 @@
       ],
       "package-product-members": [
         {
+          "product-name": "NodeGraphAI",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
           "product-name": "NodeGraphAssistant",
           "build-phase": { "build-phase": "frameworks" },
         }, {

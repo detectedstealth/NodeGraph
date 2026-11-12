@@ -117,4 +117,49 @@ private typealias L = GraphSpec.LinkSpec
         let text = trace.rendered(aliases: GraphDigest(graph: editor.graph, registry: editor.nodes))
         #expect(text.contains("n2.result = no value") && text.contains("[disabled: did not run]"))
     }
+
+    @Test func sayWhyAFailedNodeHasNoValueAndWhichNodesWereSkippedBecauseOfIt() async throws {
+        // 1 / 0 fails; the add after it is skipped because of that.
+        let (editor, values, ids) = try await rig(GraphSpec(
+            nodes: [
+                N(alias: "one", type: "util.number", properties: ["value": .int(1)]),
+                N(alias: "zero", type: "util.number"),
+                N(alias: "ratio", type: "math.divide"),
+                N(alias: "after", type: "math.add"),
+            ],
+            links: [
+                L(from: "one.value", to: "ratio.a"), L(from: "zero.value", to: "ratio.b"),
+                L(from: "ratio.result", to: "after.a"),
+            ]))
+        let space = AssistantWorkspace(editor: editor, runValues: values)
+        let failed = try space.traceUpstream("n3.result").rendered(aliases: space.aliases)
+        #expect(failed.contains("n3.result = no value"))
+        #expect(failed.contains("FAILED in the last run: Division by zero"))
+        let skipped = try space.traceUpstream("n4.result").rendered(aliases: space.aliases)
+        #expect(skipped.contains("skipped in the last run because a node feeding it failed"))
+        // The failing node still shows up above the skipped one, with its reason.
+        #expect(skipped.contains("FAILED in the last run: Division by zero"))
+        _ = ids
+
+        // The summary states it outright, with each input and where it came from.
+        let summary = try space.traceUpstream("n3.result").summary(aliases: space.aliases)
+        #expect(summary.contains("n3 (math.divide) failed in the last run: Division by zero."))
+        #expect(summary.contains("a = 1.0 from n1.value (util.number)"))
+        #expect(summary.contains("b = 0.0 from n2.value (util.number)"))
+        let skippedSummary = try space.traceUpstream("n4.result").summary(aliases: space.aliases)
+        #expect(skippedSummary.contains("skipped because n3 (math.divide) failed: Division by zero."))
+    }
+
+    @Test func summarisesAValueAndNamesDefaultsAndTitles() async throws {
+        let (editor, values, _) = try await arithmetic()
+        let space = AssistantWorkspace(editor: editor, runValues: values)
+        let summary = try space.traceUpstream("n5.result").summary(aliases: space.aliases)
+        #expect(summary.hasPrefix("n5.result = 24.0, made by n5 \"Total\" (math.multiply)."))
+        #expect(summary.contains("a = 12.0 from n3.result (math.add)"))
+        #expect(summary.contains("b = 2.0 from n4.value (util.number)"))
+        // An input with no link says it is the default.
+        let single = try await rig(GraphSpec(nodes: [N(alias: "add", type: "math.add")], links: []))
+        let lone = AssistantWorkspace(editor: single.editor, runValues: single.values)
+        #expect(try lone.traceUpstream("n1.result").summary(aliases: lone.aliases).contains("a = 0.0 (not linked: the default)"))
+    }
 }

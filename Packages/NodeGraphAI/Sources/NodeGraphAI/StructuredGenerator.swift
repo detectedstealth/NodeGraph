@@ -14,18 +14,23 @@ public protocol StructuredGenerator: Sendable {
     func generate(stage: GenerationStage, prompt: String, schema: GenerationSchema) async throws -> GeneratedContent
 }
 
+/// Produces free text, for narrating facts the code has already established.
+public protocol TextGenerator: Sendable {
+    func narrate(prompt: String) async throws -> String
+}
+
 /// Answers each stage with a fresh `LanguageModelSession`.
 ///
 /// Every prompt carries all the context its stage needs, so no session is reused: a 4K model
 /// would otherwise fill up with earlier stages and repair rounds.
-public struct SessionGenerator: StructuredGenerator {
+public struct SessionGenerator: StructuredGenerator, TextGenerator {
     private let makeSession: @Sendable () -> LanguageModelSession
 
     public init(makeSession: @escaping @Sendable () -> LanguageModelSession) {
         self.makeSession = makeSession
     }
 
-    static let instructions = "You build node graphs. Choose only from the options you are given."
+    static let instructions = "You help with node graphs. Use only the options and facts you are given."
 
     /// Apple's on-device model.
     public static var onDevice: SessionGenerator {
@@ -34,5 +39,9 @@ public struct SessionGenerator: StructuredGenerator {
 
     public func generate(stage: GenerationStage, prompt: String, schema: GenerationSchema) async throws -> GeneratedContent {
         try await makeSession().respond(to: prompt, schema: schema).content
+    }
+
+    public func narrate(prompt: String) async throws -> String {
+        try await makeSession().respond(to: prompt).content
     }
 }

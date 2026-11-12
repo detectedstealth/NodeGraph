@@ -176,3 +176,68 @@ private func emptyWorkspace() -> AssistantWorkspace {
         #expect(GraphGenerator.link(from: "a.out") == nil)
     }
 }
+
+private final class Narrator: TextGenerator {
+    private let seen = Mutex<[String]>([])
+    var prompts: [String] { seen.withLock { $0 } }
+    func narrate(prompt: String) async throws -> String {
+        seen.withLock { $0.append(prompt) }
+        return "  It is 12 because four plus eight.  "
+    }
+}
+
+@Suite struct ValueExplainerTests {
+    /// four + eight, with the run, so n3.result is 12.
+    private func ran() async throws -> AssistantWorkspace {
+        var nodes = NodeRegistry()
+        var types = TypeRegistry()
+        StandardPack.register(nodes: &nodes, types: &types)
+        let editor = GraphEditor(nodes: nodes, types: types)
+        let spec = GraphSpec(
+            nodes: [
+                .init(alias: "four", type: "util.number", properties: ["value": .int(4)]),
+                .init(alias: "eight", type: "util.number", properties: ["value": .int(8)]),
+                .init(alias: "sum", type: "math.add"),
+            ],
+            links: [.init(from: "four.value", to: "sum.a"), .init(from: "eight.value", to: "sum.b")])
+        let result = GraphSpecCompiler(nodes: nodes, types: types).compile(spec)
+        try editor.apply(try result.pasteCommand(into: editor).command)
+        let base = AssistantWorkspace(editor: editor)
+        return AssistantWorkspace(editor: editor, runValues: try await base.run().values)
+    }
+
+    @Test func theTraceIsFactAndTheNarrationIsTheModelsWords() async throws {
+        let narrator = Narrator()
+        let explainer = ValueExplainer(workspace: try await ran(), generator: narrator, contextTokens: 4_096)
+        let result = try await explainer.explain("n3.result")
+        #expect(result.trace.contains("12"))
+        #expect(result.narration == "It is 12 because four plus eight.")
+        let prompt = try #require(narrator.prompts.first)
+        #expect(prompt.contains("Do not contradict the facts"))
+        #expect(prompt.contains(result.summary))
+        #expect(prompt.contains(result.trace))
+        #expect(result.summary.contains("n3.result = 12.0"))
+    }
+
+    @Test func aPortThatDoesNotExistFailsBeforeAskingTheModel() async throws {
+        let narrator = Narrator()
+        let explainer = ValueExplainer(workspace: try await ran(), generator: narrator, contextTokens: 4_096)
+        await #expect(throws: AssistantToolError.self) { try await explainer.explain("n99.result") }
+        #expect(narrator.prompts.isEmpty)
+    }
+
+    @Test func aLongTraceIsCutToTheContextBudgetKeepingItsStart() {
+        let trace = "start\n" + String(repeating: "step\n", count: 5_000)
+        let prompt = ValueExplainer.prompt(port: "n1.out", summary: "fact", trace: trace, limit: 1_000)
+        #expect(prompt.count <= 1_000 + 60)
+        #expect(prompt.contains("start"))
+        #expect(prompt.hasSuffix("(the rest of the trace is left out)"))
+        #expect(!ValueExplainer.prompt(port: "n1.out", summary: "fact", trace: "short", limit: 1_000).contains("left out"))
+    }
+
+    @Test func onlyAnAvailableEndpointMakesAGenerator() {
+        #expect(ModelEndpoint.claude().makeGenerator() == nil)
+        #expect(ModelEndpoint.applePrivateCloud.makeGenerator() == nil)
+        #expect((ModelEndpoint.appleOnDevice.makeGenerator() != nil) == ModelEndpoint.appleOnDevice.availability.isAvailable)
+    }
+}

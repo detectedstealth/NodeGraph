@@ -16,6 +16,10 @@ public struct ValueTrace: Hashable, Sendable {
         public var value: GraphValue?
         /// Why `value` is missing or may not follow from the inputs, such as a muted node.
         public var note: String?
+        /// The message of the failure the last run recorded for this node, if it failed.
+        public var failure: String? = nil
+        /// Why the last run skipped this node because of another, if it did.
+        public var skipReason: NodeRunResult.SkipReason? = nil
         /// The node's properties that differ from their defaults, in the definition's order.
         public var properties: [Property]
         /// The data inputs, in port order.
@@ -47,6 +51,59 @@ public struct ValueTrace: Hashable, Sendable {
     public var root: Step
     /// Whether any part of the trace was cut off by a limit.
     public var isTruncated: Bool
+
+    /// The first lines of an explanation, worked out from the trace without a model, so they are
+    /// right whatever a model says next: what the port holds or why it has nothing, which node made
+    /// it, the message if that node failed, and every input with its value and where it came from.
+    /// ```
+    /// n20 "Normalise" (math.divide) failed in the last run: Division by zero.
+    /// Its inputs: a = 23.7 from n4.result (util.log "smoothed"); b = 0.0 from n19.value (util.variable "Margin").
+    /// ```
+    public func summary(aliases digest: GraphDigest, valueLimit: Int = 40) -> String {
+        func alias(_ node: NodeID) -> String { digest.alias(for: node) ?? "?" }
+        func show(_ value: GraphValue?) -> String { value.map { GraphDigest.format($0, limit: valueLimit) } ?? "no value" }
+        func name(_ step: Step) -> String {
+            var text = alias(step.node)
+            if let title = step.title, !title.isEmpty { text += " \"\(title)\"" }
+            return text + " (\(step.typeID.rawValue))"
+        }
+        func firstFailure(in step: Step) -> Step? {
+            if step.failure != nil { return step }
+            for input in step.inputs {
+                if case .linked(let source) = input.origin, let found = firstFailure(in: source) { return found }
+            }
+            return nil
+        }
+
+        var lines: [String] = []
+        if let message = root.failure {
+            lines.append("\(name(root)) failed in the last run: \(message).")
+        } else if root.value == nil {
+            if root.skipReason != nil, let failed = firstFailure(in: root), let message = failed.failure {
+                lines.append("\(name(root)) has no value: it was skipped because \(name(failed)) failed: \(message).")
+            } else {
+                lines.append("\(alias(root.node)).\(root.port.rawValue) has no value\(root.note.map { " (\($0))" } ?? "").")
+            }
+        } else {
+            lines.append("\(alias(root.node)).\(root.port.rawValue) = \(show(root.value)), made by \(name(root)).")
+        }
+
+        let inputs = root.inputs.map { input -> String in
+            let label = input.port.rawValue
+            switch input.origin {
+            case .linked(let source):
+                return "\(label) = \(show(source.value)) from \(alias(source.node)).\(source.port.rawValue) (\(source.typeID.rawValue)\(source.title.flatMap { $0.isEmpty ? nil : " \"\($0)\"" } ?? ""))"
+            case .unlinked(let value):
+                return value.map { "\(label) = \(show($0)) (not linked: the default)" } ?? "\(label) has no link and no default"
+            case .cutOff(let node, let port, let value):
+                return "\(label) = \(show(value)) from \(alias(node)).\(port.rawValue) (not expanded)"
+            case .loop(let node, let port, let value):
+                return "\(label) = \(show(value)) from \(alias(node)).\(port.rawValue) (a loop back)"
+            }
+        }
+        if !inputs.isEmpty { lines.append("Its inputs: " + inputs.joined(separator: "; ") + ".") }
+        return lines.joined(separator: "\n")
+    }
 
     /// The trace as indented text, with the aliases of `digest` so it matches what the model has
     /// seen of the graph:
@@ -144,7 +201,8 @@ public struct ValueTracer: Sendable {
             let published = values[id, port]
             return ValueTrace.Step(
                 node: id, typeID: node.typeID, title: node.title, port: port, value: published,
-                note: Self.note(for: node, published: published),
+                note: Self.note(for: node, published: published, values: values),
+                failure: values.failures[id], skipReason: values.skipped[id],
                 properties: definition.properties.compactMap { property in
                     guard let value = node.properties[property.id], value != property.defaultValue else { return nil }
                     return ValueTrace.Property(id: property.id, value: value)
@@ -164,7 +222,16 @@ public struct ValueTracer: Sendable {
         }
     }
 
-    private static func note(for node: Node, published: GraphValue?) -> String? {
+    private static func note(for node: Node, published: GraphValue?, values: RunValues) -> String? {
+        // What the run recorded beats a guess from the mode: a failure says why.
+        if let message = values.failures[node.id] { return "FAILED in the last run: \(message)" }
+        if let reason = values.skipped[node.id] {
+            switch reason {
+            case .upstreamFailed: return "skipped in the last run because a node feeding it failed"
+            case .upstreamDisabled: return "skipped in the last run because a node feeding it is disabled"
+            default: break
+            }
+        }
         switch node.mode {
         case .never: return "disabled: did not run"
         case .muted: return "muted: publishes nothing"
