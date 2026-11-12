@@ -57,17 +57,22 @@ public struct GraphGenerator: Sendable {
     public var workspace: AssistantWorkspace
     public var generator: any StructuredGenerator
     public var maxNodes: Int
-    /// Worked examples for the node-picking prompt. The first usable one is shown.
+    /// Worked examples for the node-picking prompt. Up to two usable ones are shown, in order.
     public var examples: [GenerationExample]
+    /// Whether the same operation (a node that takes inputs) may be picked more than once. Off, a
+    /// repeat is collapsed to one: small models pad their list with copies ("format, format,
+    /// format"), while nodes that only make a value, like numbers, legitimately repeat.
+    public var allowsRepeatedOperations: Bool
 
     public init(
         workspace: AssistantWorkspace, generator: any StructuredGenerator, maxNodes: Int = 10,
-        examples: [GenerationExample] = []
+        examples: [GenerationExample] = [], allowsRepeatedOperations: Bool = true
     ) {
         self.workspace = workspace
         self.generator = generator
         self.maxNodes = maxNodes
         self.examples = examples
+        self.allowsRepeatedOperations = allowsRepeatedOperations
     }
 
     public func generate(_ request: String) async throws -> GenerationOutcome {
@@ -86,25 +91,26 @@ public struct GraphGenerator: Sendable {
 
     private func pickNodes(_ request: String, notes: inout [String]) async throws -> [GraphSpec.NodeSpec] {
         let candidates = workspace.candidateNodeTypes(for: request)
-        // The example's types must be choosable, or the example teaches something the schema forbids.
-        let example = examples.first { example in
+        // An example's types must be choosable, or it teaches something the schema forbids. Two of
+        // different sizes: with only a four-node one the model copies its shape (decision 234).
+        let shown = Array(examples.filter { example in
             example.types.allSatisfy { workspace.nodes.definition(for: NodeTypeID($0)) != nil }
-        }
+        }.prefix(2))
         var ids = candidates.map(\.typeID.rawValue)
-        for type in example?.types ?? [] where !ids.contains(type) { ids.append(type) }
+        for type in shown.flatMap(\.types) where !ids.contains(type) { ids.append(type) }
         var listing = candidates.map(\.rendered)
         for type in ids.dropFirst(candidates.count) {
             if let summary = workspace.searchNodes(type, limit: 1).first { listing.append(summary.rendered) }
         }
         // The wording is tuned on the real on-device model (decision 233): a longer instruction
         // ("choose the types needed to do this task...") made it pick worse, not better.
-        let exampleText = example.map { example in
+        let exampleText = shown.map { example in
             let list = example.types.map { "\"\($0)\"" }.joined(separator: ", ")
-            return " Example: for the task \"\(example.task)\" the list is [\(list)]" + (example.explanation.map { ": \($0)." } ?? ".")
-        } ?? ""
+            return "Example: for the task \"\(example.task)\" the list is [\(list)]" + (example.explanation.map { ": \($0)." } ?? ".")
+        }.joined(separator: "\n")
         let prompt = """
             Task: \(request)
-            Choose node types as a list.\(exampleText)
+            Choose node types as a list.\(exampleText.isEmpty ? "" : " " + exampleText)
             Node types:
             \(listing.joined(separator: "\n"))
             """
@@ -116,6 +122,10 @@ public struct GraphGenerator: Sendable {
         for type in chosen.prefix(maxNodes) {
             guard ids.contains(type) else {
                 notes.append("Ignored \"\(type)\": not one of the offered node types.")
+                continue
+            }
+            if !allowsRepeatedOperations, !makesValue(type: type), specs.contains(where: { $0.type == type }) {
+                notes.append("Used one \"\(type)\" node: the model listed it more than once.")
                 continue
             }
             let base = Self.baseAlias(of: type)
@@ -225,8 +235,10 @@ public struct GraphGenerator: Sendable {
     }
 
     /// Whether a node makes a value without any input, like a constant.
-    private func isSource(_ node: GraphSpec.NodeSpec) -> Bool {
-        guard let definition = workspace.nodes.definition(for: NodeTypeID(node.type)) else { return false }
+    private func isSource(_ node: GraphSpec.NodeSpec) -> Bool { makesValue(type: node.type) }
+
+    private func makesValue(type: String) -> Bool {
+        guard let definition = workspace.nodes.definition(for: NodeTypeID(type)) else { return false }
         return !definition.inputs.contains { $0.kind == .data } && !definition.dynamicPorts.contains { $0.direction == .input }
     }
 

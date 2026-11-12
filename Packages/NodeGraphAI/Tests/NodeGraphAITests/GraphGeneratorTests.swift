@@ -172,21 +172,50 @@ private func emptyWorkspace() -> AssistantWorkspace {
         #expect(outcome.spec.links.isEmpty)
     }
 
-    @Test func aWorkedExampleIsShownOnlyIfItsTypesExist() async throws {
-        let usable = GenerationExample(
+    @Test func workedExamplesAreShownOnlyIfTheirTypesExistAndAtMostTwo() async throws {
+        let big = GenerationExample(
             task: "double a number", types: ["util.number", "math.multiply"], explanation: "a number and the multiply node")
+        let small = GenerationExample(task: "make a number", types: ["util.number"], explanation: "just the number node")
+        let third = GenerationExample(task: "third task", types: ["util.bool"])
         let unusable = GenerationExample(task: "other", types: ["made.up"])
-        for (examples, shown) in [([unusable, usable], true), ([unusable], false), ([], false)] {
+        let cases: [([GenerationExample], [String])] = [
+            ([unusable, big, small, third], ["double a number", "make a number"]),
+            ([unusable], []),
+            ([], []),
+        ]
+        for (examples, shown) in cases {
             let script = Scripted { stage in
                 if case .pickNodes = stage { return #"["util.number"]"# }
                 return "{}"
             }
             _ = try await GraphGenerator(workspace: emptyWorkspace(), generator: script, examples: examples).generate("x")
             let prompt = try #require(script.recorded.first?.prompt)
-            #expect(prompt.contains("Example: for the task \"double a number\"") == shown)
-            #expect(prompt.contains("a number and the multiply node.") == shown)
+            for task in ["double a number", "make a number", "third task"] {
+                #expect(prompt.contains("Example: for the task \"\(task)\"") == shown.contains(task), "\(task)")
+            }
             #expect(!prompt.contains("made.up"))
         }
+        let script = Scripted { _ in #"["util.number"]"# }
+        _ = try await GraphGenerator(workspace: emptyWorkspace(), generator: script, examples: [big]).generate("x")
+        #expect(script.recorded.first?.prompt.contains("a number and the multiply node.") == true)
+    }
+
+    @Test func aRepeatedOperationIsCollapsedUnlessAllowedButValuesMayRepeat() async throws {
+        let pick = #"["util.number", "util.number", "math.add", "math.add", "math.add"]"#
+        func run(allowing: Bool) async throws -> GenerationOutcome {
+            let script = Scripted { stage in
+                if case .pickNodes = stage { return pick }
+                if case .setProperties = stage { return "{}" }
+                return "\"none\""
+            }
+            return try await GraphGenerator(
+                workspace: emptyWorkspace(), generator: script, allowsRepeatedOperations: allowing).generate("add")
+        }
+        let collapsed = try await run(allowing: false)
+        #expect(collapsed.spec.nodes.map(\.alias) == ["number1", "number2", "add1"])
+        #expect(collapsed.notes.filter { $0.contains("math.add") }.count == 2)
+        let kept = try await run(allowing: true)
+        #expect(kept.spec.nodes.map(\.alias) == ["number1", "number2", "add1", "add2", "add3"])
     }
 
     @Test func eachRequestCarriesItsOwnContextAndStaysSmall() async throws {

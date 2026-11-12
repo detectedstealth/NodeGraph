@@ -55,12 +55,18 @@ final class AssistantPanelModel {
     private(set) var isAsking = false
     private var modelTask: Task<Void, Never>?
 
-    /// The worked example the on-device model sees when picking node types. It names types of the
-    /// standard pack, and is only used if the registry has them (decision 233).
-    static let generationExample = GenerationExample(
-        task: "double a number and show it",
-        types: ["util.number", "util.number", "math.multiply", "util.watch"],
-        explanation: "a number, the number 2, the multiply node, and a node that shows the result")
+    /// The worked examples the on-device model sees when picking node types: a four-node one and a
+    /// one-node one, since a lone big example makes it copy that shape. They name types of the
+    /// standard pack and are used only if the registry has them (decisions 233 and 234).
+    static let generationExamples = [
+        GenerationExample(
+            task: "double a number and show it",
+            types: ["util.number", "util.number", "math.multiply", "util.watch"],
+            explanation: "a number, the number 2, the multiply node, and a node that shows the result"),
+        GenerationExample(
+            task: "make a number with the value 7", types: ["util.number"],
+            explanation: "just the number node, nothing else"),
+    ]
 
     var endpoint: ModelEndpoint { Self.endpoints.first { $0.id == endpointID } ?? .appleOnDevice }
     /// Asked each time it is read: a person can turn Apple Intelligence on while the app is open.
@@ -183,7 +189,7 @@ final class AssistantPanelModel {
         let space = workspace
         let builder = GraphGenerator(
             workspace: space, generator: generator, maxNodes: endpoint.contextTokens <= 4_096 ? 8 : 12,
-            examples: [Self.generationExample])
+            examples: Self.generationExamples, allowsRepeatedOperations: endpoint.contextTokens > 4_096)
         ask {
             let outcome = try await builder.generate(request)
             self.pending = outcome.change
