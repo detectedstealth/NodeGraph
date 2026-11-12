@@ -26,12 +26,10 @@ enum StageSchemas {
             dependencies: [])
     }
 
-    /// A list of links, each one of `links` written `a.out -> b.in`.
-    static func links(from links: [String], maxLinks: Int) throws -> GenerationSchema {
+    /// One output, written `alias.port`, or "none".
+    static func source(from sources: [String]) throws -> GenerationSchema {
         try GenerationSchema(
-            root: DynamicGenerationSchema(
-                arrayOf: DynamicGenerationSchema(name: "Link", description: "One link.", anyOf: links),
-                minimumElements: 0, maximumElements: maxLinks),
+            root: DynamicGenerationSchema(name: "Source", description: "The output that feeds the input.", anyOf: sources + ["none"]),
             dependencies: [])
     }
 

@@ -4,8 +4,8 @@ import FoundationModels
 public enum GenerationStage: Hashable, Sendable {
     case pickNodes
     case setProperties(alias: String)
-    case wireLinks
-    case repairLinks(round: Int)
+    /// Choosing what feeds one input, written `alias.port`.
+    case chooseSource(input: String)
 }
 
 /// Produces one piece of schema-constrained output. The generation loop depends on this, not on a

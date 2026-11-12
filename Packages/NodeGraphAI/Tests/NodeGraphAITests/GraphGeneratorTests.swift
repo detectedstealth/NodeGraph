@@ -31,15 +31,14 @@ private func emptyWorkspace() -> AssistantWorkspace {
 }
 
 @Suite struct GraphGeneratorTests {
-    private let numbers = #"["util.number", "util.number", "math.add"]"#
+    private func source(_ name: String) -> String { "\"\(name)\"" }
 
-    @Test func buildsAGraphInThreeStagesAndProposesItWithoutApplyingIt() async throws {
+    @Test func buildsAGraphInStagesAndProposesItWithoutApplyingIt() async throws {
         let script = Scripted { stage in
             switch stage {
             case .pickNodes: #"["util.number", "util.number", "math.add"]"#
             case .setProperties(let alias): alias == "number1" ? #"{"value": 4}"# : #"{"value": 8}"#
-            case .wireLinks: #"["number1.value -> add1.a", "number2.value -> add1.b"]"#
-            case .repairLinks: "[]"
+            case .chooseSource(let input): input == "add1.a" ? "\"number1.value\"" : "\"number2.value\""
             }
         }
         let space = emptyWorkspace()
@@ -47,56 +46,98 @@ private func emptyWorkspace() -> AssistantWorkspace {
 
         #expect(outcome.spec.nodes.map(\.alias) == ["number1", "number2", "add1"])
         #expect(outcome.spec.nodes[0].properties["value"] == .int(4))
-        #expect(outcome.spec.links.count == 2)
-        #expect(outcome.repairs == 0)
+        #expect(outcome.spec.links.map(GraphGenerator.text(of:)) == ["number1.value -> add1.a", "number2.value -> add1.b"])
         #expect(outcome.change.errors.isEmpty)
         #expect(outcome.change.canApply)
         #expect(outcome.change.addedNodes.count == 3)
         #expect(space.graph.nodes.isEmpty)  // proposed, never applied
-        // One request per node with settings, plus nodes and links; math.add has no settings.
+        // One request per node with settings, then one per input that something could feed.
         #expect(script.recorded.map(\.stage) == [
-            .pickNodes, .setProperties(alias: "number1"), .setProperties(alias: "number2"), .wireLinks,
+            .pickNodes, .setProperties(alias: "number1"), .setProperties(alias: "number2"),
+            .chooseSource(input: "add1.a"), .chooseSource(input: "add1.b"),
         ])
     }
 
-    @Test func aRejectedLinkIsReplacedInARepairRound() async throws {
+    @Test func eachInputIsAskedWithTheLinksChosenSoFarAndMayBeLeftUnlinked() async throws {
         let script = Scripted { stage in
             switch stage {
             case .pickNodes: #"["util.number", "util.number", "math.add"]"#
             case .setProperties: "{}"
-            // Both numbers into add1.a: the second is rejected, since an input takes one link.
-            case .wireLinks: #"["number1.value -> add1.a", "number2.value -> add1.a"]"#
-            case .repairLinks: #"["number2.value -> add1.b"]"#
+            case .chooseSource(let input): input == "add1.a" ? "\"number1.value\"" : "\"none\""
             }
         }
         let outcome = try await GraphGenerator(workspace: emptyWorkspace(), generator: script).generate("add")
-
-        #expect(outcome.repairs == 1)
-        #expect(Set(outcome.spec.links.map(GraphGenerator.text(of:))) == ["number1.value -> add1.a", "number2.value -> add1.b"])
-        #expect(outcome.change.errors.isEmpty)
-        let repair = try #require(script.recorded.last)
-        #expect(repair.prompt.contains("These were rejected"))
-        // The rejected link is not offered again, and the accepted one is not repeated.
-        let offered = repair.prompt.components(separatedBy: "Choose replacements only from:").last ?? ""
-        #expect(!offered.contains("number2.value -> add1.a"))
-        #expect(!offered.contains("number1.value -> add1.a"))
+        #expect(outcome.spec.links.map(GraphGenerator.text(of:)) == ["number1.value -> add1.a"])
+        let second = try #require(script.recorded.last)
+        #expect(second.prompt.contains("Links so far: number1.value -> add1.a"))
+        #expect(second.prompt.contains("Which output should feed add1.b?"))
     }
 
-    @Test func aLinkTheModelCannotReplaceIsDroppedAndReported() async throws {
+    @Test func anAnswerThatWasNotOfferedIsIgnored() async throws {
         let script = Scripted { stage in
             switch stage {
-            case .pickNodes: #"["util.number", "util.number", "math.add"]"#
+            case .pickNodes: #"["util.number", "math.add"]"#
             case .setProperties: "{}"
-            case .wireLinks: #"["number1.value -> add1.a", "number2.value -> add1.a"]"#
-            case .repairLinks: "[]"  // the model has nothing better
+            case .chooseSource: "\"ghost.out\""
             }
         }
-        let outcome = try await GraphGenerator(workspace: emptyWorkspace(), generator: script, maxRepairs: 2).generate("add")
+        let outcome = try await GraphGenerator(workspace: emptyWorkspace(), generator: script).generate("add")
+        #expect(outcome.spec.links.isEmpty)
+        #expect(outcome.change.errors.isEmpty)
+    }
 
-        #expect(outcome.repairs == 1)  // nothing left to repair once the rejected link is gone
-        #expect(outcome.spec.links.map(GraphGenerator.text(of:)) == ["number1.value -> add1.a"])
-        #expect(outcome.notes.contains { $0.contains("Left out number2.value -> add1.a") })
-        #expect(outcome.change.canApply)
+    @Test func aLinkThatWouldMakeACycleIsNeverOffered() async throws {
+        let script = Scripted { stage in
+            switch stage {
+            case .pickNodes: #"["util.number", "math.add", "math.add"]"#
+            case .setProperties: "{}"
+            case .chooseSource(let input):
+                switch input {
+                case "add1.a": "\"number1.value\""
+                case "add2.a": "\"add1.result\""
+                // add2 now depends on add1, so feeding add1 from add2 would loop: not offered, so ignored.
+                case "add1.b": "\"add2.result\""
+                default: "\"none\""
+                }
+            }
+        }
+        let outcome = try await GraphGenerator(workspace: emptyWorkspace(), generator: script).generate("add")
+        #expect(outcome.spec.links.map(GraphGenerator.text(of:)) == ["number1.value -> add1.a", "add1.result -> add2.a"])
+        #expect(outcome.change.errors.isEmpty)
+    }
+
+    @Test func anOutputIsOfferedOnlyOnceItsNodeMeansSomething() async throws {
+        let script = Scripted { stage in
+            switch stage {
+            case .pickNodes: #"["math.add", "util.number", "math.add"]"#
+            case .setProperties: "{}"
+            default: "\"none\""
+            }
+        }
+        _ = try await GraphGenerator(workspace: emptyWorkspace(), generator: script).generate("add")
+        // Nothing feeds either Add yet, so only the number is offered as a source, never an Add output.
+        for call in script.recorded {
+            guard case .chooseSource = call.stage else { continue }
+            #expect(!call.prompt.contains("add1.result ->"))
+        }
+        let offered = Set(script.recorded.compactMap { call -> String? in
+            if case .chooseSource(let input) = call.stage { input } else { nil }
+        })
+        #expect(offered.contains("add1.a"))
+    }
+
+    @Test func textIsKeptOnlyIfTheRequestSaysIt() async throws {
+        let script = Scripted { stage in
+            switch stage {
+            case .pickNodes: #"["util.string", "util.string"]"#
+            case .setProperties(let alias): alias == "string1" ? #"{"value": "Hello"}"# : #"{"value": "Task: say hello. Set the properties"}"#
+            case .chooseSource: "\"none\""
+            }
+        }
+        let outcome = try await GraphGenerator(workspace: emptyWorkspace(), generator: script).generate("say hello")
+        #expect(outcome.spec.nodes[0].properties == ["value": .string("Hello")])
+        #expect(outcome.spec.nodes[1].properties.isEmpty)
+        #expect(outcome.notes.contains { $0.contains("string2") && $0.contains("is not in the request") })
     }
 
     @Test func nothingOutsideTheOfferedChoicesGetsThrough() async throws {
@@ -104,8 +145,7 @@ private func emptyWorkspace() -> AssistantWorkspace {
             switch stage {
             case .pickNodes: #"["util.number", "made.up", "math.add"]"#
             case .setProperties: #"{"value": 3, "bogus": 1, "gain": null}"#
-            case .wireLinks: #"["number1.value -> add1.a", "ghost.out -> add1.b", "not a link"]"#
-            case .repairLinks: "[]"
+            case .chooseSource: "\"number1.value\""
             }
         }
         let outcome = try await GraphGenerator(workspace: emptyWorkspace(), generator: script).generate("add")
@@ -113,7 +153,6 @@ private func emptyWorkspace() -> AssistantWorkspace {
         #expect(outcome.spec.nodes.map(\.alias) == ["number1", "add1"])
         #expect(outcome.notes.contains { $0.contains("made.up") })
         #expect(outcome.spec.nodes[0].properties == ["value": .int(3)])
-        #expect(outcome.spec.links.map(GraphGenerator.text(of:)) == ["number1.value -> add1.a"])
     }
 
     @Test func aModelThatPicksNoRealNodeTypeFailsClearly() async throws {
@@ -129,8 +168,25 @@ private func emptyWorkspace() -> AssistantWorkspace {
             return "{}"
         }
         let outcome = try await GraphGenerator(workspace: emptyWorkspace(), generator: script).generate("one number")
-        #expect(!script.recorded.contains { $0.stage == .wireLinks })
+        #expect(!script.recorded.contains { if case .chooseSource = $0.stage { true } else { false } })
         #expect(outcome.spec.links.isEmpty)
+    }
+
+    @Test func aWorkedExampleIsShownOnlyIfItsTypesExist() async throws {
+        let usable = GenerationExample(
+            task: "double a number", types: ["util.number", "math.multiply"], explanation: "a number and the multiply node")
+        let unusable = GenerationExample(task: "other", types: ["made.up"])
+        for (examples, shown) in [([unusable, usable], true), ([unusable], false), ([], false)] {
+            let script = Scripted { stage in
+                if case .pickNodes = stage { return #"["util.number"]"# }
+                return "{}"
+            }
+            _ = try await GraphGenerator(workspace: emptyWorkspace(), generator: script, examples: examples).generate("x")
+            let prompt = try #require(script.recorded.first?.prompt)
+            #expect(prompt.contains("Example: for the task \"double a number\"") == shown)
+            #expect(prompt.contains("a number and the multiply node.") == shown)
+            #expect(!prompt.contains("made.up"))
+        }
     }
 
     @Test func eachRequestCarriesItsOwnContextAndStaysSmall() async throws {
@@ -138,8 +194,7 @@ private func emptyWorkspace() -> AssistantWorkspace {
             switch stage {
             case .pickNodes: #"["util.number", "math.add"]"#
             case .setProperties: #"{"value": 2}"#
-            case .wireLinks: #"["number1.value -> add1.a"]"#
-            case .repairLinks: "[]"
+            case .chooseSource: "\"number1.value\""
             }
         }
         _ = try await GraphGenerator(workspace: emptyWorkspace(), generator: script).generate("double a number")
@@ -162,9 +217,9 @@ private func emptyWorkspace() -> AssistantWorkspace {
         }
     }
 
-    @Test func linkSchemasAcceptAnEmptyChoiceListOnlyViaTheCaller() throws {
-        // The generator skips the stage when no link is possible; a schema is built only with choices.
-        _ = try StageSchemas.links(from: ["a.out -> b.in"], maxLinks: 4)
+    @Test func aSourceSchemaOffersTheOutputsAndNone() throws {
+        _ = try StageSchemas.source(from: ["a.out", "b.out"])
+        _ = try StageSchemas.source(from: [])  // only "none"
     }
 
     @Test func aliasesAreLettersAndDigitsFromTheTypeName() {
@@ -172,8 +227,7 @@ private func emptyWorkspace() -> AssistantWorkspace {
         #expect(GraphGenerator.baseAlias(of: "util.number") == "number")
         #expect(GraphGenerator.baseAlias(of: "a.b-c d") == "bcd")
         #expect(GraphGenerator.baseAlias(of: "...") == "node")
-        #expect(GraphGenerator.link(from: "a.out -> b.in") == .init(from: "a.out", to: "b.in"))
-        #expect(GraphGenerator.link(from: "a.out") == nil)
+        #expect(GraphGenerator.alias(of: "add1.a") == "add1")
     }
 }
 

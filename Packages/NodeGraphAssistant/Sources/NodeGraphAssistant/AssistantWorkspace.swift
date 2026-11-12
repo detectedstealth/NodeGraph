@@ -137,10 +137,19 @@ public struct AssistantWorkspace: Sendable {
             outputs: definition.outputs.filter { $0.group == nil }.map(label) + definition.dynamicPorts.filter { $0.direction == .output }.map(label))
     }
 
+    private static let fillerWords: Set<String> = [
+        "a", "an", "and", "or", "the", "to", "of", "in", "on", "at", "for", "with", "by", "from", "into",
+        "it", "its", "is", "are", "be", "as", "then", "that", "this", "me", "my", "i",
+    ]
+
     /// Node types matching `query`, best first. Words are matched against the type id, the name,
     /// the category and the help text, so "smooth a signal" finds a filter.
     public func searchNodes(_ query: String, category: String? = nil, limit: Int = 8) -> [NodeSummary] {
-        let words = query.lowercased().split(whereSeparator: { !$0.isLetter && !$0.isNumber }).map(String.init)
+        let allWords = query.lowercased().split(whereSeparator: { !$0.isLetter && !$0.isNumber }).map(String.init)
+        // Filler words match the help text of half the registry ("the", "and"), so they only add
+        // noise, and "and" would find the And node. A query made only of them is kept as written.
+        let meaningful = allWords.filter { !Self.fillerWords.contains($0) }
+        let words = meaningful.isEmpty ? allWords : meaningful
         var scored: [(score: Int, order: Int, definition: NodeDefinition)] = []
         for (order, definition) in nodes.registeredDefinitions.enumerated() {
             if let category, definition.category.caseInsensitiveCompare(category) != .orderedSame { continue }

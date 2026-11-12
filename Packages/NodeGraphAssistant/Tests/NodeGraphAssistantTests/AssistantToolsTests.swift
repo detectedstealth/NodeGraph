@@ -282,3 +282,17 @@ private func workspace(_ editor: GraphEditor, run: Bool = true) async throws -> 
         #expect(space.linkCandidates(among: specs, limit: 1).count == 1)
     }
 }
+
+@Suite struct SearchFillerWordTests {
+    @Test func fillerWordsDoNotFindNodesThroughTheirHelpText() throws {
+        let space = AssistantWorkspace(editor: try arithmetic())
+        let ids = space.candidateNodeTypes(for: "add two numbers and show the sum").map(\.typeID.rawValue)
+        #expect(ids.contains("math.add"))
+        #expect(ids.contains("util.watch"))
+        #expect(ids.contains("util.number"))
+        // "and" and "the" used to bring in logic.and and its neighbours.
+        #expect(!ids.contains("logic.and"))
+        // A query of only filler words is kept as written rather than matching nothing at all.
+        #expect(!space.searchNodes("and", limit: 3).isEmpty)
+    }
+}

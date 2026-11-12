@@ -55,6 +55,13 @@ final class AssistantPanelModel {
     private(set) var isAsking = false
     private var modelTask: Task<Void, Never>?
 
+    /// The worked example the on-device model sees when picking node types. It names types of the
+    /// standard pack, and is only used if the registry has them (decision 233).
+    static let generationExample = GenerationExample(
+        task: "double a number and show it",
+        types: ["util.number", "util.number", "math.multiply", "util.watch"],
+        explanation: "a number, the number 2, the multiply node, and a node that shows the result")
+
     var endpoint: ModelEndpoint { Self.endpoints.first { $0.id == endpointID } ?? .appleOnDevice }
     /// Asked each time it is read: a person can turn Apple Intelligence on while the app is open.
     var availability: ModelAvailability { endpoint.availability }
@@ -175,13 +182,13 @@ final class AssistantPanelModel {
         refresh()
         let space = workspace
         let builder = GraphGenerator(
-            workspace: space, generator: generator, maxNodes: endpoint.contextTokens <= 4_096 ? 8 : 12)
+            workspace: space, generator: generator, maxNodes: endpoint.contextTokens <= 4_096 ? 8 : 12,
+            examples: [Self.generationExample])
         ask {
             let outcome = try await builder.generate(request)
             self.pending = outcome.change
             var text = outcome.change.rendered(in: space)
             if !outcome.notes.isEmpty { text += "\nLeft out:\n" + outcome.notes.map { "- " + $0 }.joined(separator: "\n") }
-            if outcome.repairs > 0 { text += "\nRepaired links in \(outcome.repairs) extra round(s)." }
             self.pendingText = text
             self.proposalMessage = outcome.change.isEmpty ? "The model proposed nothing." : ""
         }
