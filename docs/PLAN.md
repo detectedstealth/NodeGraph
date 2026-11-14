@@ -177,6 +177,7 @@ Design, tool list, providers and backlog are in `docs/ASSISTANT.md`. Rules: the 
   - [x] Generate sees the current graph (decision 237), reported from use ("connect a log to the append node" did nothing useful): `currentGraphText` (graph in digest names plus the selection), `proposeChange` (new nodes, links to existing nodes, edits of existing nodes, one proposal), and the one-shot prompt and answer carry them. 85 tests in the Assistant package and 65 in `NodeGraphAI`; macOS app builds. Not tried on a real model. Not built: the graph in staged mode (small models), subgraphs
 - [ ] F. Edit, lint triage, suggestions, run-aware features (explain values, what-if, test generation)
 - [ ] G. Eval harness: golden tasks run against each provider, results recorded in ASSISTANT.md
+  - [x] Slice 1, Generate tasks (decision 238): `EvalTask` with graph-level checks, `EvalRunner` (markdown report), eight `GoldenTasks.generate`, and `RealProviderEval` (providers from `NODEGRAPH_EVAL`, repeats, prompt label, report file). 6 harness tests in the normal run (72 in `NodeGraphAI`); first baseline on the on-device model is 4 of 8 (ASSISTANT.md, Results). Not run on Claude or an OpenAI-compatible server (no key). Not built: Explain and find-the-bug tasks, a per-category score, comparing two reports, running from the app
 - [ ] Later: iCloud Keychain sync of the API key (after the server decision), App Intents, domain assistant extensions in packs
 
 ## Quality gates (every phase)

@@ -99,6 +99,30 @@ Also wanted, roughly by value:
 
 A set of golden tasks (prompt or graph in, expected properties of the result out) for generate, explain and find-the-bug, run by hand against each provider. Compiler and lint tests run in CI; model quality is judged by the eval, not by CI. Record results per provider and per prompt version here.
 
+The harness is in `Packages/NodeGraphAI/Tests/NodeGraphAITests` (`EvalHarness.swift`, `EvalTests.swift`; decision 238). A task is a request, an optional starting graph and checks on the graph that results from applying the proposal and running it (no errors, node types used or avoided, a node cap, no stray nodes, a number or string some node publishes, a link between types, starting nodes kept), so it judges any provider alike. `RealProviderEval` runs the tasks against the providers named in `NODEGRAPH_EVAL` and prints a markdown report to paste below:
+
+    NODEGRAPH_EVAL="apple;claude;compat:http://localhost:1234/v1@qwen3" NODEGRAPH_EVAL_RUNS=3 \
+      NODEGRAPH_EVAL_PROMPT="decisions 233-237" swift test --package-path Packages/NodeGraphAI --filter RealProviderEval
+
+(`NODEGRAPH_EVAL_KEY`, `_ONLY`, `_OUT` are described on the suite.) Explain and find-the-bug tasks are not built yet.
+
+### Results
+
+### Apple (on this device), prompts decisions 233-237, 2026-11-14 (1 attempt per task)
+
+| Task | Passed | Seconds | Nodes (last attempt) |
+| --- | --- | --- | --- |
+| show a number | 1/1 | 4.2 | util.number, util.watch |
+| one string node | 0/1 | 2.7 | string.format, util.string |
+| add two numbers | 1/1 | 4.5 | math.add, util.number, util.watch |
+| multiply by three | 1/1 | 4.4 | util.number, util.number, math.multiply, util.watch |
+| join text | 0/1 | 5.0 | util.string, string.trim, util.watch |
+| running total | 1/1 | 4.1 | util.number, math.accumulate |
+| append to array | 0/1 | 5.9 | util.number, array.append, util.watch |
+| link a log to an existing node | 0/1 | 2.1 | util.log, array.append |
+
+4 of 8. Failures: an extra node on "create a string" (a format node); "join text" picked a trim node and never made "hello world"; "append to array" left out the add node; "link a log" cannot work in staged mode, which does not see the graph (it re-adds the append node), as decision 237 said. Claude and OpenAI-compatible models: not run yet (no key was available).
+
 ## Open questions
 
 - Request the PCC managed entitlement? Not decided; plan so it can be added later (one line).
