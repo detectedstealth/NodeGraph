@@ -15,8 +15,8 @@ import NodeGraphNodes
 
     @Test(.enabled(if: RealModelEvalTests.enabled))
     func generatesSensibleGraphsForSimpleTasks() async throws {
-        guard let generator = ModelEndpoint.appleOnDevice.makeGenerator() else {
-            print("EVAL on-device model unavailable: \(ModelEndpoint.appleOnDevice.availability.summary)")
+        guard let generator = ModelEndpoint.appleOnDevice.makeGenerator(secrets: InMemorySecretStore()) else {
+            print("EVAL on-device model unavailable: \(ModelEndpoint.appleOnDevice.availability(secrets: InMemorySecretStore()).summary)")
             return
         }
         var nodes = NodeRegistry()

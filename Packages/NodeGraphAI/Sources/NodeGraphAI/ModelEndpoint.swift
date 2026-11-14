@@ -72,7 +72,7 @@ public struct ModelEndpoint: Hashable, Sendable, Codable, Identifiable {
     public static let applePrivateCloud = ModelEndpoint(
         id: "apple.privateCloud", kind: .applePrivateCloud, name: "Apple Private Cloud Compute", contextTokens: 32_768)
 
-    public static func claude(model: String = "claude-sonnet-5-5") -> ModelEndpoint {
+    public static func claude(model: String = "claude-opus-5-5") -> ModelEndpoint {
         ModelEndpoint(
             id: "claude", kind: .claude, name: "Claude", baseURL: URL(string: "https://api.anthropic.com"),
             modelName: model, contextTokens: 200_000, keyAccount: "claude")

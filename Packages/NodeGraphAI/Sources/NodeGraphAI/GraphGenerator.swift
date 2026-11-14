@@ -63,11 +63,25 @@ public struct GraphGenerator: Sendable {
     /// repeat is collapsed to one: small models pad their list with copies ("format, format,
     /// format"), while nodes that only make a value, like numbers, legitimately repeat.
     public var allowsRepeatedOperations: Bool
+    /// How the graph is built: in small steps for a model with little room, or in one request.
+    public var strategy: Strategy
+    /// How many times a one-shot answer the compiler rejected is sent back for correction.
+    public var maxRepairs: Int
+
+    public enum Strategy: Sendable {
+        /// Pick types, set properties, choose each input's source: for a 4K-context model (decision 233).
+        case staged
+        /// The whole graph in one request, checked and corrected: for a model with room (decision 236).
+        case oneShot
+    }
 
     public init(
         workspace: AssistantWorkspace, generator: any StructuredGenerator, maxNodes: Int = 10,
-        examples: [GenerationExample] = [], allowsRepeatedOperations: Bool = true
+        examples: [GenerationExample] = [], allowsRepeatedOperations: Bool = true,
+        strategy: Strategy = .staged, maxRepairs: Int = 2
     ) {
+        self.strategy = strategy
+        self.maxRepairs = maxRepairs
         self.workspace = workspace
         self.generator = generator
         self.maxNodes = maxNodes
@@ -76,12 +90,21 @@ public struct GraphGenerator: Sendable {
     }
 
     public func generate(_ request: String) async throws -> GenerationOutcome {
+        if strategy == .oneShot { return try await generateInOneShot(request) }
         var notes: [String] = []
         var specs = try await pickNodes(request, notes: &notes)
         for index in specs.indices {
             specs[index].properties = try await properties(of: specs[index], request: request, notes: &notes)
         }
         let links = try await chooseLinks(request, nodes: specs)
+        // With any link in the graph, a node nothing touches is padding the model added, not part of the task.
+        if !links.isEmpty {
+            let linked = Set(links.flatMap { [Self.alias(of: $0.from), Self.alias(of: $0.to)] })
+            for node in specs where !linked.contains(node.alias) {
+                notes.append("Left out \(node.alias) (\(node.type)): nothing is linked to it.")
+            }
+            specs.removeAll { !linked.contains($0.alias) }
+        }
         let spec = GraphSpec(nodes: specs, links: links)
         let change = workspace.proposeGeneration(spec, title: "Generate: " + request)
         return GenerationOutcome(spec: spec, change: change, notes: notes)

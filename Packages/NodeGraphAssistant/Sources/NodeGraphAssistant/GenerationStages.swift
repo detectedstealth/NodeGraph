@@ -20,6 +20,13 @@ public struct PropertySlot: Hashable, Sendable {
     public var shape: Shape
     /// The default, as text, for the prompt.
     public var defaultText: String
+
+    public init(id: String, title: String, shape: Shape, defaultText: String) {
+        self.id = id
+        self.title = title
+        self.shape = shape
+        self.defaultText = defaultText
+    }
 }
 
 /// The pieces of staged generation that need no model (docs/ASSISTANT.md, "Generation strategy

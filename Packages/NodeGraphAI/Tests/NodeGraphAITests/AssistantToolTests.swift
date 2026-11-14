@@ -119,15 +119,6 @@ private func workspace(run: Bool = true) async throws -> AssistantWorkspace {
         #expect(Set(ModelEndpoint.presets.map(\.id)).count == ModelEndpoint.presets.count)
     }
 
-    @Test func aServerWithoutAModelOrAddressSaysWhatItNeeds() {
-        var endpoint = ModelEndpoint.presets[0]
-        #expect(endpoint.availability == .unavailable(.notConfigured("a model name")))
-        endpoint.modelName = "llama3.1"
-        #expect(endpoint.availability == .unavailable(.notImplemented))
-        endpoint.baseURL = nil
-        #expect(endpoint.availability.summary == "Needs a server address")
-    }
-
     @Test func endpointsSurviveSavingAndLoading() throws {
         let original = ModelEndpoint.openAICompatible(
             name: "Mac Studio", baseURL: try #require(URL(string: "http://localhost:11434/v1")),
@@ -136,14 +127,9 @@ private func workspace(run: Bool = true) async throws -> AssistantWorkspace {
         #expect(copy == original)
     }
 
-    @Test func unbuiltKindsSayTheyAreNotAvailableYet() {
-        #expect(ModelEndpoint.applePrivateCloud.availability == .unavailable(.notImplemented))
-        #expect(ModelEndpoint.claude().availability.summary == "Not available yet")
-    }
-
     @Test func onDeviceAvailabilityIsReportedWithoutCrashing() {
         // The answer depends on the machine; the point is that every state has words for the picker.
-        #expect(!ModelEndpoint.appleOnDevice.availability.summary.isEmpty)
+        #expect(!ModelEndpoint.appleOnDevice.availability(secrets: InMemorySecretStore()).summary.isEmpty)
         #expect(ModelEndpoint.appleOnDevice.contextTokens < ModelEndpoint.applePrivateCloud.contextTokens)
     }
 }

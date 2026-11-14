@@ -39,6 +39,7 @@ private func emptyWorkspace() -> AssistantWorkspace {
             case .pickNodes: #"["util.number", "util.number", "math.add"]"#
             case .setProperties(let alias): alias == "number1" ? #"{"value": 4}"# : #"{"value": 8}"#
             case .chooseSource(let input): input == "add1.a" ? "\"number1.value\"" : "\"number2.value\""
+                default: "{}"
             }
         }
         let space = emptyWorkspace()
@@ -64,6 +65,7 @@ private func emptyWorkspace() -> AssistantWorkspace {
             case .pickNodes: #"["util.number", "util.number", "math.add"]"#
             case .setProperties: "{}"
             case .chooseSource(let input): input == "add1.a" ? "\"number1.value\"" : "\"none\""
+                default: "{}"
             }
         }
         let outcome = try await GraphGenerator(workspace: emptyWorkspace(), generator: script).generate("add")
@@ -79,6 +81,7 @@ private func emptyWorkspace() -> AssistantWorkspace {
             case .pickNodes: #"["util.number", "math.add"]"#
             case .setProperties: "{}"
             case .chooseSource: "\"ghost.out\""
+                default: "{}"
             }
         }
         let outcome = try await GraphGenerator(workspace: emptyWorkspace(), generator: script).generate("add")
@@ -99,6 +102,7 @@ private func emptyWorkspace() -> AssistantWorkspace {
                 case "add1.b": "\"add2.result\""
                 default: "\"none\""
                 }
+            default: "{}"
             }
         }
         let outcome = try await GraphGenerator(workspace: emptyWorkspace(), generator: script).generate("add")
@@ -132,6 +136,7 @@ private func emptyWorkspace() -> AssistantWorkspace {
             case .pickNodes: #"["util.string", "util.string"]"#
             case .setProperties(let alias): alias == "string1" ? #"{"value": "Hello"}"# : #"{"value": "Task: say hello. Set the properties"}"#
             case .chooseSource: "\"none\""
+                default: "{}"
             }
         }
         let outcome = try await GraphGenerator(workspace: emptyWorkspace(), generator: script).generate("say hello")
@@ -146,6 +151,7 @@ private func emptyWorkspace() -> AssistantWorkspace {
             case .pickNodes: #"["util.number", "made.up", "math.add"]"#
             case .setProperties: #"{"value": 3, "bogus": 1, "gain": null}"#
             case .chooseSource: "\"number1.value\""
+                default: "{}"
             }
         }
         let outcome = try await GraphGenerator(workspace: emptyWorkspace(), generator: script).generate("add")
@@ -224,6 +230,7 @@ private func emptyWorkspace() -> AssistantWorkspace {
             case .pickNodes: #"["util.number", "math.add"]"#
             case .setProperties: #"{"value": 2}"#
             case .chooseSource: "\"number1.value\""
+                default: "{}"
             }
         }
         _ = try await GraphGenerator(workspace: emptyWorkspace(), generator: script).generate("double a number")
@@ -319,8 +326,163 @@ private final class Narrator: TextGenerator {
     }
 
     @Test func onlyAnAvailableEndpointMakesAGenerator() {
-        #expect(ModelEndpoint.claude().makeGenerator() == nil)
-        #expect(ModelEndpoint.applePrivateCloud.makeGenerator() == nil)
-        #expect((ModelEndpoint.appleOnDevice.makeGenerator() != nil) == ModelEndpoint.appleOnDevice.availability.isAvailable)
+        let secrets = InMemorySecretStore()
+        #expect(ModelEndpoint.claude().makeGenerator(secrets: secrets) == nil)
+        #expect(ModelEndpoint.applePrivateCloud.makeGenerator(secrets: secrets) == nil)
+        #expect((ModelEndpoint.appleOnDevice.makeGenerator(secrets: secrets) != nil) == ModelEndpoint.appleOnDevice.availability(secrets: secrets).isAvailable)
+    }
+}
+
+@Suite struct OneShotGenerationTests {
+    /// "add 2 and 3 together then append them to an array containing [1, 2, 3, 4]", as a model might answer it.
+    private let arrayAnswer = """
+        {"nodes": [
+          {"alias": "two", "type": "util.number"}, {"alias": "three", "type": "util.number"}, {"alias": "sum", "type": "math.add"},
+          {"alias": "e1", "type": "util.number"}, {"alias": "e2", "type": "util.number"},
+          {"alias": "e3", "type": "util.number"}, {"alias": "e4", "type": "util.number"},
+          {"alias": "list", "type": "array.make"}, {"alias": "out", "type": "array.append"}],
+         "settings": [
+          {"node": "two", "property": "value", "value": "2"}, {"node": "three", "property": "value", "value": "3"},
+          {"node": "e1", "property": "value", "value": "1"}, {"node": "e2", "property": "value", "value": "2"},
+          {"node": "e3", "property": "value", "value": "3"}, {"node": "e4", "property": "value", "value": "4"}],
+         "links": [
+          {"from": "two.value", "to": "sum.a"}, {"from": "three.value", "to": "sum.b"},
+          {"from": "e1.value", "to": "list.in_1"}, {"from": "e2.value", "to": "list.in_2"},
+          {"from": "e3.value", "to": "list.in_3"}, {"from": "e4.value", "to": "list.in_4"},
+          {"from": "list.result", "to": "out.array"}, {"from": "sum.result", "to": "out.value"}]}
+        """
+
+    private func oneShot(_ script: Scripted, repairs: Int = 2) -> GraphGenerator {
+        GraphGenerator(workspace: emptyWorkspace(), generator: script, strategy: .oneShot, maxRepairs: repairs)
+    }
+
+    @Test func buildsAGraphWithAnArrayNodeTakingFourInputsInOneRequest() async throws {
+        let script = Scripted { _ in arrayAnswer }
+        let outcome = try await oneShot(script).generate("add 2 and 3 together then append them to an array containing [1, 2, 3, 4]")
+
+        #expect(script.recorded.map(\.stage) == [.draftGraph])
+        #expect(outcome.change.errors.isEmpty)
+        #expect(outcome.change.canApply)
+        #expect(outcome.change.addedNodes.count == 9)
+        #expect(outcome.spec.links.count == 8)
+        let list = try #require(outcome.spec.nodes.first { $0.alias == "list" })
+        #expect(list.portCounts == ["in": 4])  // worked out from the links to in_1 ... in_4
+        #expect(outcome.spec.nodes.first { $0.alias == "e3" }?.properties["value"] == .int(3))
+        // The one request carried the catalogue with the dynamic ports and the rules.
+        let prompt = try #require(script.recorded.first?.prompt)
+        #expect(prompt.contains("array.make"))
+        #expect(prompt.contains("input ports in_1, in_2"))
+        #expect(prompt.contains("Link them in order, starting at in_1"))
+    }
+
+    @Test func whatTheCompilerRejectsIsSentBackWithItsOwnMessage() async throws {
+        let wrong = arrayAnswer.replacingOccurrences(of: "sum.result", with: "sum.output")
+        let script = Scripted { stage in
+            if case .draftGraph = stage { return wrong }
+            return arrayAnswer
+        }
+        let outcome = try await oneShot(script).generate("task")
+
+        #expect(script.recorded.map(\.stage) == [.draftGraph, .repairGraph(round: 1)])
+        let repair = try #require(script.recorded.last?.prompt)
+        #expect(repair.contains("The checker rejected it"))
+        #expect(repair.contains("sum.output") || repair.contains("output"))
+        #expect(repair.contains("Your last answer"))
+        #expect(outcome.change.errors.isEmpty)
+        #expect(outcome.spec.links.count == 8)
+    }
+
+    @Test func aGraphStillRejectedAfterTheRepairsKeepsItsValidPartAndSaysWhatFailed() async throws {
+        let wrong = arrayAnswer.replacingOccurrences(of: "sum.result", with: "sum.output")
+        let script = Scripted { _ in wrong }
+        let outcome = try await oneShot(script, repairs: 2).generate("task")
+
+        #expect(script.recorded.count == 3)  // the draft and two repairs
+        #expect(!outcome.change.errors.isEmpty)
+        #expect(outcome.change.addedNodes.count == 9)  // the valid part is still proposed
+    }
+
+    @Test func settingsForMissingNodesAndRepeatedAliasesAreIgnoredWithANote() async throws {
+        let answer = """
+            {"nodes": [{"alias": "a", "type": "util.number"}, {"alias": "a", "type": "util.number"}, {"alias": "", "type": "util.number"}],
+             "settings": [{"node": "ghost", "property": "value", "value": "1"}, {"node": "a", "property": "value", "value": "7"}],
+             "links": []}
+            """
+        let outcome = try await oneShot(Scripted { _ in answer }).generate("task")
+        #expect(outcome.spec.nodes.map(\.alias) == ["a"])
+        #expect(outcome.spec.nodes[0].properties["value"] == .int(7))
+        #expect(outcome.notes.contains { $0.contains("ghost") })
+        #expect(outcome.notes.filter { $0.contains("repeated name") }.count == 2)
+    }
+
+    @Test func anAnswerWithNumbersWhereTextIsExpectedIsStillAnAnswer() async throws {
+        // A hosted model is not always held to "string": a setting's value as the number 2, an alias as 1,
+        // a boolean, and a vector given as a JSON array.
+        let answer = """
+            {"nodes": [{"alias": 1, "type": "util.number"}, {"alias": "flag", "type": "util.bool"}],
+             "settings": [{"node": 1, "property": "value", "value": 2}, {"node": "flag", "property": "value", "value": true}],
+             "links": null}
+            """
+        let script = Scripted { _ in answer }
+        let outcome = try await oneShot(script).generate("task")
+        #expect(script.recorded.count == 1)  // read without a repair
+        #expect(outcome.spec.nodes.map(\.alias) == ["1", "flag"])
+        #expect(outcome.spec.nodes[0].properties["value"] == .int(2))
+        #expect(outcome.spec.nodes[1].properties["value"] == .bool(true))
+    }
+
+    @Test func anAnswerThatCannotBeReadIsSentBackLikeAnyOtherMistake() async throws {
+        let script = Scripted { stage in
+            if case .draftGraph = stage { return #"{"nodes": "oops"}"# }
+            return arrayAnswer
+        }
+        let outcome = try await oneShot(script).generate("task")
+        #expect(script.recorded.map(\.stage) == [.draftGraph, .repairGraph(round: 1)])
+        let repair = try #require(script.recorded.last?.prompt)
+        #expect(repair.contains("nodes"))  // says what shape was expected
+        #expect(outcome.change.errors.isEmpty)
+        #expect(outcome.change.addedNodes.count == 9)
+    }
+
+    @Test func anAnswerThatStaysUnreadableFailsWithAWordsAndTheStartOfTheAnswer() async throws {
+        let script = Scripted { _ in #"{"nodes": []}"# }
+        do {
+            _ = try await oneShot(script).generate("task")
+            Issue.record("expected a failure")
+        } catch let error as ProviderError {
+            let text = error.errorDescription ?? ""
+            #expect(text.contains("could not be read"))
+            #expect(text.contains(#"{"nodes":[]}"#) || text.contains("nodes"))
+        }
+        #expect(script.recorded.count == 3)  // the draft and two repairs
+    }
+
+    @Test func theGraphSchemaBuildsAndSurvivesConversionForAHostedModel() throws {
+        let schema = try StageSchemas.graph(types: ["util.number", "math.add"])
+        let prepared = try SchemaAdapter.prepare(schema, stripBounds: true)
+        #expect(!prepared.isWrapped)  // an object root needs no wrapper
+        let text = String(decoding: try JSONEncoder().encode(prepared.schema), as: UTF8.self)
+        #expect(text.contains("util.number") && text.contains("\"links\""))
+    }
+
+    @Test func stagedGenerationDropsNodesNothingIsLinkedToButKeepsALoneNode() async throws {
+        let padded = Scripted { stage in
+            switch stage {
+            case .pickNodes: #"["util.number", "util.number", "math.add", "util.number"]"#
+            case .setProperties: "{}"
+            case .chooseSource(let input): input == "add1.a" ? "\"number1.value\"" : "\"none\""
+            default: "{}"
+            }
+        }
+        let outcome = try await GraphGenerator(workspace: emptyWorkspace(), generator: padded).generate("add")
+        #expect(outcome.spec.nodes.map(\.alias) == ["number1", "add1"])
+        #expect(outcome.notes.filter { $0.contains("nothing is linked to it") }.count == 2)
+
+        let lone = Scripted { stage in
+            if case .pickNodes = stage { return #"["util.number"]"# }
+            return "{}"
+        }
+        let single = try await GraphGenerator(workspace: emptyWorkspace(), generator: lone).generate("one number")
+        #expect(single.spec.nodes.map(\.alias) == ["number1"])
     }
 }

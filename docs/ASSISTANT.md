@@ -2,7 +2,7 @@
 
 Design and working notes for the AI graph assistant (PLAN.md Phase 8). This file is allowed to change faster than ARCHITECTURE.md. Architectural rulings go in DECISIONS.md (211-214).
 
-Status: **steps A and most of B built; step C slices 1 to 3 (`NodeGraphAI` tools, endpoints, staged generation with a repair loop, explain, a picker in the demo app) built, none of it tried on a model.** Package names below are proposals.
+Status: **steps A and most of B built; step C slices 1 to 3 (`NodeGraphAI` tools, endpoints, staged generation, explain, a picker in the demo app) and steps E and E2 (Claude and OpenAI-compatible providers, keys, an add-model sheet) built. Generation and explain were tried on the on-device model; the hosted and local-server providers have only been tested against a stubbed network.** Package names below are proposals.
 
 ## Goal
 

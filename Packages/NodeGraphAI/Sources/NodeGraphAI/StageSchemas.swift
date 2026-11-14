@@ -26,6 +26,36 @@ enum StageSchemas {
             dependencies: [])
     }
 
+    /// A whole graph: nodes (an alias and one of `types`), settings (a node, a property, and its value as
+    /// JSON text) and links (`alias.port` to `alias.port`).
+    static func graph(types: [String]) throws -> GenerationSchema {
+        func text(_ name: String, _ description: String) -> DynamicGenerationSchema.Property {
+            DynamicGenerationSchema.Property(name: name, description: description, schema: DynamicGenerationSchema(type: String.self), isOptional: false)
+        }
+        let node = DynamicGenerationSchema(name: "Node", description: "One node.", properties: [
+            text("alias", "A short name for the node: letters and digits only."),
+            DynamicGenerationSchema.Property(
+                name: "type", description: "The node type.", schema: DynamicGenerationSchema(name: "NodeType", anyOf: types), isOptional: false),
+        ])
+        let setting = DynamicGenerationSchema(name: "Setting", description: "One setting of a node.", properties: [
+            text("node", "The alias of the node."), text("property", "The setting's name."),
+            text("value", "The value as JSON: 2, \"hello\" with quotes, or true."),
+        ])
+        let link = DynamicGenerationSchema(name: "Link", description: "One link.", properties: [
+            text("from", "An output, written alias.port."), text("to", "An input, written alias.port."),
+        ])
+        func list(_ name: String, _ item: DynamicGenerationSchema, _ description: String) -> DynamicGenerationSchema.Property {
+            DynamicGenerationSchema.Property(name: name, description: description, schema: DynamicGenerationSchema(arrayOf: item), isOptional: false)
+        }
+        return try GenerationSchema(
+            root: DynamicGenerationSchema(name: "Graph", properties: [
+                list("nodes", node, "Every node the graph needs."),
+                list("settings", setting, "The settings to change from their defaults."),
+                list("links", link, "The links between nodes."),
+            ]),
+            dependencies: [])
+    }
+
     /// One output, written `alias.port`, or "none".
     static func source(from sources: [String]) throws -> GenerationSchema {
         try GenerationSchema(

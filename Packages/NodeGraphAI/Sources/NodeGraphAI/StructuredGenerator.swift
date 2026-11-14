@@ -6,6 +6,10 @@ public enum GenerationStage: Hashable, Sendable {
     case setProperties(alias: String)
     /// Choosing what feeds one input, written `alias.port`.
     case chooseSource(input: String)
+    /// The whole graph in one request, for models with room for it.
+    case draftGraph
+    /// Another try at the whole graph after the compiler rejected part of the last one.
+    case repairGraph(round: Int)
 }
 
 /// Produces one piece of schema-constrained output. The generation loop depends on this, not on a

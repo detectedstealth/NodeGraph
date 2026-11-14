@@ -36,9 +36,17 @@ final class AssistantPanelModel {
 
     // MARK: Model state
 
-    /// The models the picker offers. Endpoints a person adds themselves come with step E2.
-    static let endpoints: [ModelEndpoint] = [.appleOnDevice, .applePrivateCloud, .claude()]
+    // MARK: Models and keys
+
+    private static let endpointsKey = "assistant.endpoints"
     private static let endpointKey = "assistant.endpoint"
+    private static let consentKey = "assistant.consented"
+
+    /// Keys live in the Keychain, one item per model, never in settings (decision 214).
+    let secrets: any SecretStore = KeychainSecretStore()
+
+    /// The models the picker offers: the three built in, and any a person added (decision 235).
+    private(set) var endpoints: [ModelEndpoint] = AssistantPanelModel.loadEndpoints()
 
     /// The chosen model, kept between launches.
     var endpointID: String = UserDefaults.standard.string(forKey: AssistantPanelModel.endpointKey)
@@ -55,6 +63,68 @@ final class AssistantPanelModel {
     private(set) var isAsking = false
     private var modelTask: Task<Void, Never>?
 
+    /// Models that send data off this device ask once before the first request (decision 235).
+    var needsConsent = false
+    private var consented = Set(UserDefaults.standard.stringArray(forKey: AssistantPanelModel.consentKey) ?? [])
+    private var deferredAsk: (@MainActor () async throws -> Void)?
+
+    private static func loadEndpoints() -> [ModelEndpoint] {
+        let builtIn: [ModelEndpoint] = [.appleOnDevice, .applePrivateCloud, .claude()]
+        guard let data = UserDefaults.standard.data(forKey: endpointsKey),
+              let saved = try? JSONDecoder().decode([ModelEndpoint].self, from: data) else { return builtIn }
+        // A saved list replaces the built-in ones it names, and the Apple ones always come first.
+        var list = builtIn.filter { $0.kind == .appleOnDevice || $0.kind == .applePrivateCloud }
+        list += saved.filter { $0.kind != .appleOnDevice && $0.kind != .applePrivateCloud }
+        if !list.contains(where: { $0.id == "claude" }) { list.append(.claude()) }
+        return list
+    }
+
+    private func saveEndpoints() {
+        let editable = endpoints.filter { $0.kind != .appleOnDevice && $0.kind != .applePrivateCloud }
+        UserDefaults.standard.set(try? JSONEncoder().encode(editable), forKey: Self.endpointsKey)
+    }
+
+    /// Adds a model or replaces the one with the same id, stores its key if one was given, and selects it.
+    func save(_ endpoint: ModelEndpoint, key: String?) {
+        if let index = endpoints.firstIndex(where: { $0.id == endpoint.id }) { endpoints[index] = endpoint } else { endpoints.append(endpoint) }
+        saveEndpoints()
+        if let key, let account = endpoint.keyAccount {
+            do { try secrets.setSecret(key, for: account) } catch { modelMessage = "\(error.localizedDescription)" }
+        }
+        endpointID = endpoint.id
+    }
+
+    func remove(_ endpoint: ModelEndpoint) {
+        guard endpoint.kind != .appleOnDevice, endpoint.kind != .applePrivateCloud, endpoint.id != "claude" else { return }
+        endpoints.removeAll { $0.id == endpoint.id }
+        saveEndpoints()
+        if let account = endpoint.keyAccount { try? secrets.setSecret(nil, for: account) }
+        if endpointID == endpoint.id { endpointID = ModelEndpoint.appleOnDevice.id }
+    }
+
+    func hasKey(_ endpoint: ModelEndpoint) -> Bool {
+        endpoint.keyAccount.map { !(secrets.secret(for: $0)?.isEmpty ?? true) } ?? false
+    }
+
+    func removeKey(of endpoint: ModelEndpoint) {
+        if let account = endpoint.keyAccount { try? secrets.setSecret(nil, for: account) }
+    }
+
+    func confirmConsent() {
+        consented.insert(endpointID)
+        UserDefaults.standard.set(Array(consented), forKey: Self.consentKey)
+        needsConsent = false
+        if let work = deferredAsk {
+            deferredAsk = nil
+            ask(work)
+        }
+    }
+
+    func cancelConsent() {
+        needsConsent = false
+        deferredAsk = nil
+    }
+
     /// The worked examples the on-device model sees when picking node types: a four-node one and a
     /// one-node one, since a lone big example makes it copy that shape. They name types of the
     /// standard pack and are used only if the registry has them (decisions 233 and 234).
@@ -68,9 +138,9 @@ final class AssistantPanelModel {
             explanation: "just the number node, nothing else"),
     ]
 
-    var endpoint: ModelEndpoint { Self.endpoints.first { $0.id == endpointID } ?? .appleOnDevice }
+    var endpoint: ModelEndpoint { endpoints.first { $0.id == endpointID } ?? .appleOnDevice }
     /// Asked each time it is read: a person can turn Apple Intelligence on while the app is open.
-    var availability: ModelAvailability { endpoint.availability }
+    var availability: ModelAvailability { endpoint.availability(secrets: secrets) }
 
     init(model: GraphEditorModel) {
         self.model = model
@@ -163,7 +233,7 @@ final class AssistantPanelModel {
             traceMessage = "Type a port such as n3.result, or pick one from the selected nodes."
             return
         }
-        guard let generator = endpoint.makeGenerator() else {
+        guard let generator = endpoint.makeGenerator(secrets: secrets) else {
             modelMessage = availability.summary
             return
         }
@@ -181,7 +251,7 @@ final class AssistantPanelModel {
     func generate() {
         let request = generateRequest.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !request.isEmpty, !isInsideSubgraph else { return }
-        guard let generator = endpoint.makeGenerator() else {
+        guard let generator = endpoint.makeGenerator(secrets: secrets) else {
             modelMessage = availability.summary
             return
         }
@@ -189,7 +259,8 @@ final class AssistantPanelModel {
         let space = workspace
         let builder = GraphGenerator(
             workspace: space, generator: generator, maxNodes: endpoint.contextTokens <= 4_096 ? 8 : 12,
-            examples: Self.generationExamples, allowsRepeatedOperations: endpoint.contextTokens > 4_096)
+            examples: Self.generationExamples, allowsRepeatedOperations: endpoint.contextTokens > 4_096,
+            strategy: endpoint.contextTokens > 4_096 ? .oneShot : .staged)
         ask {
             let outcome = try await builder.generate(request)
             self.pending = outcome.change
@@ -205,6 +276,11 @@ final class AssistantPanelModel {
     /// Runs one model request at a time and turns its failure into words for the person.
     private func ask(_ work: @escaping @MainActor () async throws -> Void) {
         guard !isAsking else { return }
+        if endpoint.sendsDataOffDevice, !consented.contains(endpoint.id) {
+            deferredAsk = work
+            needsConsent = true
+            return
+        }
         isAsking = true
         modelMessage = ""
         modelTask = Task {
@@ -287,6 +363,7 @@ final class AssistantPanelModel {
 /// take the keyboard.
 struct AssistantPanel: View {
     @Bindable var assistant: AssistantPanelModel
+    @State private var editing: EndpointDraft?
 
     var body: some View {
         ScrollView {
@@ -316,18 +393,42 @@ struct AssistantPanel: View {
 
     private var modelSection: some View {
         section("Model") {
-            Picker("Model", selection: $assistant.endpointID) {
-                ForEach(AssistantPanelModel.endpoints) { endpoint in
-                    Text(endpoint.name).tag(endpoint.id)
+            HStack {
+                Picker("Model", selection: $assistant.endpointID) {
+                    ForEach(assistant.endpoints) { endpoint in
+                        Text(endpoint.name).tag(endpoint.id)
+                    }
                 }
+                .labelsHidden()
+                if assistant.endpoint.kind != .appleOnDevice && assistant.endpoint.kind != .applePrivateCloud {
+                    Button("Edit", systemImage: "gearshape") {
+                        editing = EndpointDraft(endpoint: assistant.endpoint, isNew: false)
+                    }
+                    .labelStyle(.iconOnly)
+                    .help("Edit this model's address, name and key")
+                }
+                Menu("Add", systemImage: "plus") {
+                    ForEach(ModelEndpoint.presets) { preset in
+                        Button(preset.name) { editing = EndpointDraft(endpoint: newEndpoint(from: preset), isNew: true) }
+                    }
+                    Button("Other server…") {
+                        editing = EndpointDraft(
+                            endpoint: newEndpoint(from: .openAICompatible(
+                                name: "My server", baseURL: URL(string: "http://localhost:8080/v1")!, model: "")),
+                            isNew: true)
+                    }
+                }
+                .labelStyle(.iconOnly)
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .help("Add a model: Ollama, LM Studio, OpenAI, OpenRouter or any OpenAI-compatible server")
             }
-            .labelsHidden()
             let availability = assistant.availability
             Label(availability.summary, systemImage: availability.isAvailable ? "checkmark.circle.fill" : "exclamationmark.circle")
                 .foregroundStyle(availability.isAvailable ? .green : .secondary)
                 .font(.callout)
             if assistant.endpoint.sendsDataOffDevice {
-                Text("This model is not on your device: the graph and run values it is asked about would be sent to it.")
+                Text("This model is not on your device: the text of your request, and for Explain the node names and values in the trace, are sent to it.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             if assistant.isAsking {
@@ -339,6 +440,23 @@ struct AssistantPanel: View {
             }
             note(assistant.modelMessage)
         }
+        .sheet(item: $editing) { draft in
+            EndpointEditor(assistant: assistant, draft: draft) { editing = nil }
+        }
+        .alert("Send to \(assistant.endpoint.name)?", isPresented: $assistant.needsConsent) {
+            Button("Send") { assistant.confirmConsent() }
+            Button("Cancel", role: .cancel) { assistant.cancelConsent() }
+        } message: {
+            Text("This model is not on your device. The text of your request, and for Explain the node names and values in the trace, will be sent to it. You are asked once for each model.")
+        }
+    }
+
+    /// A copy of a preset to edit: its own id and Keychain account, so two models never share a key by accident.
+    private func newEndpoint(from preset: ModelEndpoint) -> ModelEndpoint {
+        var endpoint = preset
+        endpoint.id = UUID().uuidString
+        endpoint.keyAccount = "endpoint." + endpoint.id
+        return endpoint
     }
 
     private var checksSection: some View {
