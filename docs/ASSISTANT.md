@@ -156,3 +156,12 @@ The harness is in `Packages/NodeGraphAI/Tests/NodeGraphAITests` (`EvalHarness.sw
 
 The values and the failure were always right, and the fixes suggested for the division were sensible. Two things found: one chain narration said "to fix an error" when nothing had failed (the check for the word caught it); and for a node switched off the model usually said the input "was not run" or told the person to "enable" the node, not that it is disabled, because the computed summary says "b = no value" and leaves the reason to the trace. Worth a line about the mode in the summary (not done).
 
+### Apple (on this device), two join tasks added 2026-11-14 (3 attempts each)
+
+| Task | Passed |
+| --- | --- |
+| join with a space (concat) | 0/3 |
+| join with a space (join) | 0/3 |
+
+Both phrasings came from use with a hosted OpenAI-compatible model, which answered each correctly in one request (a chain of two concat nodes with a separate " " node; one join node with separator " " and a watch). The on-device model gets neither: it picks format and trim nodes, drops the separator, and leaves nodes unlinked. A hosted-model run of the whole suite is still to do.
+

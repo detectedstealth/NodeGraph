@@ -239,6 +239,15 @@ enum GoldenTasks {
                  checks: [.noErrors, .usesTypes(["math.multiply"]), .noStrayNodes, .runsCleanly, .publishesNumber(12)]),
         EvalTask("join text", request: "join the text hello and world with a space between and show it",
                  checks: [.noErrors, .noStrayNodes, .runsCleanly, .publishesString("hello world")]),
+        // Two phrasings from use with a hosted model (2026-11-14); both a chain of concats and one join node are right.
+        EvalTask(
+            "join with a space (concat)",
+            request: "Create a string with Hello, and another string with world. Concatinate the two strings together with a space between them.",
+            checks: [.noErrors, .noStrayNodes, .runsCleanly, .publishesString("Hello world")]),
+        EvalTask(
+            "join with a space (join)",
+            request: "Join the string Hello and World together. Ensure there is a space seperating the two words.",
+            checks: [.noErrors, .noStrayNodes, .runsCleanly, .publishesString("Hello World")]),
         EvalTask("running total", request: "keep a running total of a number",
                  checks: [.noErrors, .usesTypes(["math.accumulate"]), .noStrayNodes]),
         EvalTask("append to array", request: "add 2 and 3 together then append the sum to an array containing [1, 2, 3, 4]",

@@ -42,6 +42,28 @@ import NodeGraphNodes
         #expect(!failed.contains(.usesTypes(["math.add"])))
     }
 
+    @Test func bothAnswersFromUseAreAcceptedForTheJoinTasks() async throws {
+        // What the hosted model returned, as specs: a chain of two concats, and one join with a separator.
+        let chain = GraphSpec(
+            nodes: [node("a", "util.string", ["value": .string("Hello")]), node("b", "util.string", ["value": .string(" ")]),
+                    node("c", "util.string", ["value": .string("world")]), node("x", "string.concat"), node("y", "string.concat")],
+            links: [.init(from: "a.value", to: "x.a"), .init(from: "b.value", to: "x.b"),
+                    .init(from: "x.result", to: "y.a"), .init(from: "c.value", to: "y.b")])
+        let first = try #require(GoldenTasks.generate.first { $0.name == "join with a space (concat)" })
+        var verdicts = try await judge(first, answer: chain)
+        // The last concat's output has no reader, which the checks do not mind; the final node is not a stray.
+        #expect(verdicts.allSatisfy { $0.passed }, "\(verdicts.filter { !$0.passed })")
+
+        var join = node("j", "string.join", ["separator": .string(" ")])
+        join.portCounts = ["in": 3]
+        let one = GraphSpec(
+            nodes: [node("a", "util.string", ["value": .string("Hello")]), node("b", "util.string", ["value": .string("World")]), join, node("w", "util.watch")],
+            links: [.init(from: "a.value", to: "j.in_1"), .init(from: "b.value", to: "j.in_2"), .init(from: "j.result", to: "w.value")])
+        let second = try #require(GoldenTasks.generate.first { $0.name == "join with a space (join)" })
+        verdicts = try await judge(second, answer: one)
+        #expect(verdicts.allSatisfy { $0.passed }, "\(verdicts.filter { !$0.passed })")
+    }
+
     @Test func emptyProposalFailsNoErrors() async throws {
         let task = try #require(GoldenTasks.generate.first { $0.name == "show a number" })
         let verdicts = try await judge(task, answer: GraphSpec())
