@@ -260,7 +260,8 @@ final class AssistantPanelModel {
         let builder = GraphGenerator(
             workspace: space, generator: generator, maxNodes: endpoint.contextTokens <= 4_096 ? 8 : 12,
             examples: Self.generationExamples, allowsRepeatedOperations: endpoint.contextTokens > 4_096,
-            strategy: endpoint.contextTokens > 4_096 ? .oneShot : .staged)
+            strategy: endpoint.contextTokens > 4_096 ? .oneShot : .staged,
+            digestTokenBudget: min(max(endpoint.contextTokens / 5, 500), 6_000))
         ask {
             let outcome = try await builder.generate(request)
             self.pending = outcome.change

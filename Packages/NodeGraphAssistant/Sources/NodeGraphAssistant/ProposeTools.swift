@@ -42,7 +42,7 @@ extension AssistantWorkspace {
     }
 
     /// Right of everything already placed, level with its top; the origin for an empty graph.
-    private func defaultOrigin() -> GraphPoint {
+    func defaultOrigin() -> GraphPoint {
         let frames = graph.nodes.values.map(nodes.frame(of:))
         guard let first = frames.first else { return .zero }
         let right = frames.map(\.maxX).max() ?? first.maxX, top = frames.map(\.minY).min() ?? first.minY
@@ -79,7 +79,7 @@ extension AssistantWorkspace {
         return value
     }
 
-    private func compile(_ operation: EditOperation, on scratch: GraphEditor) throws -> (GraphCommand, String) {
+    func compile(_ operation: EditOperation, on scratch: GraphEditor) throws -> (GraphCommand, String) {
         switch operation.op {
         case .setProperty:
             let alias = try required(operation.node, "node", operation)

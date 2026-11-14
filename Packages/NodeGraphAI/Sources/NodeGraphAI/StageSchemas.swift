@@ -26,8 +26,9 @@ enum StageSchemas {
             dependencies: [])
     }
 
-    /// A whole graph: nodes (an alias and one of `types`), settings (a node, a property, and its value as
-    /// JSON text) and links (`alias.port` to `alias.port`).
+    /// A whole change: new nodes (an alias and one of `types`), their settings (a node, a property, and its
+    /// value as JSON text), links (`alias.port` to `alias.port`, either end possibly a node already in the
+    /// graph) and edits of existing nodes.
     static func graph(types: [String]) throws -> GenerationSchema {
         func text(_ name: String, _ description: String) -> DynamicGenerationSchema.Property {
             DynamicGenerationSchema.Property(name: name, description: description, schema: DynamicGenerationSchema(type: String.self), isOptional: false)
@@ -44,6 +45,17 @@ enum StageSchemas {
         let link = DynamicGenerationSchema(name: "Link", description: "One link.", properties: [
             text("from", "An output, written alias.port."), text("to", "An input, written alias.port."),
         ])
+        let edit = DynamicGenerationSchema(name: "Edit", description: "One change to a node already in the graph.", properties: [
+            DynamicGenerationSchema.Property(
+                name: "op", description: "What to do.",
+                schema: DynamicGenerationSchema(name: "EditKind", anyOf: ["setProperty", "setTitle", "setMode", "connect", "disconnect", "removeNode"]),
+                isOptional: false),
+            text("node", "An existing node's name, like n3, for every op except connect and disconnect. Empty if unused."),
+            text("property", "The setting's name, for setProperty. Empty if unused."),
+            text("value", "The new value as JSON, for setProperty, setTitle and setMode. Empty if unused."),
+            text("from", "An output like n1.out, for connect and disconnect. Empty if unused."),
+            text("to", "An input like n2.a, for connect and disconnect. Empty if unused."),
+        ])
         func list(_ name: String, _ item: DynamicGenerationSchema, _ description: String) -> DynamicGenerationSchema.Property {
             DynamicGenerationSchema.Property(name: name, description: description, schema: DynamicGenerationSchema(arrayOf: item), isOptional: false)
         }
@@ -51,7 +63,8 @@ enum StageSchemas {
             root: DynamicGenerationSchema(name: "Graph", properties: [
                 list("nodes", node, "Every node the graph needs."),
                 list("settings", setting, "The settings to change from their defaults."),
-                list("links", link, "The links between nodes."),
+                list("links", link, "The links, including any from or to a node already in the graph."),
+                list("edits", edit, "Changes to nodes already in the graph. Empty if there are none."),
             ]),
             dependencies: [])
     }

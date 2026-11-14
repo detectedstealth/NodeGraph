@@ -296,3 +296,96 @@ private func workspace(_ editor: GraphEditor, run: Bool = true) async throws -> 
         #expect(!space.searchNodes("and", limit: 3).isEmpty)
     }
 }
+
+@Suite struct ProposeChangeTests {
+    /// n1 four, n2 eight, n3 sum, n4 two, n5 product ("Total").
+    private func space() throws -> (AssistantWorkspace, GraphEditor) {
+        let editor = try arithmetic()
+        return (AssistantWorkspace(editor: editor), editor)
+    }
+
+    @Test func connectsANewNodeToAnExistingOneAsOneProposal() throws {
+        let (space, editor) = try space()
+        let change = space.proposeChange(
+            adding: GraphSpec(nodes: [N(alias: "log", type: "util.log", properties: ["label": .string("total")])], links: []),
+            connecting: [L(from: "n5.result", to: "log.value")], title: "Log the total")
+
+        #expect(change.errors.isEmpty)
+        #expect(change.canApply)
+        #expect(change.addedNodes.count == 1)
+        #expect(change.steps.contains { $0.hasPrefix("Add ") && $0.contains("util.log") })
+        #expect(change.steps.contains("Link n5.result -> log.value"))
+        // One undo step: apply it and the link exists from the product to the new node.
+        try change.apply(to: editor)
+        let log = try #require(editor.graph.nodes[change.addedNodes[0]])
+        let product = try #require(space.aliases.node(for: "n5"))
+        #expect(editor.graph.links(into: PortAddress(node: log.id, port: "value", direction: .input)).first?.source.node == product)
+        // Placed beside the node it hangs off, not off to the side of the whole graph.
+        let frames = editor.graph.nodes.values.map(editor.nodes.frame(of:))
+        let logFrame = editor.nodes.frame(of: log)
+        let productFrame = editor.nodes.frame(of: try #require(editor.graph.nodes[product]))
+        #expect(logFrame.minX >= productFrame.maxX)
+        #expect(frames.count == 6)
+    }
+
+    @Test func aNewNodeCanFeedAnExistingInputAndReportsWhatItReplaces() throws {
+        let (space, _) = try space()
+        let change = space.proposeChange(
+            adding: GraphSpec(nodes: [N(alias: "ten", type: "util.number", properties: ["value": .int(10)])], links: []),
+            connecting: [L(from: "ten.value", to: "n5.b")])
+        #expect(change.errors.isEmpty)
+        #expect(change.steps.contains { $0.hasPrefix("Link ten.value -> n5.b (replaces the link from n4.value)") })
+    }
+
+    @Test func existingNodesCanBeLinkedAndEditedInTheSameChange() throws {
+        let (space, _) = try space()
+        let change = space.proposeChange(
+            connecting: [L(from: "n1.value", to: "n5.b")],
+            edits: [.setProperty("n2", "value", .int(9))])
+        #expect(change.errors.isEmpty)
+        #expect(change.steps.contains { $0.hasPrefix("Link n1.value -> n5.b") })
+        #expect(change.steps.contains { $0.contains("n2.value = 9") })
+        #expect(change.addedNodes.isEmpty)
+    }
+
+    @Test func aLinkToANodeThatIsNotThereNamesTheOptionsAndTheRestStillGoesAhead() throws {
+        let (space, _) = try space()
+        let change = space.proposeChange(
+            adding: GraphSpec(nodes: [N(alias: "log", type: "util.log")], links: []),
+            connecting: [L(from: "n99.result", to: "log.value"), L(from: "n3.result", to: "log.value")])
+        #expect(change.errors.count == 1)
+        #expect(change.errors[0].contains("n99"))
+        #expect(change.errors[0].contains("New nodes: log"))
+        #expect(change.addedNodes.count == 1)
+        #expect(change.steps.contains("Link n3.result -> log.value"))
+    }
+
+    @Test func anInvalidLinkIsExplainedNotApplied() throws {
+        let (space, _) = try space()
+        // An output into another output.
+        let change = space.proposeChange(connecting: [L(from: "n1.value", to: "n2.value")])
+        #expect(change.errors.count == 1)
+        #expect(change.errors[0].contains("n1.value -> n2.value"))
+        #expect(change.steps.isEmpty)
+    }
+
+    @Test func aNewNodeWithDynamicPortsCanBeFedFromExistingNodes() throws {
+        let (space, _) = try space()
+        let change = space.proposeChange(
+            adding: GraphSpec(nodes: [N(alias: "list", type: "array.make", portCounts: ["in": 3])], links: []),
+            connecting: [L(from: "n1.value", to: "list.in_1"), L(from: "n2.value", to: "list.in_2"), L(from: "n4.value", to: "list.in_3")])
+        #expect(change.errors.isEmpty, "\(change.errors)")
+        #expect(change.steps.filter { $0.hasPrefix("Link n") }.count == 3)
+    }
+
+    @Test func theGraphTextNamesNodesAsTheLinksDoAndMarksTheSelection() throws {
+        let editor = try arithmetic()
+        let product = try #require(editor.graph.nodes.keys.dropFirst(4).first)
+        let space = AssistantWorkspace(editor: editor, selection: [product])
+        let text = space.currentGraphText(tokenBudget: 1_500)
+        #expect(text.contains("n5 "))
+        #expect(text.contains("n3.result -> n5.a"))
+        #expect(text.hasSuffix("Selected: n5"))
+        #expect(AssistantWorkspace(editor: GraphEditor(nodes: editor.nodes, types: editor.types)).currentGraphText(tokenBudget: 1_500).isEmpty)
+    }
+}

@@ -486,3 +486,111 @@ private final class Narrator: TextGenerator {
         #expect(single.spec.nodes.map(\.alias) == ["number1"])
     }
 }
+
+@Suite struct ExistingGraphGenerationTests {
+    /// four (n1) and eight (n2) feeding a sum (n3), with `selecting` the index of a node to select.
+    private func workspace(selecting index: Int? = nil) throws -> AssistantWorkspace {
+        var nodes = NodeRegistry()
+        var types = TypeRegistry()
+        StandardPack.register(nodes: &nodes, types: &types)
+        let editor = GraphEditor(nodes: nodes, types: types)
+        let spec = GraphSpec(
+            nodes: [
+                .init(alias: "four", type: "util.number", properties: ["value": .int(4)]),
+                .init(alias: "eight", type: "util.number", properties: ["value": .int(8)]),
+                .init(alias: "sum", type: "math.add"),
+            ],
+            links: [.init(from: "four.value", to: "sum.a"), .init(from: "eight.value", to: "sum.b")])
+        let result = GraphSpecCompiler(nodes: nodes, types: types).compile(spec)
+        try editor.apply(try result.pasteCommand(into: editor).command)
+        let selection = index.map { Set([Array(editor.graph.nodes.keys)[$0]]) } ?? []
+        return AssistantWorkspace(editor: editor, selection: selection)
+    }
+
+    private func generator(_ space: AssistantWorkspace, _ script: Scripted) -> GraphGenerator {
+        GraphGenerator(workspace: space, generator: script, strategy: .oneShot)
+    }
+
+    @Test func theRequestCarriesTheCurrentGraphTheSelectionAndThePortsOfItsNodeTypes() async throws {
+        let script = Scripted { _ in #"{"nodes": [], "settings": [], "links": [], "edits": [{"op": "setMode", "node": "n3", "value": "muted", "property": "", "from": "", "to": ""}]}"# }
+        _ = try await generator(try workspace(selecting: 2), script).generate("mute this")
+        let prompt = try #require(script.recorded.first?.prompt)
+        #expect(prompt.contains("The graph now"))
+        #expect(prompt.contains("n1.value -> n3.a"))  // the links, in the names the answer must use
+        #expect(prompt.contains("Selected: n3"))
+        #expect(prompt.contains("means the selected nodes"))
+        // Ports of types already in the graph are described even if the request does not mention them.
+        #expect(prompt.contains("math.add") && prompt.contains("util.number"))
+    }
+
+    @Test func aGraphWithNothingInItSendsNoGraphSection() async throws {
+        let script = Scripted { _ in #"{"nodes": [{"alias": "a", "type": "util.number"}], "settings": [], "links": [], "edits": []}"# }
+        _ = try await generator(emptyWorkspace(), script).generate("a number")
+        #expect(try #require(script.recorded.first?.prompt).contains("The graph now") == false)
+    }
+
+    @Test func aNewNodeIsLinkedToAnExistingOneInOneProposal() async throws {
+        let answer = #"{"nodes": [{"alias": "log", "type": "util.log"}], "settings": [{"node": "log", "property": "label", "value": "total"}], "links": [{"from": "n3.result", "to": "log.value"}], "edits": []}"#
+        let script = Scripted { _ in answer }
+        let outcome = try await generator(try workspace(selecting: 2), script).generate("connect a log to the sum")
+
+        #expect(script.recorded.count == 1)
+        #expect(outcome.change.errors.isEmpty)
+        #expect(outcome.change.canApply)
+        #expect(outcome.change.addedNodes.count == 1)
+        #expect(outcome.change.steps.contains("Link n3.result -> log.value"))
+        #expect(outcome.spec.nodes.map(\.alias) == ["log"])
+        #expect(outcome.spec.links.isEmpty)  // the link has an end outside the new nodes
+    }
+
+    @Test func anEditOnlyAnswerChangesExistingNodesAndAddsNothing() async throws {
+        let answer = #"{"nodes": [], "settings": [], "links": [], "edits": [{"op": "setProperty", "node": "n1", "property": "value", "value": "9", "from": "", "to": ""}]}"#
+        let outcome = try await generator(try workspace(), Scripted { _ in answer }).generate("make four nine")
+        #expect(outcome.change.errors.isEmpty)
+        #expect(outcome.change.addedNodes.isEmpty)
+        #expect(outcome.change.steps.contains { $0.contains("n1.value = 9") })
+    }
+
+    @Test func aLinkToANodeThatDoesNotExistIsSentBackWithTheOptions() async throws {
+        let wrong = #"{"nodes": [{"alias": "log", "type": "util.log"}], "settings": [], "links": [{"from": "n9.result", "to": "log.value"}], "edits": []}"#
+        let right = #"{"nodes": [{"alias": "log", "type": "util.log"}], "settings": [], "links": [{"from": "n3.result", "to": "log.value"}], "edits": []}"#
+        let script = Scripted { stage in
+            if case .draftGraph = stage { return wrong }
+            return right
+        }
+        let outcome = try await generator(try workspace(), script).generate("connect a log to the sum")
+        #expect(script.recorded.map(\.stage) == [.draftGraph, .repairGraph(round: 1)])
+        let repair = try #require(script.recorded.last?.prompt)
+        #expect(repair.contains("No node \"n9\"") && repair.contains("Nodes are n1 to n3"))
+        #expect(outcome.change.errors.isEmpty)
+    }
+
+    @Test func aNewNodeCalledLikeAnExistingOneIsRenamedAndSaysSo() async throws {
+        let answer = #"{"nodes": [{"alias": "n3", "type": "util.number"}], "settings": [{"node": "n3", "property": "value", "value": "7"}], "links": [], "edits": []}"#
+        let outcome = try await generator(try workspace(), Scripted { _ in answer }).generate("add a number")
+        #expect(outcome.spec.nodes.map(\.alias) == ["newn3"])
+        #expect(outcome.spec.nodes[0].properties["value"] == .int(7))
+        #expect(outcome.notes.contains { $0.contains("newn3") && $0.contains("already named n3") })
+    }
+
+    @Test func existingNodesCanBeConnectedToEachOtherWithNoNewNodes() async throws {
+        let answer = #"{"nodes": [], "settings": [], "links": [{"from": "n1.value", "to": "n3.b"}], "edits": []}"#
+        let outcome = try await generator(try workspace(), Scripted { _ in answer }).generate("connect four to the second input")
+        #expect(outcome.change.errors.isEmpty)
+        #expect(outcome.change.steps.contains { $0.hasPrefix("Link n1.value -> n3.b (replaces the link from n2.value)") })
+    }
+
+    @Test func anEditOfAnUnknownKindIsIgnoredWithANote() async throws {
+        let answer = #"{"nodes": [{"alias": "a", "type": "util.number"}], "settings": [], "links": [], "edits": [{"op": "explode", "node": "n1", "property": "", "value": "", "from": "", "to": ""}]}"#
+        let outcome = try await generator(try workspace(), Scripted { _ in answer }).generate("x")
+        #expect(outcome.notes.contains { $0.contains("explode") })
+        #expect(outcome.change.addedNodes.count == 1)
+    }
+
+    @Test func theChangeSchemaOffersEditsAndSurvivesConversion() throws {
+        let prepared = try SchemaAdapter.prepare(try StageSchemas.graph(types: ["util.number"]), stripBounds: true)
+        let text = String(decoding: try JSONEncoder().encode(prepared.schema), as: UTF8.self)
+        #expect(text.contains("\"edits\"") && text.contains("setProperty") && text.contains("removeNode"))
+        #expect(!prepared.isWrapped)
+    }
+}

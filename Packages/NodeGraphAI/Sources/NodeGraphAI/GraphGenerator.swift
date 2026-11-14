@@ -67,6 +67,8 @@ public struct GraphGenerator: Sendable {
     public var strategy: Strategy
     /// How many times a one-shot answer the compiler rejected is sent back for correction.
     public var maxRepairs: Int
+    /// Tokens of the current graph a one-shot request may carry (decision 237).
+    public var digestTokenBudget: Int
 
     public enum Strategy: Sendable {
         /// Pick types, set properties, choose each input's source: for a 4K-context model (decision 233).
@@ -78,8 +80,9 @@ public struct GraphGenerator: Sendable {
     public init(
         workspace: AssistantWorkspace, generator: any StructuredGenerator, maxNodes: Int = 10,
         examples: [GenerationExample] = [], allowsRepeatedOperations: Bool = true,
-        strategy: Strategy = .staged, maxRepairs: Int = 2
+        strategy: Strategy = .staged, maxRepairs: Int = 2, digestTokenBudget: Int = 1_500
     ) {
+        self.digestTokenBudget = digestTokenBudget
         self.strategy = strategy
         self.maxRepairs = maxRepairs
         self.workspace = workspace

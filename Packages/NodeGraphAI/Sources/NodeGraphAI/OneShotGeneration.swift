@@ -22,69 +22,109 @@ private struct Flexible: Decodable {
     }
 }
 
-/// A model's answer for the whole graph, as it comes back.
+/// A model's answer, as it comes back: new nodes, their settings, links (either end possibly a node
+/// already in the graph) and edits of existing nodes.
 private struct GraphDraft: Decodable {
     struct Node: Decodable { var alias: Flexible; var type: Flexible }
     struct Setting: Decodable { var node: Flexible; var property: Flexible; var value: Flexible }
     struct Link: Decodable { var from: Flexible; var to: Flexible }
-    var nodes: [Node]
+    struct Edit: Decodable {
+        var op: Flexible; var node: Flexible?; var property: Flexible?
+        var value: Flexible?; var from: Flexible?; var to: Flexible?
+    }
+    var nodes: [Node]?
     var settings: [Setting]?
     var links: [Link]?
+    var edits: [Edit]?
+}
+
+/// An answer turned into what the workspace takes.
+private struct Change {
+    var spec: GraphSpec  // the new nodes, and the links among them
+    var connections: [GraphSpec.LinkSpec]  // links with an end on an existing node
+    var edits: [EditOperation]
 }
 
 /// Why an answer could not be read, in a form to send back to the model.
 private struct DraftError: Error { var message: String }
 
 extension GraphGenerator {
-    /// Builds the whole graph in one request, for a model with room for the node catalogue (decision 236).
+    /// Builds the change in one request, for a model with room for the node catalogue and the current
+    /// graph (decisions 236 and 237).
     ///
-    /// The model sees the task and the ports and settings of the node types that fit it, and answers
-    /// with nodes, settings and links. The real compiler then checks the answer, and what it rejects
-    /// goes back to the model with the compiler's own messages, up to ``maxRepairs`` times; what is
-    /// still rejected is dropped and listed. Ports that belong to a node taking any number of inputs
+    /// The model sees the task, the graph as it is now with the selection, and the ports and settings
+    /// of the node types that fit, and answers with new nodes, settings, links and edits. A link may
+    /// join a new node to an existing one (named `n3`, as in the graph text) and an edit may change an
+    /// existing node, so "connect a log to the append node" is one proposal. The workspace checks it,
+    /// and what it rejects goes back to the model with its own messages, up to ``maxRepairs`` times;
+    /// what is still rejected is dropped and listed. Ports of a node taking any number of inputs
     /// (`in_1`, `in_2`, ...) are linked like any other, and the count is worked out from the links.
     func generateInOneShot(_ request: String) async throws -> GenerationOutcome {
         let candidates = workspace.candidateNodeTypes(for: request, limit: 40)
         var ids = candidates.map(\.typeID.rawValue)
-        for example in examples { for type in example.types where !ids.contains(type) && workspace.nodes.definition(for: NodeTypeID(type)) != nil { ids.append(type) } }
+        func offer(_ type: String) {
+            if !ids.contains(type), workspace.nodes.definition(for: NodeTypeID(type)) != nil { ids.append(type) }
+        }
+        for example in examples { example.types.forEach(offer) }
+        // The model needs the ports of the types already in the graph to link to them.
+        Set(workspace.graph.nodes.values.map(\.typeID.rawValue)).sorted().prefix(15).forEach(offer)
         let catalogue = ids.compactMap { workspace.describeNode(type: $0) }.joined(separator: "\n\n")
-        let base = """
-            Build a node graph for this task: \(request)
 
+        let graphText = workspace.currentGraphText(tokenBudget: digestTokenBudget)
+        let current = graphText.isEmpty ? "" : """
+
+            The graph now. Its nodes are named n1, n2, ...
+            \(graphText)
+
+            Nodes already in the graph can be linked to, and changed only through "edits". Give every new node an alias that does not look like n1, n2, ... If the task says "it", "this" or "the selected node", it means the selected nodes above.
+
+            """
+        let base = """
+            Make a change to a node graph for this task: \(request)
+            \(current)
             Use only these node types. Each lists its ports and settings.
 
             \(catalogue)
 
             Rules:
-            - Give each node a short alias you choose, letters and digits only.
+            - Give each new node a short alias you choose, letters and digits only.
             - Each separate value the task mentions needs its own node that makes it, with its value in settings. Two numbers need two number nodes.
             - A link goes from an output to an input, written alias.port. An input takes one link; an output may feed several.
+            - To connect a new node to one already in the graph, or two existing nodes to each other, add a link and write the existing node by its name, such as n3.
+            - To change an existing node, add an edit: setProperty (node, property, value), setTitle or setMode (node, value), connect or disconnect (from, to), removeNode (node). Leave unused fields empty.
             - Ports named like in_1, in_2, ... belong to a node that takes any number of inputs. Link them in order, starting at in_1.
-            - Add only the nodes the task needs.
+            - Add only what the task needs. If it needs no new nodes, leave nodes empty.
             """
         let schema = try StageSchemas.graph(types: ids)
-        let compiler = GraphSpecCompiler(nodes: workspace.nodes, types: workspace.types, connectionValidator: workspace.connectionValidator)
 
         var notes: [String] = []
         var content = try await generator.generate(stage: .draftGraph, prompt: base, schema: schema)
-        var spec: GraphSpec?
+        var change: Change?
+        var proposal: PendingChange?
         var readFailure: String?
-        func read(_ content: GeneratedContent) throws {
+
+        func read(_ content: GeneratedContent) {
             notes = []
             do {
-                spec = try buildSpec(from: content, notes: &notes)
+                change = try buildChange(from: content, notes: &notes)
                 readFailure = nil
             } catch let error as DraftError {
-                spec = nil
+                change = nil
                 readFailure = error.message
+            } catch {
+                change = nil
+                readFailure = "\(error.localizedDescription)"
+            }
+            proposal = change.map {
+                workspace.proposeChange(adding: $0.spec, connecting: $0.connections, edits: $0.edits, title: "Generate: " + request)
             }
         }
-        try read(content)
+        read(content)
 
         var round = 0
         while round < maxRepairs {
-            // What is wrong: the answer could not be read at all, or the compiler rejected part of it.
-            let problems = readFailure.map { [$0] } ?? (spec.map { compiler.compile($0).errors.map(\.message) } ?? [])
+            // What is wrong: the answer could not be read at all, or the workspace rejected part of it.
+            let problems = readFailure.map { [$0] } ?? proposal?.errors ?? []
             guard !problems.isEmpty else { break }
             round += 1
             let prompt = base + """
@@ -95,44 +135,72 @@ extension GraphGenerator {
 
                 The checker rejected it:
                 \(problems.map { "- " + $0 }.joined(separator: "\n"))
-                Answer again with the whole corrected graph.
+                Answer again with the whole corrected change.
                 """
             content = try await generator.generate(stage: .repairGraph(round: round), prompt: prompt, schema: schema)
-            try read(content)
+            read(content)
         }
-        guard let spec else {
-            throw ProviderError.badResponse("The graph could not be read: \(readFailure ?? "no nodes"). The start of the answer was: \(content.jsonString.prefix(200))")
+        guard let change, let proposal else {
+            throw ProviderError.badResponse("The answer could not be read: \(readFailure ?? "nothing in it"). The start of the answer was: \(content.jsonString.prefix(200))")
         }
-        let change = workspace.proposeGeneration(spec, title: "Generate: " + request)
-        return GenerationOutcome(spec: spec, change: change, notes: notes)
+        return GenerationOutcome(spec: change.spec, change: proposal, notes: notes)
     }
 
-    private func buildSpec(from content: GeneratedContent, notes: inout [String]) throws -> GraphSpec {
+    private func buildChange(from content: GeneratedContent, notes: inout [String]) throws -> Change {
         let draft: GraphDraft
         do { draft = try JSONDecoder().decode(GraphDraft.self, from: Data(content.jsonString.utf8)) } catch {
-            throw DraftError(message: "It was not an object with a \"nodes\" list of aliases and types, an optional \"settings\" list and an optional \"links\" list. \(Self.summary(of: error))")
+            throw DraftError(message: "It was not an object with a \"nodes\" list of aliases and types, a \"settings\" list, a \"links\" list and an \"edits\" list. \(Self.summary(of: error))")
         }
+
+        // New nodes. An alias that looks like an existing node's name (n3) would be taken for it, so rename it.
         var nodes: [GraphSpec.NodeSpec] = []
+        var renamed: [String: String] = [:]
         var seen: Set<String> = []
-        for node in draft.nodes.prefix(maxNodes * 3) {
-            let alias = node.alias.text.filter { $0.isLetter || $0.isNumber }
+        for node in (draft.nodes ?? []).prefix(maxNodes * 3) {
+            var alias = node.alias.text.filter { $0.isLetter || $0.isNumber }
             guard !alias.isEmpty, seen.insert(alias).inserted else {
                 notes.append("Ignored a node with a missing or repeated name \"\(node.alias.text)\".")
                 continue
             }
+            if alias.first == "n", alias.dropFirst().allSatisfy(\.isNumber), alias.count > 1 {
+                let fresh = "new" + alias
+                notes.append("Called the new node \(alias) \(fresh), so it is not mistaken for the node already named \(alias).")
+                renamed[alias] = fresh
+                alias = fresh
+            }
             nodes.append(.init(alias: alias, type: node.type.text))
         }
-        if nodes.isEmpty { throw DraftError(message: "It had no nodes.") }
         for setting in draft.settings ?? [] {
-            guard let index = nodes.firstIndex(where: { $0.alias == setting.node.text }) else {
-                notes.append("Ignored a setting for \"\(setting.node.text)\": there is no such node.")
+            let target = renamed[setting.node.text] ?? setting.node.text
+            guard let index = nodes.firstIndex(where: { $0.alias == target }) else {
+                notes.append("Ignored a setting for \"\(setting.node.text)\": there is no such new node.")
                 continue
             }
             nodes[index].properties[setting.property.text] = ProposeEditTool.Operation.json(from: setting.value.text)
         }
+
+        // Links: among the new nodes, or with an end on an existing node.
+        let newAliases = Set(nodes.map(\.alias))
+        func isNew(_ end: String) -> Bool { end.split(separator: ".").first.map { newAliases.contains(String($0)) } ?? false }
         let links = (draft.links ?? []).map { GraphSpec.LinkSpec(from: $0.from.text, to: $0.to.text) }
+        let inside = links.filter { isNew($0.from) && isNew($0.to) }
+        let connections = links.filter { !(isNew($0.from) && isNew($0.to)) }
         for index in nodes.indices { nodes[index].portCounts = dynamicPortCounts(of: nodes[index], links: links) }
-        return GraphSpec(nodes: nodes, links: links)
+
+        var edits: [EditOperation] = []
+        for edit in draft.edits ?? [] {
+            guard let kind = EditOperation.Kind(rawValue: edit.op.text) else {
+                notes.append("Ignored an edit of kind \"\(edit.op.text)\".")
+                continue
+            }
+            func field(_ value: Flexible?) -> String? { value.map(\.text).flatMap { $0.isEmpty ? nil : $0 } }
+            edits.append(EditOperation(
+                kind, node: field(edit.node), property: field(edit.property),
+                value: field(edit.value).map(ProposeEditTool.Operation.json(from:)), from: field(edit.from), to: field(edit.to)))
+        }
+
+        if nodes.isEmpty && connections.isEmpty && edits.isEmpty { throw DraftError(message: "It had no nodes, links or edits.") }
+        return Change(spec: GraphSpec(nodes: nodes, links: inside), connections: connections, edits: edits)
     }
 
     /// The part of a decoding error that says where and why, kept short.
