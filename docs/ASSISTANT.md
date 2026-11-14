@@ -129,3 +129,18 @@ The harness is in `Packages/NodeGraphAI/Tests/NodeGraphAITests` (`EvalHarness.sw
 - Where do domain-specific assistant extensions register: on `NodePack` or a separate protocol?
 - Digest format details (JSON or a terser text form) once measured against the 4K budget.
 - Whether the Claude executor warrants its own package so other projects can use it.
+
+### Apple (on this device), prompts decisions 233-239, 2026-11-14 (3 attempts per task)
+
+| Task | Passed |
+| --- | --- |
+| show a number | 3/3 |
+| one string node | 0/3 |
+| add two numbers | 3/3 |
+| multiply by three | 3/3 |
+| join text | 0/3 |
+| running total | 3/3 |
+| append to array | 1/3 |
+| link a log to an existing node | 3/3 |
+
+16 of 24, against 4 of 8 before staged mode saw the graph (decision 239). Still failing: "create a string" always adds a format node, "join text" picks a trim node, and the array task builds an unrelated graph or leaves out the add node. Before the anchor prompts were tuned the log task passed 0 of 3; the first version re-added the append node and then padded with a number node.

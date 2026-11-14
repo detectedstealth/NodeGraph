@@ -14,6 +14,16 @@ enum StageSchemas {
             dependencies: [])
     }
 
+    /// A list of existing nodes' names (`n1`, ...), possibly empty.
+    static func existingPick(aliases: [String], maxNodes: Int) throws -> GenerationSchema {
+        try GenerationSchema(
+            root: DynamicGenerationSchema(
+                arrayOf: DynamicGenerationSchema(
+                    name: "ExistingNode", description: "A node already in the graph.", anyOf: aliases),
+                minimumElements: 0, maximumElements: maxNodes),
+            dependencies: [])
+    }
+
     /// An object with one optional field per slot, each constrained to its shape.
     static func properties(for slots: [PropertySlot]) throws -> GenerationSchema {
         try GenerationSchema(

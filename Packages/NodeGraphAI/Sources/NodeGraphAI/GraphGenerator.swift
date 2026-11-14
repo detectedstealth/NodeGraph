@@ -95,11 +95,12 @@ public struct GraphGenerator: Sendable {
     public func generate(_ request: String) async throws -> GenerationOutcome {
         if strategy == .oneShot { return try await generateInOneShot(request) }
         var notes: [String] = []
-        var specs = try await pickNodes(request, notes: &notes)
+        let anchors = try await pickExisting(request, notes: &notes)
+        var specs = try await pickNodes(request, anchors: anchors, notes: &notes)
         for index in specs.indices {
             specs[index].properties = try await properties(of: specs[index], request: request, notes: &notes)
         }
-        let links = try await chooseLinks(request, nodes: specs)
+        let links = try await chooseLinks(request, nodes: specs, anchors: anchors)
         // With any link in the graph, a node nothing touches is padding the model added, not part of the task.
         if !links.isEmpty {
             let linked = Set(links.flatMap { [Self.alias(of: $0.from), Self.alias(of: $0.to)] })
@@ -108,18 +109,75 @@ public struct GraphGenerator: Sendable {
             }
             specs.removeAll { !linked.contains($0.alias) }
         }
-        let spec = GraphSpec(nodes: specs, links: links)
-        let change = workspace.proposeGeneration(spec, title: "Generate: " + request)
+        // A link with an end on an existing node goes in as a connection, not into the new nodes' spec.
+        let anchorAliases = Set(anchors.map(\.alias))
+        let touchesExisting: (GraphSpec.LinkSpec) -> Bool = {
+            anchorAliases.contains(Self.alias(of: $0.from)) || anchorAliases.contains(Self.alias(of: $0.to))
+        }
+        let spec = GraphSpec(nodes: specs, links: links.filter { !touchesExisting($0) })
+        let change = anchors.isEmpty
+            ? workspace.proposeGeneration(spec, title: "Generate: " + request)
+            : workspace.proposeChange(adding: spec, connecting: links.filter(touchesExisting), title: "Generate: " + request)
         return GenerationOutcome(spec: spec, change: change, notes: notes)
+    }
+
+    // MARK: Stage 0
+
+    /// The nodes already in the graph that the task refers to, named by their digest names (`n3`).
+    /// Small enough for a 4K model: one line per node, no ports. Empty for an empty graph, where
+    /// this stage is skipped. Their ports are offered to the link stage, but they are never changed
+    /// or re-added (decision 239).
+    private func pickExisting(_ request: String, notes: inout [String]) async throws -> [GraphSpec.NodeSpec] {
+        let graph = workspace.graph
+        guard !graph.nodes.isEmpty else { return [] }
+        let selected = workspace.selection.filter { graph.nodes[$0] != nil }
+        // The selection first, then the rest in order, as many as fit.
+        let ordered = graph.nodes.values.sorted { selected.contains($0.id) && !selected.contains($1.id) }.prefix(25)
+        var lines: [String] = []
+        var typeByAlias: [String: String] = [:]
+        for node in ordered {
+            guard let alias = workspace.aliases.alias(for: node.id) else { continue }
+            typeByAlias[alias] = node.typeID.rawValue
+            lines.append("\(alias) (\(node.typeID.rawValue))" + (node.title.map { " \"\($0)\"" } ?? "") + (selected.contains(node.id) ? " [selected]" : ""))
+        }
+        guard !lines.isEmpty else { return [] }
+        let prompt = """
+            Task: \(request)
+            Nodes already in the graph:
+            \(lines.joined(separator: "\n"))
+            Which of these existing nodes does the task refer to? Choose none if it refers to none. "It" or "this" means the selected node.
+            """
+        let content = try await generator.generate(
+            stage: .pickExisting, prompt: prompt,
+            schema: try StageSchemas.existingPick(aliases: Array(typeByAlias.keys.sorted()), maxNodes: 5))
+        var anchors: [GraphSpec.NodeSpec] = []
+        for alias in try content.value([String].self) where !anchors.contains(where: { $0.alias == alias }) {
+            guard let type = typeByAlias[alias] else {
+                notes.append("Ignored \"\(alias)\": not a node that was offered.")
+                continue
+            }
+            anchors.append(.init(alias: alias, type: type))
+        }
+        return anchors
     }
 
     // MARK: Stage 1
 
-    private func pickNodes(_ request: String, notes: inout [String]) async throws -> [GraphSpec.NodeSpec] {
-        let candidates = workspace.candidateNodeTypes(for: request)
+    private func pickNodes(_ request: String, anchors: [GraphSpec.NodeSpec], notes: inout [String]) async throws -> [GraphSpec.NodeSpec] {
+        // The type of a node the task refers to is not offered: the request names it ("the append node")
+        // so it matches the search, and a small model then adds a second one (decision 239).
+        let existingTypes = Set(anchors.map(\.type))
+        let candidates = workspace.candidateNodeTypes(for: request).filter { !existingTypes.contains($0.typeID.rawValue) }
         // An example's types must be choosable, or it teaches something the schema forbids. Two of
         // different sizes: with only a four-node one the model copies its shape (decision 234).
-        let shown = Array(examples.filter { example in
+        // With existing nodes the task is a small addition to them, and the usual examples (build a
+        // graph from numbers) make the model pad the list with number nodes (decision 239).
+        let usable = anchors.isEmpty ? examples : [
+            GenerationExample(
+                task: "show the result of the multiply node", types: ["util.watch"],
+                explanation: "just the one new node that shows it; the multiply node already exists")
+        ]
+        let shown = Array(usable.filter { example in
             example.types.allSatisfy { workspace.nodes.definition(for: NodeTypeID($0)) != nil }
         }.prefix(2))
         var ids = candidates.map(\.typeID.rawValue)
@@ -134,8 +192,9 @@ public struct GraphGenerator: Sendable {
             let list = example.types.map { "\"\($0)\"" }.joined(separator: ", ")
             return "Example: for the task \"\(example.task)\" the list is [\(list)]" + (example.explanation.map { ": \($0)." } ?? ".")
         }.joined(separator: "\n")
+        let existingText = anchors.isEmpty ? "" : "\nThe task is about these nodes that already exist: \(anchors.map { "\($0.alias) (\($0.type))" }.joined(separator: ", ")). Do not choose them again; choose only the new nodes the task needs."
         let prompt = """
-            Task: \(request)
+            Task: \(request)\(existingText)
             Choose node types as a list.\(exampleText.isEmpty ? "" : " " + exampleText)
             Node types:
             \(listing.joined(separator: "\n"))
@@ -209,14 +268,31 @@ public struct GraphGenerator: Sendable {
     /// a node that has nothing in it yet. Because that depends on what was chosen earlier, an input
     /// is asked again in a later round if more sources have become eligible since (at most three
     /// rounds, and only when its choices changed).
-    private func chooseLinks(_ request: String, nodes: [GraphSpec.NodeSpec]) async throws -> [GraphSpec.LinkSpec] {
-        let candidates = workspace.linkCandidates(among: nodes)
+    private func chooseLinks(
+        _ request: String, nodes newNodes: [GraphSpec.NodeSpec], anchors: [GraphSpec.NodeSpec] = []
+    ) async throws -> [GraphSpec.LinkSpec] {
+        let nodes = newNodes + anchors
+        let anchorAliases = Set(anchors.map(\.alias))
+        // Existing nodes only take part in links to a new node, and only into inputs nothing feeds yet.
+        let fedInputs = Set(workspace.graph.links.values.compactMap { link -> String? in
+            guard let alias = workspace.aliases.alias(for: link.target.node) else { return nil }
+            return "\(alias).\(link.target.port.rawValue)"
+        })
+        let allowed = workspace.linkCandidates(among: nodes).filter { link in
+            let ends = [Self.alias(of: link.from), Self.alias(of: link.to)]
+            if ends.allSatisfy(anchorAliases.contains) { return false }
+            return !fedInputs.contains(link.to)
+        }
+        // Outputs of the nodes the task is about come first, so they are the model's first choice.
+        let candidates = allowed.filter { anchorAliases.contains(Self.alias(of: $0.from)) }
+            + allowed.filter { !anchorAliases.contains(Self.alias(of: $0.from)) }
         guard !candidates.isEmpty else { return [] }
         let listing = nodes.map { node in
             let settings = node.properties.sorted { $0.key < $1.key }.map { "\($0.key)=\(Self.text(of: $0.value))" }
             return "- \(node.alias) (\(node.type))" + (settings.isEmpty ? "" : " " + settings.joined(separator: ", "))
         }.joined(separator: "\n")
-        let makesValues = Set(nodes.filter(isSource).map(\.alias))
+        let anchorText = anchors.isEmpty ? "" : "\nThe task is about \(anchors.map(\.alias).joined(separator: ", ")), which already exist\(anchors.count == 1 ? "s" : ""): link the new nodes to \(anchors.count == 1 ? "it" : "them")."
+        let makesValues = Set(nodes.filter(isSource).map(\.alias)).union(anchorAliases)
 
         // Inputs in the order their nodes were picked.
         let order = Dictionary(uniqueKeysWithValues: nodes.enumerated().map { ($1.alias, $0) })
@@ -243,7 +319,7 @@ public struct GraphGenerator: Sendable {
 
                 let chosenSoFar = kept.isEmpty ? "none yet" : kept.map(Self.text(of:)).joined(separator: "; ")
                 let prompt = """
-                    Task: \(request)
+                    Task: \(request)\(anchorText)
                     Nodes:
                     \(listing)
                     Links so far: \(chosenSoFar)

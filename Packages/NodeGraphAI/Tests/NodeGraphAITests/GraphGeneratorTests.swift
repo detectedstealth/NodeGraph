@@ -523,6 +523,43 @@ private final class Narrator: TextGenerator {
         #expect(prompt.contains("math.add") && prompt.contains("util.number"))
     }
 
+    @Test func stagedModeLinksANewNodeToAnExistingOne() async throws {
+        let script = Scripted { stage in
+            switch stage {
+            case .pickExisting: #"["n3"]"#
+            case .pickNodes: #"["util.log"]"#
+            case .chooseSource: "\"n3.result\""
+            default: "{}"
+            }
+        }
+        let outcome = try await GraphGenerator(workspace: try workspace(), generator: script).generate("connect a log to the sum")
+        #expect(outcome.change.errors.isEmpty)
+        #expect(outcome.change.addedNodes.count == 1)
+        #expect(outcome.change.steps.contains { $0.contains("n3.result -> log1.value") })
+        #expect(outcome.spec.nodes.map(\.type) == ["util.log"])
+        // The pick prompt says the node exists, and the existing nodes were never offered as new types to add twice.
+        let pick = try #require(script.recorded.first { $0.stage == .pickNodes }?.prompt)
+        #expect(pick.contains("n3 (math.add)") && pick.contains("Do not choose them again"))
+    }
+
+    @Test func stagedModeOffersNoStageZeroForAnEmptyGraphAndNeverRelinksAFedInput() async throws {
+        let empty = Scripted { stage in if case .pickNodes = stage { return #"["util.number"]"# } else { return "{}" } }
+        _ = try await GraphGenerator(workspace: emptyWorkspace(), generator: empty).generate("a number")
+        #expect(!empty.recorded.contains { $0.stage == .pickExisting })
+
+        // n3.a and n3.b are already fed, so a new number has nowhere to go and is left out.
+        let script = Scripted { stage in
+            switch stage {
+            case .pickExisting: #"["n3"]"#
+            case .pickNodes: #"["util.number"]"#
+            default: "{}"
+            }
+        }
+        let outcome = try await GraphGenerator(workspace: try workspace(), generator: script).generate("add a number to the sum")
+        #expect(!script.recorded.contains { if case .chooseSource = $0.stage { true } else { false } })
+        #expect(outcome.change.errors.isEmpty)
+    }
+
     @Test func aGraphWithNothingInItSendsNoGraphSection() async throws {
         let script = Scripted { _ in #"{"nodes": [{"alias": "a", "type": "util.number"}], "settings": [], "links": [], "edits": []}"# }
         _ = try await generator(emptyWorkspace(), script).generate("a number")

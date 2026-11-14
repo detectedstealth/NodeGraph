@@ -2,6 +2,8 @@ import FoundationModels
 
 /// The steps of staged generation, named so a generator can log, route or script by step.
 public enum GenerationStage: Hashable, Sendable {
+    /// Which nodes already in the graph the task refers to (staged mode, graph not empty).
+    case pickExisting
     case pickNodes
     case setProperties(alias: String)
     /// Choosing what feeds one input, written `alias.port`.
