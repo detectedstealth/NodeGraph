@@ -144,3 +144,15 @@ The harness is in `Packages/NodeGraphAI/Tests/NodeGraphAITests` (`EvalHarness.sw
 | link a log to an existing node | 3/3 |
 
 16 of 24, against 4 of 8 before staged mode saw the graph (decision 239). Still failing: "create a string" always adds a format node, "join text" picks a trim node, and the array task builds an unrelated graph or leaves out the add node. Before the anchor prompts were tuned the log task passed 0 of 3; the first version re-added the append node and then padded with a number node.
+
+### Apple (on this device), explain tasks, prompts decisions 229-231, 2026-11-14 (3 attempts per task)
+
+| Task | Passed |
+| --- | --- |
+| a sum | 3/3 |
+| a chain | 2/3 |
+| a failed division | 3/3 |
+| a node switched off | 1/3 |
+
+The values and the failure were always right, and the fixes suggested for the division were sensible. Two things found: one chain narration said "to fix an error" when nothing had failed (the check for the word caught it); and for a node switched off the model usually said the input "was not run" or told the person to "enable" the node, not that it is disabled, because the computed summary says "b = no value" and leaves the reason to the trace. Worth a line about the mode in the summary (not done).
+

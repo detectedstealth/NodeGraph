@@ -60,6 +60,37 @@ import NodeGraphNodes
         for task in GoldenTasks.generate { _ = try environment.startingEditor(for: task) }
     }
 
+    private struct FixedNarrator: TextGenerator {
+        var text: String
+        func narrate(prompt: String) async throws -> String { text }
+    }
+
+    @Test func aNarrationThatCarriesTheFactsPassesExplainChecks() async throws {
+        let task = try #require(GoldenExplainTasks.all.first { $0.name == "a sum" })
+        let attempt = await EvalRunner().attempt(task, narrator: FixedNarrator(text: "It is 12 because four plus eight."), contextTokens: 4_096)
+        #expect(attempt.passed, "\(attempt.verdicts.filter { !$0.passed })")
+    }
+
+    @Test func aNarrationThatMissesOrInventsFailsExplainChecks() async throws {
+        let task = try #require(GoldenExplainTasks.all.first { $0.name == "a failed division" })
+        let attempt = await EvalRunner().attempt(task, narrator: FixedNarrator(text: "The result is 10 and all is well."), contextTokens: 4_096)
+        let failed = attempt.verdicts.filter { !$0.passed }.map(\.check)
+        #expect(failed == [.narrationMentions("zero"), .narrationAvoids("result is 10")])
+        let silent = await EvalRunner().attempt(task, narrator: FixedNarrator(text: "  "), contextTokens: 4_096)
+        #expect(silent.verdicts.contains { $0.check == .narrationNotEmpty && !$0.passed })
+    }
+
+    @Test func everyExplainTaskNamesAPortThatExistsAndThePromptCarriesTheFacts() async throws {
+        for task in GoldenExplainTasks.all {
+            let space = try await environment.ranWorkspace(for: task)
+            let explanation = try await ValueExplainer(workspace: space, generator: FixedNarrator(text: "x"), contextTokens: 4_096).explain(task.port)
+            for phrase in task.mustMention {
+                // The computed summary is what the model is given; the phrases come from facts in it or the trace.
+                #expect((explanation.summary + explanation.trace).lowercased().contains(phrase.lowercased()), "\(task.name): \(phrase)")
+            }
+        }
+    }
+
     @Test func reportListsFailedChecks() {
         let task = EvalTask("demo", request: "x", checks: [.noErrors])
         let good = EvalAttempt(verdicts: [.init(check: .noErrors, passed: true)], failure: nil, seconds: 1, nodes: ["util.number"], notes: [])
@@ -143,11 +174,24 @@ import NodeGraphNodes
                 }
                 results.append((task, attempts))
             }
+            var explainResults: [(task: EvalTask, attempts: [EvalAttempt])] = []
+            var narrations: [String] = []
+            for task in GoldenExplainTasks.all where only == nil || task.name.localizedCaseInsensitiveContains(only!) {
+                var attempts: [EvalAttempt] = []
+                for _ in 0..<runs {
+                    let attempt = await runner.attempt(task, narrator: generator, contextTokens: endpoint.contextTokens)
+                    narrations += attempt.notes.map { "\(task.name): \($0)" }
+                    attempts.append(attempt)
+                }
+                explainResults.append((EvalTask("explain: " + task.name, request: "", checks: []), attempts))
+            }
+            results += explainResults
             let label = endpoint.modelName.map { "\(endpoint.name) (\($0))" } ?? endpoint.name
             let report = EvalRunner.markdown(
                 model: label, promptVersion: Self.environment["NODEGRAPH_EVAL_PROMPT"] ?? "unlabelled",
                 date: String(date), results: results)
             print("EVAL\n\(report)")
+            if !narrations.isEmpty { print("EVAL narrations:\n" + narrations.map { "- " + $0 }.joined(separator: "\n")) }
             if let path = Self.environment["NODEGRAPH_EVAL_OUT"] {
                 let handle = FileHandle(forWritingAtPath: path) ?? {
                     FileManager.default.createFile(atPath: path, contents: nil)

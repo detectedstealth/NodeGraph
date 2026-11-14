@@ -28,6 +28,10 @@ enum EvalCheck: Hashable, Sendable {
     case linksTypes(from: String, to: String)
     /// Every node of the starting graph is still there and unchanged in type.
     case keepsStartingNodes
+    /// An explanation's narration contains this phrase, or (avoids) does not.
+    case narrationMentions(String)
+    case narrationAvoids(String)
+    case narrationNotEmpty
 
     var summary: String {
         switch self {
@@ -41,6 +45,9 @@ enum EvalCheck: Hashable, Sendable {
         case .publishesString(let text): "publishes \"\(text)\""
         case .linksTypes(let from, let to): "links \(from) to \(to)"
         case .keepsStartingNodes: "keeps the starting nodes"
+        case .narrationMentions(let phrase): "mentions \"\(phrase)\""
+        case .narrationAvoids(let phrase): "does not say \"\(phrase)\""
+        case .narrationNotEmpty: "says something"
         }
     }
 }
@@ -153,6 +160,8 @@ struct EvalEnvironment: Sendable {
                     graph.nodes[$0.source.node]?.typeID.rawValue == from && graph.nodes[$0.target.node]?.typeID.rawValue == to
                 }
                 return EvalVerdict(check: check, passed: hit, detail: hit ? nil : "no such link")
+            case .narrationMentions, .narrationAvoids, .narrationNotEmpty:
+                return EvalVerdict(check: check, passed: false, detail: "a narration check on a graph task")
             case .keepsStartingNodes:
                 let kept = startNodes.values.allSatisfy { graph.nodes[$0.id]?.typeID == $0.typeID }
                 return EvalVerdict(check: check, passed: kept, detail: kept ? nil : "a starting node is gone")
@@ -244,5 +253,103 @@ enum GoldenTasks {
                 ],
                 links: [.init(from: "list.result", to: "append.array"), .init(from: "item.value", to: "append.value")]),
             checks: [.noErrors, .keepsStartingNodes, .addsAtMost(1), .usesTypes(["util.log"]), .linksTypes(from: "array.append", to: "util.log")]),
+    ]
+}
+
+// MARK: Explain
+
+/// A graph that is run, a port to explain, and what the narration must and must not say. The
+/// summary and trace are computed (decision 229), so only the model's words are judged: facts it
+/// must carry through (a value, a failure message, a node's name) and things it must not invent.
+struct ExplainTask: Sendable {
+    var name: String
+    var graph: GraphSpec
+    var port: String
+    /// Phrases the narration must contain, compared without regard to case.
+    var mustMention: [String]
+    /// Phrases it must not contain: values or causes the graph does not have.
+    var mustNotMention: [String]
+
+    init(_ name: String, graph: GraphSpec, port: String, mustMention: [String], mustNotMention: [String] = []) {
+        self.name = name
+        self.graph = graph
+        self.port = port
+        self.mustMention = mustMention
+        self.mustNotMention = mustNotMention
+    }
+}
+
+extension EvalEnvironment {
+    /// The task's graph with its run, as the panel would hold it after a run.
+    func ranWorkspace(for task: ExplainTask) async throws -> AssistantWorkspace {
+        let editor = try startingEditor(for: EvalTask(task.name, request: "", start: task.graph, checks: []))
+        let base = AssistantWorkspace(editor: editor)
+        return AssistantWorkspace(editor: editor, runValues: try await base.run().values)
+    }
+
+    /// Judges a narration against the task's phrases.
+    func judge(_ explanation: Explanation, for task: ExplainTask) -> [EvalVerdict] {
+        let text = explanation.narration.lowercased()
+        let mentions = task.mustMention.map { phrase in
+            EvalVerdict(check: .narrationMentions(phrase), passed: text.contains(phrase.lowercased()), detail: nil)
+        }
+        let avoids = task.mustNotMention.map { phrase in
+            EvalVerdict(check: .narrationAvoids(phrase), passed: !text.contains(phrase.lowercased()), detail: nil)
+        }
+        return mentions + avoids + [
+            EvalVerdict(check: .narrationNotEmpty, passed: !text.isEmpty, detail: nil)
+        ]
+    }
+}
+
+extension EvalRunner {
+    /// One attempt at an explain task, with `generator` as the narrator.
+    func attempt(_ task: ExplainTask, narrator: any TextGenerator, contextTokens: Int) async -> EvalAttempt {
+        let started = Date()
+        do {
+            let space = try await environment.ranWorkspace(for: task)
+            let explanation = try await ValueExplainer(workspace: space, generator: narrator, contextTokens: contextTokens).explain(task.port)
+            return EvalAttempt(
+                verdicts: environment.judge(explanation, for: task), failure: nil,
+                seconds: Date().timeIntervalSince(started), nodes: [], notes: [explanation.narration])
+        } catch {
+            return EvalAttempt(verdicts: [], failure: "\(error)", seconds: Date().timeIntervalSince(started), nodes: [], notes: [])
+        }
+    }
+}
+
+enum GoldenExplainTasks {
+    private static func number(_ alias: String, _ value: Int64) -> GraphSpec.NodeSpec {
+        .init(alias: alias, type: "util.number", properties: ["value": .int(value)])
+    }
+
+    static let all: [ExplainTask] = [
+        ExplainTask(
+            "a sum", graph: GraphSpec(
+                nodes: [number("four", 4), number("eight", 8), .init(alias: "sum", type: "math.add")],
+                links: [.init(from: "four.value", to: "sum.a"), .init(from: "eight.value", to: "sum.b")]),
+            port: "n3.result", mustMention: ["12"], mustNotMention: ["division", "error"]),
+        ExplainTask(
+            "a chain", graph: GraphSpec(
+                nodes: [number("three", 3), number("four", 4), .init(alias: "times", type: "math.multiply"), number("one", 1), .init(alias: "plus", type: "math.add")],
+                links: [
+                    .init(from: "three.value", to: "times.a"), .init(from: "four.value", to: "times.b"),
+                    .init(from: "times.result", to: "plus.a"), .init(from: "one.value", to: "plus.b"),
+                ]),
+            port: "n5.result", mustMention: ["13"], mustNotMention: ["division", "error"]),
+        ExplainTask(
+            "a failed division", graph: GraphSpec(
+                nodes: [number("ten", 10), number("zero", 0), .init(alias: "split", type: "math.divide")],
+                links: [.init(from: "ten.value", to: "split.a"), .init(from: "zero.value", to: "split.b")]),
+            port: "n3.result", mustMention: ["zero"], mustNotMention: ["result is 10", "equals 10"]),
+        ExplainTask(
+            "a node switched off", graph: GraphSpec(
+                nodes: [
+                    number("five", 5),
+                    .init(alias: "off", type: "util.number", properties: ["value": .int(9)], mode: NodeMode.never),
+                    .init(alias: "sum", type: "math.add"),
+                ],
+                links: [.init(from: "five.value", to: "sum.a"), .init(from: "off.value", to: "sum.b")]),
+            port: "n3.result", mustMention: ["disabled"]),
     ]
 }
