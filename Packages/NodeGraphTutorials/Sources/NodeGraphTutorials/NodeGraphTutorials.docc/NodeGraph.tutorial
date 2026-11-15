@@ -35,4 +35,22 @@
         @TutorialReference(tutorial: "doc:MakeItUsable")
         @TutorialReference(tutorial: "doc:ShipAPack")
     }
+
+    @Chapter(name: "Domain walkthroughs") {
+        @Image(source: "chapter-domains.svg", alt: "A settling curve above a timeline with two overlapping clips.")
+
+        Use the robotics and video packs: simulate a controller in simulated time, and cut a timeline with a crossfade.
+
+        @TutorialReference(tutorial: "doc:SimulateAControlLoop")
+        @TutorialReference(tutorial: "doc:CutATimeline")
+    }
+
+    @Chapter(name: "Automation and the assistant") {
+        @Image(source: "chapter-automation.svg", alt: "A terminal window with a prompt.")
+
+        Run graphs with no window, and check them with the assistant's analysis, including a lint of your own.
+
+        @TutorialReference(tutorial: "doc:RunWithoutAWindow")
+        @TutorialReference(tutorial: "doc:CheckAGraph")
+    }
 }

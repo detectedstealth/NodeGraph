@@ -1,0 +1,41 @@
+@Tutorial(time: 10) {
+    @Intro(title: "Run without a window") {
+        Graphs are documents, so they can run where there is no editor: in a script, a test, a build step or on a server.
+    }
+
+    @Section(title: "From the command line") {
+        @ContentAndMedia {
+            `ng-run` is a command-line tool in the NodeGraphCLI package. It runs a document and prints what every node produced as JSON. Time is simulated, `--delta-ms` per pass, so the output repeats. Override a graph variable with `--var name=value`, and write the report to a file with `--output`. The exit status is 1 if any node failed, so a script can check it.
+
+            The tool knows the built-in nodes and the robotics and video packs. Writing this tutorial found a gap: it had registered only the built-in nodes, so a document with a robotics node failed with "notExecutable". It is fixed, and a test covers it.
+        }
+
+        @Steps {
+            @Step {
+                Run a saved graph, from the repository root, for two passes: `swift run --package-path Packages/NodeGraphCLI ng-run examples/console.nodegraph --ticks 2`.
+
+                The console example has a division by zero on purpose, so the report shows a failure and the exit status is 1.
+            }
+        }
+    }
+
+    @Section(title: "From code") {
+        @ContentAndMedia {
+            The tool is a thin shell over the `NodeGraphRunKit` library, which your own tools can use.
+        }
+
+        @Steps {
+            @Step {
+                Decode a document and run it for a number of passes. The report holds, for each pass, what every node did: its status, outputs and any error.
+
+                @Code(name: "RunFromCode.swift", file: "RunFromCode-step-1.swift")
+            }
+
+            @Step {
+                Pick a value out of the report. Statuses are `success`, `cached`, `bypassed`, `failure`, `skipped` and `cancelled`.
+
+                @Code(name: "RunFromCode.swift", file: "RunFromCode-step-2.swift")
+            }
+        }
+    }
+}

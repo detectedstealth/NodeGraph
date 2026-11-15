@@ -68,14 +68,15 @@ Rules:
 
 ### Phase 4: Chapter 2, Show it (SwiftUI)
 
-- [x] Tutorials: show a graph, add editing controls (inspector, undo, add node, mini-map), run it and watch (console, run badges), groups and subgraphs. 10 tests (no window needed: they drive `GraphEditorModel`)
+- [x] Tutorials: show a graph, add editing controls (inspector, undo, add node, mini-map), run it and watch (console, run badges), groups and subgraphs. 5 tests (no window needed: they drive `GraphEditorModel`)
 - [x] Screenshot capture routine and committed light and dark assets: the pictures are drawn by the editor's own PNG export (`GraphEditorModel.pngData()`), so there are no manual screenshots and they cannot drift; `scripts/capture-tutorial-images.sh` rewrites them (light, and `~dark` for DocC's dark mode)
 
 ### Phase 5: Chapters 4 and 5
 
-- [ ] Robotics walkthrough; list any gaps it finds
-- [ ] Video walkthrough; list any gaps it finds
-- [ ] Assistant and `ng-run` tutorials
+- [x] Robotics walkthrough (simulate a PID control loop, measure overshoot, reproducible in simulated time): no gaps in the pack. 3 tests
+- [x] Video walkthrough (two sequences, a crossfade, any frame in any order): no gaps; frames are descriptions, not pixels, which the text says. 1 test
+- [x] Assistant and `ng-run` tutorials (run headless from a shell and from code; digest, standard lints, and a pack lint for the temperature pack). 4 tests
+- [x] Gaps found and fixed: `ng-run` registered only the built-in nodes, so a document with robotics or video nodes failed with `notExecutable` (found by running it on `examples/console.nodegraph`); it now registers `RoboticsPack` and `VideoPack` too (test added). `NodeGraphRunKit` was not a product, so nothing but the tool could use it; it is now a library product of NodeGraphCLI
 
 ### Phase 6: Publishing
 
@@ -90,4 +91,6 @@ Rules:
 - 2026-11-15: Chapter 3 found no Core gaps. Things a pack author should know, now in the tutorial text: a node with state must not be `isPure`; `registerConversion` only allows the connection (values are the same `GraphValue`, so a Celsius number just works); the editor's "add default node" is a canvas command (`CanvasCommand.addDefaultNode`), not a drag. A pack can depend on NodeGraphCore alone.
 - 2026-11-15: a case-insensitive file system merged `Examples/` into the existing `examples/` folder, so example packs live in `examples/` (lower case) to stay correct on Linux.
 - 2026-11-15: Chapter 2 found no UI gaps: the whole editor screen (canvas, inspector, undo controls, add node, mini-map, console, run) is about 60 lines of public API. Two things for the tutorial text: run badges come from the runner's events and values from its results, so a screen must feed both to the model; the console is meant to sit below the canvas (`safeAreaInset`), not over it. `GraphEditorModel.pngData()` renders in a test with no window, which made the images and the tests easy.
+- 2026-11-15: a DocC `@Step` may hold one paragraph and an optional caption, and a chapter in the table of contents needs an image. Put longer explanation in the section's `@ContentAndMedia`.
+- Still open for packs that are not linked into the app: the demo app does not link Robotics or Video, so their nodes cannot be tried in the editor (Phase 7 note in PLAN.md). Not done here.
 

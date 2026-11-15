@@ -1,0 +1,51 @@
+@Tutorial(time: 20) {
+    @Intro(title: "Simulate a control loop") {
+        Use the robotics pack to build a feedback controller, run it in simulated time, and measure how well it does. Nothing here needs hardware or a window, and the same graph gives the same numbers every time.
+    }
+
+    @Section(title: "Build the loop") {
+        @ContentAndMedia {
+            A setpoint says where you want the machine to be. A PID controller turns the gap between that and where it is into a command. An actuator limits the command to what the hardware allows, and the machine, here a simulated first-order plant, moves toward it.
+        }
+
+        @Steps {
+            @Step {
+                Make an editor that knows the built-in nodes and the robotics pack. `makeRegistries()` combines both.
+
+                @Code(name: "ControlLoop.swift", file: "ControlLoop-step-1.swift")
+            }
+
+            @Step {
+                Add the four nodes. Each takes its settings as properties: the controller's gains and output limits, the actuator's range, the plant's gain and time constant.
+
+                @Code(name: "ControlLoop.swift", file: "ControlLoop-step-2.swift")
+            }
+
+            @Step {
+                Link them, closing the loop with the plant's output back to the controller. A cycle is normally an error, but the plant is a feedback node: its output reaches the next pass, like a sensor read before this pass's command acts. That is what makes the loop legal. `connect` checks every rule, so a wrong link throws here instead of failing in a run.
+
+                @Code(name: "ControlLoop.swift", file: "ControlLoop-step-3.swift")
+            }
+        }
+    }
+
+    @Section(title: "Simulate it") {
+        @ContentAndMedia {
+            A control loop needs time to settle, and waiting for it on the clock is slow and different each run.
+        }
+
+        @Steps {
+            @Step {
+                Run a fixed-step scenario. The runner advances simulated time by a fixed step on every pass and records the outputs you ask for, as fast as the computer can go. Fifteen seconds of loop takes a fraction of a second, and gives the same numbers on any machine.
+
+                @Code(name: "ControlLoop.swift", file: "ControlLoop-step-4.swift")
+            }
+
+            @Step {
+                Measure the result: how far the machine overshot the target, and how far from it it ended. With these gains the loop settles within 0.01 of its target. Change the integral gain and run again to see the overshoot grow.
+
+                @Code(name: "ControlLoop.swift", file: "ControlLoop-step-5.swift")
+            }
+        }
+    }
+}

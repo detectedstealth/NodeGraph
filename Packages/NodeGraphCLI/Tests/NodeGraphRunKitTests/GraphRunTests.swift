@@ -62,3 +62,11 @@ private func document(secondType: String = "math.add") throws -> GraphDocument {
         try await GraphRun.run(document(), variables: ["ghost": .int(1)])
     }
 }
+
+@Test func robotsAndVideoNodesRunHeadlessToo() async throws {
+    let report = try await GraphRun.run(document(secondType: "robotics.lowPass"), ticks: 2)
+    #expect(report.succeeded)
+    let signal = try await GraphRun.run(document(secondType: "video.trim"), ticks: 1)
+    // The trim node has no clip linked, so it may fail, but it must be known: not "notExecutable".
+    #expect(!signal.ticks.flatMap(\.nodes).contains { $0.error?.contains("notExecutable") == true })
+}

@@ -1,0 +1,53 @@
+@Tutorial(time: 15) {
+    @Intro(title: "Check a graph") {
+        The assistant package holds the model-free parts of graph analysis: a compact text form of a graph, and lints that find what is valid but suspicious. They need no AI, so they are useful in tests and in a continuous-integration step, and they are what a model works from when you do use one.
+    }
+
+    @Section(title: "Read a graph") {
+        @ContentAndMedia {
+            A digest is the graph as plain text with short names for the nodes, small enough to read in one go.
+        }
+
+        @Steps {
+            @Step {
+                Make a digest. Details run from an outline, with names and types only, up to full text with every property. A budget can pick the most detailed form that fits a number of tokens.
+
+                @Code(name: "CheckAGraph.swift", file: "CheckAGraph-step-1.swift")
+            }
+        }
+    }
+
+    @Section(title: "Lint it") {
+        @ContentAndMedia {
+            Validation says what is invalid. Lints say what is valid but probably not what you meant: an isolated node, an output nothing reads, a constant expression.
+        }
+
+        @Steps {
+            @Step {
+                Run the standard lints. Each finding has a level, a message that names the node, and often a suggested fix that is an ordinary command you can apply or undo. Lints look at structure only and never run the graph.
+
+                @Code(name: "CheckAGraph.swift", file: "CheckAGraph-step-2.swift")
+            }
+        }
+    }
+
+    @Section(title: "Write a lint for your pack") {
+        @ContentAndMedia {
+            Only a pack knows what is suspicious in its own domain.
+        }
+
+        @Steps {
+            @Step {
+                Write a lint for the temperature pack from chapter 3. A Convert Temperature node with nothing linked works, because its input has a default, so no standard lint complains, but it will always show 20 degrees. The lint finds it and suggests removing it.
+
+                @Code(name: "CheckAGraph.swift", file: "CheckAGraph-step-3.swift")
+            }
+
+            @Step {
+                Add it to the linter. The standard lints and yours run together, in a fixed order, so the same graph gives the same list every time.
+
+                @Code(name: "CheckAGraph.swift", file: "CheckAGraph-step-4.swift")
+            }
+        }
+    }
+}

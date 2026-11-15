@@ -1,0 +1,59 @@
+@Tutorial(time: 20) {
+    @Intro(title: "Cut a timeline") {
+        Use the video pack to assemble a short edit: two clips, a crossfade between them, and a render node that says what is on screen at any moment. The pack describes frames and does not decode pixels, so the whole edit runs and is tested without any media.
+    }
+
+    @Section(title: "Footage") {
+        @ContentAndMedia {
+            A clip node refers to an asset by a handle, never by a file path, so a graph stays small and can move between machines.
+        }
+
+        @Steps {
+            @Step {
+                Describe two assets in an asset library, each with a name and a length. A real app fills the library from its media. The library hands back a handle for each, which is what goes in a clip node.
+
+                @Code(name: "CutATimeline.swift", file: "CutATimeline-step-1.swift")
+            }
+        }
+    }
+
+    @Section(title: "Sequences") {
+        @ContentAndMedia {
+            Times in the graph are timeline seconds. A sequence plays its clips one after another from an offset.
+        }
+
+        @Steps {
+            @Step {
+                Make two sequences: the interview from the start, and the cutaway from three seconds in. Each is a clip, trimmed to six seconds, in a sequence.
+
+                @Code(name: "CutATimeline.swift", file: "CutATimeline-step-2.swift")
+            }
+
+            @Step {
+                Blend them. A transition node takes two frames, `a` and `b`, and a start and duration, and the crossfade runs from three to four seconds. The render node marks what the graph delivers.
+
+                @Code(name: "CutATimeline.swift", file: "CutATimeline-step-3.swift")
+            }
+        }
+    }
+
+    @Section(title: "Ask for frames") {
+        @ContentAndMedia {
+            A video renderer evaluates the graph at the moment you name, so any frame can be asked for in any order.
+        }
+
+        @Steps {
+            @Step {
+                Create a renderer from the graph and the asset library. Scrubbing a timeline and exporting in parallel both need this: no frame depends on the ones before it.
+
+                @Code(name: "CutATimeline.swift", file: "CutATimeline-step-4.swift")
+            }
+
+            @Step {
+                Read a frame. A frame is a list of layers: which asset, where in it, and how opaque. At two seconds there is only the interview. At three and a half seconds there are two layers at half opacity, and at five seconds only the cutaway is left, two seconds in.
+
+                @Code(name: "CutATimeline.swift", file: "CutATimeline-step-5.swift")
+            }
+        }
+    }
+}

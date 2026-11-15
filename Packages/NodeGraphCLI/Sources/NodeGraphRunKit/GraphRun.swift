@@ -1,6 +1,8 @@
 import Foundation
 import NodeGraphCore
 import NodeGraphNodes
+import NodeGraphRobotics
+import NodeGraphVideo
 
 /// Why a run could not start.
 public enum GraphRunError: Error, Hashable, Sendable, CustomStringConvertible {
@@ -50,14 +52,16 @@ public struct RunReport: Codable, Hashable, Sendable {
     }
 }
 
-/// Runs a document headless with the standard node packs.
+/// Runs a document headless with the built-in node packs and the robotics and video packs.
 public enum GraphRun {
-    /// The registry the runner uses: every node in ``StandardPack``.
+    /// The registry the runner uses: every node in ``StandardPack``, ``RoboticsPack`` and ``VideoPack``.
     public static func standardRegistry() -> NodeRegistry {
         var nodes = NodeRegistry()
         var types = TypeRegistry()
         StandardTypes.register(in: &types)
         StandardPack.register(nodes: &nodes, types: &types)
+        RoboticsPack.register(nodes: &nodes, types: &types)
+        VideoPack.register(nodes: &nodes, types: &types)
         return nodes
     }
 
