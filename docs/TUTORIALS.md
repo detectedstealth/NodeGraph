@@ -13,6 +13,7 @@ DocC tutorials in the style of Apple's [Develop in Swift](https://developer.appl
 | Piece | Where |
 |---|---|
 | Tutorial table of contents and tutorial pages | `Packages/NodeGraphTutorials/Sources/NodeGraphTutorials/NodeGraphTutorials.docc/` |
+| Pictures | `.../NodeGraphTutorials.docc/Resources/*.png` (generated), `*.svg` (hand-made) |
 | Compiled step code | `Packages/NodeGraphTutorials/Sources/NodeGraphTutorials/` (`ChapterN/`) |
 | Tests for every step | `Packages/NodeGraphTutorials/Tests/NodeGraphTutorialsTests/` |
 | Per-package API reference and concept articles | `<Package>.docc/` inside each package that has one |
@@ -26,7 +27,8 @@ Rules:
 - A chapter in the table of contents needs an image; use a simple SVG in `Resources/`.
 - DocC warnings are errors (`--warnings-as-errors`). Zero warnings is a quality gate.
 - Package catalogs link only within their own package. Cross-package links live in the tutorials package, which depends on all of them.
-- Screenshots (UI chapter) are committed as light and dark pairs. They are the only manual assets.
+- Every step file is also type-checked alone by `scripts/check-tutorial-steps.sh` (in CI), so a reader following the steps never meets one that does not compile.
+- Pictures of the editor come from its own PNG export, committed as light and `~dark` pairs; `scripts/capture-tutorial-images.sh` redraws them. The chapter images in the table of contents are hand-made SVGs.
 - A tutorial that needs something the packages lack gets that fixed first and the fix recorded in PLAN.md and DECISIONS.md.
 
 ## Curriculum
@@ -66,8 +68,8 @@ Rules:
 
 ### Phase 4: Chapter 2, Show it (SwiftUI)
 
-- [ ] Tutorials: embed the editor, palette and inspector, console, groups and subgraphs
-- [ ] Screenshot capture routine and committed light and dark assets
+- [x] Tutorials: show a graph, add editing controls (inspector, undo, add node, mini-map), run it and watch (console, run badges), groups and subgraphs. 10 tests (no window needed: they drive `GraphEditorModel`)
+- [x] Screenshot capture routine and committed light and dark assets: the pictures are drawn by the editor's own PNG export (`GraphEditorModel.pngData()`), so there are no manual screenshots and they cannot drift; `scripts/capture-tutorial-images.sh` rewrites them (light, and `~dark` for DocC's dark mode)
 
 ### Phase 5: Chapters 4 and 5
 
@@ -87,4 +89,5 @@ Rules:
 - 2026-11-15: no Core or Nodes gaps found by Chapter 1; everything compiled and passed first time. One thing a reader hits: there is no way to set an input's value on a node without a `util.number` node linked in, which is by design.
 - 2026-11-15: Chapter 3 found no Core gaps. Things a pack author should know, now in the tutorial text: a node with state must not be `isPure`; `registerConversion` only allows the connection (values are the same `GraphValue`, so a Celsius number just works); the editor's "add default node" is a canvas command (`CanvasCommand.addDefaultNode`), not a drag. A pack can depend on NodeGraphCore alone.
 - 2026-11-15: a case-insensitive file system merged `Examples/` into the existing `examples/` folder, so example packs live in `examples/` (lower case) to stay correct on Linux.
+- 2026-11-15: Chapter 2 found no UI gaps: the whole editor screen (canvas, inspector, undo controls, add node, mini-map, console, run) is about 60 lines of public API. Two things for the tutorial text: run badges come from the runner's events and values from its results, so a screen must feed both to the model; the console is meant to sit below the canvas (`safeAreaInset`), not over it. `GraphEditorModel.pngData()` renders in a test with no window, which made the images and the tests easy.
 

@@ -1,0 +1,42 @@
+@Tutorial(time: 15) {
+    @Intro(title: "Show a graph") {
+        Put the addition graph from chapter 1 on screen with the `NodeGraphUI` package. You get panning, zooming, selecting, moving, linking and undo without writing any of it.
+    }
+
+    @Section(title: "Make a model") {
+        @ContentAndMedia {
+            Views never touch the graph or the editor. They go through a `GraphEditorModel`, which wraps a `GraphEditor`, records every edit for undo, and keeps the selection and layout in step.
+        }
+
+        @Steps {
+            @Step {
+                Wrap the editor in a model. The theme decides colours: `.light` and `.dark` are built in, and you can make your own.
+
+                @Code(name: "AdditionEditor.swift", file: "AdditionEditor-step-1.swift")
+            }
+        }
+    }
+
+    @Section(title: "Show it") {
+        @ContentAndMedia {
+            `GraphCanvasView` is a SwiftUI view that draws and edits a graph.
+        }
+
+        @Steps {
+            @Step {
+                Give the canvas a `GraphInteractionController`, which turns mouse, keyboard and touch input into edits. It is the one object an editor screen needs.
+
+                The canvas is drawn with a single SwiftUI `Canvas` and only draws what is in view, so a large graph stays smooth.
+
+                @Code(name: "AdditionEditor.swift", file: "AdditionEditor-step-2.swift")
+                @Image(source: "show-graph.png", alt: "Two number nodes, 2 and 4, linked to an Add node.")
+            }
+
+            @Step {
+                The same model can draw itself to a PNG, without any window. The pictures in this tutorial were made this way.
+
+                @Code(name: "AdditionEditor.swift", file: "AdditionEditor-step-3.swift")
+            }
+        }
+    }
+}

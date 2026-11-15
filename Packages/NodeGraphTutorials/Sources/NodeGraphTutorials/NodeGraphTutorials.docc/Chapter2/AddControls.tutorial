@@ -1,0 +1,39 @@
+@Tutorial(time: 10) {
+    @Intro(title: "Add editing controls") {
+        The canvas edits by itself. Add the panels around it: an inspector for the selected node, buttons for undo and for adding nodes, and a mini-map.
+    }
+
+    @Section(title: "Inspector") {
+        @ContentAndMedia {
+            The inspector edits whatever is selected: a node's title, properties, ports and mode.
+        }
+
+        @Steps {
+            @Step {
+                Show `GraphInspectorView` in the system inspector column. It edits through the same model as the canvas, so its changes can be undone too.
+
+                @Code(name: "AdditionEditor.swift", file: "AdditionEditor-step-4.swift")
+            }
+        }
+    }
+
+    @Section(title: "Buttons") {
+        @ContentAndMedia {
+            Controls are plain SwiftUI views laid over the canvas.
+        }
+
+        @Steps {
+            @Step {
+                Add `GraphUndoControls`, a pair of undo and redo buttons, and a button that starts adding a node. `beginAddNode()` opens a searchable list of every node type that the packs registered.
+
+                @Code(name: "AdditionEditor.swift", file: "AdditionEditor-step-5.swift")
+            }
+
+            @Step {
+                Add a button that shows and hides the inspector, and a mini-map in the corner for large graphs.
+
+                @Code(name: "AdditionEditor.swift", file: "AdditionEditor-step-6.swift")
+            }
+        }
+    }
+}

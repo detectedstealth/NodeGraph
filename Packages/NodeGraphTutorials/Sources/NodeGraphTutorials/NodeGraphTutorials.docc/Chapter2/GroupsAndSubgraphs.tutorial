@@ -1,0 +1,41 @@
+@Tutorial(time: 10) {
+    @Intro(title: "Groups and subgraphs") {
+        Keep a large graph readable. A group is a labelled box that moves its nodes with it. A subgraph turns several nodes into one node you can reuse and open.
+    }
+
+    @Section(title: "Group nodes") {
+        @ContentAndMedia {
+            A group has no effect on how the graph runs. It is for people.
+        }
+
+        @Steps {
+            @Step {
+                Draw a group around the two number nodes. The model measures the nodes, adds padding and a title bar, and records one undo step.
+
+                @Code(name: "GroupsAndSubgraphs.swift", file: "GroupsAndSubgraphs-step-1.swift")
+                @Image(source: "grouped-numbers.png", alt: "A box around the two number nodes.")
+            }
+        }
+    }
+
+    @Section(title: "Make a subgraph") {
+        @ContentAndMedia {
+            A subgraph is a graph inside a node. Links that crossed its edge become the node's inputs and outputs.
+        }
+
+        @Steps {
+            @Step {
+                Select nodes, open the Create Subgraph form with `beginCreateSubgraph()`, then confirm it with a name. The form is the same one the user sees, and you can offer properties to expose on the new node. The nodes are replaced by one instance, and the whole change is a single undo step.
+
+                @Code(name: "GroupsAndSubgraphs.swift", file: "GroupsAndSubgraphs-step-2.swift")
+                @Image(source: "subgraph-instance.png", alt: "A single node titled Add Two Numbers.")
+            }
+
+            @Step {
+                Go inside the instance to edit its contents, and come back out. The model remembers the view you had at each level.
+
+                @Code(name: "GroupsAndSubgraphs.swift", file: "GroupsAndSubgraphs-step-3.swift")
+            }
+        }
+    }
+}

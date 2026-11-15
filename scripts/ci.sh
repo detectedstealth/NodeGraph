@@ -13,6 +13,7 @@ swift test --package-path examples/TemperaturePack
 
 echo "==> docs"
 scripts/sync-tutorial-code.sh --check
+scripts/check-tutorial-steps.sh
 scripts/docs.sh build
 
 if [[ "${1:-}" == "--ios" ]]; then

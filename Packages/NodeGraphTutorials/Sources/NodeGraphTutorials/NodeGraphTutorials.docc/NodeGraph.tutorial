@@ -14,6 +14,17 @@
         @TutorialReference(tutorial: "doc:SaveAndLoad")
     }
 
+    @Chapter(name: "Show it") {
+        @Image(source: "run-result.png", alt: "Two number nodes and an Add node after a run, each with a green check.")
+
+        Put a graph on screen with SwiftUI, add the editing panels, run it, and organise it with groups and subgraphs.
+
+        @TutorialReference(tutorial: "doc:ShowAGraph")
+        @TutorialReference(tutorial: "doc:AddControls")
+        @TutorialReference(tutorial: "doc:RunAndInspect")
+        @TutorialReference(tutorial: "doc:GroupsAndSubgraphs")
+    }
+
     @Chapter(name: "Write a node pack") {
         @Image(source: "chapter-pack.svg", alt: "Three orange nodes inside a dashed box, which stands for a package.")
 

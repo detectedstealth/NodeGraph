@@ -1,0 +1,42 @@
+@Tutorial(time: 15) {
+    @Intro(title: "Run it and watch") {
+        Run the graph from the editor, and show each node's result on the canvas, with a console for what nodes log and what fails.
+    }
+
+    @Section(title: "A console") {
+        @ContentAndMedia {
+            A `ConsoleModel` collects log lines, errors and run summaries, and `ConsolePanel` shows them with a level filter. Clicking a line selects the node it came from.
+        }
+
+        @Steps {
+            @Step {
+                Keep a console and a height for its panel, and place the panel below the canvas. It is below, not over, so nothing covers a log line. The user can drag its top edge to resize it.
+
+                @Code(name: "AdditionEditor.swift", file: "AdditionEditor-step-7.swift")
+            }
+        }
+    }
+
+    @Section(title: "Run") {
+        @ContentAndMedia {
+            Running uses the `GraphRunner` from chapter 1 and feeds what it reports back into the model.
+        }
+
+        @Steps {
+            @Step {
+                Write the run. The runner reports two things. Events say when each node starts and finishes, which draws a badge on it; results carry the values. Give both to the model, and give the console each result, with a way to name nodes.
+
+                The runner gets the console's logger, so a node that logs shows up there too.
+
+                @Code(name: "AdditionEditor.swift", file: "AdditionEditor-step-8.swift")
+                @Image(source: "run-result.png", alt: "The same graph after a run, with a green check on every node.")
+            }
+
+            @Step {
+                Add a Run button. A failure, such as a division by zero, marks the node and puts the message in the console as an error.
+
+                @Code(name: "AdditionEditor.swift", file: "AdditionEditor-step-9.swift")
+            }
+        }
+    }
+}
