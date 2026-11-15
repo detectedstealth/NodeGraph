@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "NodeGraphCLI",
-    platforms: [.macOS(.v27)],
+    platforms: [.macOS(.v27), .iOS(.v27)],
     products: [
         .executable(name: "ng-run", targets: ["ng-run"]),
         // What ng-run does, as a library, so an app or a test can run a document headless too.

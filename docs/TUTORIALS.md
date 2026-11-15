@@ -50,7 +50,7 @@ Rules:
 - [x] Fix the 26 DocC warnings in existing NodeGraphCore comments (missing parameter docs, symbol links that did not resolve), so `--warnings-as-errors` passes
 - [ ] Add `.docc` catalogs and the plugin to the other packages as their tutorials need them (Nodes, UI, Assistant, Robotics, Video), adding each to `PACKAGES` in `docs.sh`
 - [ ] Public API documentation gaps. Measured 2026-11-15 (public declarations with no `///` directly above; rough, counts only declarations that say `public`): Core 308 of 694, UI 283 of 643, Assistant 149 of 267, AI 92 of 155, Sync 36 of 60, Video 23 of 46, CLI 11 of 22, Nodes 9 of 21, Robotics 7 of 15. Approach: document just in time, covering what each chapter uses, and finish a package before its catalog is added to `docs.sh`. Re-measure when a package is done
-- [ ] Verify the tutorials package builds for iOS (`scripts/ci.sh --ios`)
+- [x] Verify the tutorials package builds for iOS (xcodebuild, iOS Simulator; needed `.iOS(.v27)` added to NodeGraphCLI, which the tutorials now depend on for `NodeGraphRunKit`). `scripts/ci.sh` passes in full
 
 ### Phase 2: Chapter 1, Build a graph (and the snippet harness)
 
