@@ -16,10 +16,12 @@ Packages/
   NodeGraphNodes/     Built-in node packs (math, logic, string, flow). Depends on Core only.
   NodeGraphUI/        SwiftUI Canvas editor, gestures, inspector, palette. Depends on Core.
   NodeGraphSync/      GraphStore protocol + local implementations. Server comes later.
+  NodeGraphTutorials/ Docs-only: DocC tutorials and their tested step code. See docs/TUTORIALS.md.
   NodeGraphAssistant/ Model-independent assistant logic (graph digest, lints, tools). Core only, no AI imports. See docs/ASSISTANT.md.
 App/                  Xcode app target (macOS + iPadOS), thin shell.
 docs/                 PLAN.md, ARCHITECTURE.md, DECISIONS.md
-scripts/ci.sh         Tests all packages; `--ios` also builds for iOS simulator.
+scripts/docs.sh       DocC: `preview`, `build` (warnings are errors), `site`.
+scripts/ci.sh         Tests all packages, builds docs; `--ios` also builds for iOS simulator.
 NodeGraph.xcworkspace Open this in Xcode.
 ```
 

@@ -100,7 +100,7 @@ public struct GraphFragment: Hashable, Sendable, Codable {
     }
 }
 
-/// What ``GraphEditor/pasteCommand(_:translatedBy:in:)`` made: the command, and the ids of the
+/// What ``GraphEditor/pasteCommand(_:translatedBy:in:keepingConnections:)`` made: the command, and the ids of the
 /// new nodes and groups so a caller can select them.
 public struct GraphPaste: Sendable {
     public var command: GraphCommand

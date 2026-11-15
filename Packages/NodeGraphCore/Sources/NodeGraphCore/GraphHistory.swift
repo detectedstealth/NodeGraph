@@ -70,7 +70,7 @@ public final class GraphHistory {
         return change
     }
 
-    /// Connects two ports and records it. See ``GraphEditor/connect(_:)``.
+    /// Connects two ports and records it. See ``GraphEditor/connect(_:in:)``.
     @discardableResult
     public func connect(
         _ proposal: ConnectionProposal, name: String? = nil, in scope: SubgraphID? = nil

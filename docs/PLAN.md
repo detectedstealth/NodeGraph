@@ -188,3 +188,8 @@ Design, tool list, providers and backlog are in `docs/ASSISTANT.md`. Rules: the 
 - Core tests pass on macOS and Linux; UI builds for macOS and iPad simulator.
 - No UI imports in Core. No Combine.
 - PLAN.md and DECISIONS.md updated before finishing.
+
+## Tutorials (DocC)
+
+Plan, decisions and task list are in `docs/TUTORIALS.md`. Phase 1, the foundation (docs-only package `NodeGraphTutorials`, `scripts/docs.sh`, Core and Tutorials catalogs, Core DocC warnings fixed), is done except the items still open there.
+

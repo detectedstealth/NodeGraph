@@ -94,10 +94,13 @@ public final class GraphEditor {
     /// change anything. A batch that fails part-way is rolled back with the inverses of the steps
     /// that had succeeded.
     ///
-    /// - Parameter adjustsPorts: Whether to resize automatically sized port groups after the
-    ///   command (see ``DynamicPortGroup/Resizing/keepOneFree``). Leave it on for new edits and for
-    ///   replaying a command, which recomputes the same adjustments. Turn it off only when applying
-    ///   a recorded inverse, which already contains them, so undo restores the exact earlier state.
+    /// - Parameters:
+    ///   - command: The command to apply.
+    ///   - validation: How much checking to do before changing anything.
+    ///   - adjustsPorts: Whether to resize automatically sized port groups after the
+    ///     command (see ``DynamicPortGroup/Resizing/keepOneFree``). Leave it on for new edits and for
+    ///     replaying a command, which recomputes the same adjustments. Turn it off only when applying
+    ///     a recorded inverse, which already contains them, so undo restores the exact earlier state.
     @discardableResult
     public func apply(
         _ command: GraphCommand, validation: EditValidation = .full, adjustsPorts: Bool = true
@@ -132,7 +135,7 @@ public final class GraphEditor {
     /// undo step and replays on a server like any other change.
     ///
     /// Apply it to the root graph only. A run's override of `old` is not carried over, since
-    /// ``GraphRunner/update(graph:registry:)`` drops overrides of names the graph no longer declares.
+    /// ``GraphRunner/update(graph:registry:subgraphs:)`` drops overrides of names the graph no longer declares.
     /// - Throws: ``GraphEditError/variableNotFound(_:)``, ``GraphEditError/invalidVariableName`` or
     ///   ``GraphEditError/duplicateVariable(_:)`` (`new` is taken by another variable).
     public func renameVariableCommand(from old: String, to new: String) throws -> GraphCommand {

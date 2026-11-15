@@ -18,7 +18,9 @@ public struct NodeRegistry: Sendable {
 
     /// Registers a definition, replacing any earlier one (and its executor) with the same type id.
     ///
-    /// - Parameter execute: What runs the node. Nil for definitions that are only displayed.
+    /// - Parameters:
+    ///   - definition: The node type to register.
+    ///   - execute: What runs the node. Nil for definitions that are only displayed.
     public mutating func register(_ definition: NodeDefinition, execute: NodeExecutor? = nil) {
         definitions[definition.typeID] = definition
         executors[definition.typeID] = execute

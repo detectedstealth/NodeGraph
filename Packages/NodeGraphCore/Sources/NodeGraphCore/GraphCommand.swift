@@ -1,4 +1,4 @@
-/// A node and where to put it. Used by ``GraphCommand/setNodePositions(_:)``.
+/// A node and where to put it. Used by ``GraphCommand/setNodePositions(placements:)``.
 public struct NodePlacement: Hashable, Sendable, Codable {
     public var node: NodeID
     public var position: GraphPoint

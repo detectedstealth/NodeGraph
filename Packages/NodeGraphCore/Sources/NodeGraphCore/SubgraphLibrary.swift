@@ -84,7 +84,7 @@ extension SubgraphDefinition {
 /// without the library being available.
 ///
 /// Libraries are plain values. Where they are stored (a file, a server) is up to the app; see
-/// ``encoded()`` and ``decode(from:)`` for the file form.
+/// ``encoded(prettyPrinted:)`` and ``decode(from:)`` for the file form.
 public struct SubgraphLibrary: Hashable, Sendable {
     /// The file format version this build reads and writes.
     public static let currentSchemaVersion = 1

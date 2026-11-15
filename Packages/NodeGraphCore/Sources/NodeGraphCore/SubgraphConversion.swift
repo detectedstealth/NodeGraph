@@ -52,6 +52,8 @@ extension GraphEditor {
     /// Because the batch is built from the current graph, apply it before making other edits.
     ///
     /// - Parameters:
+    ///   - selection: The nodes to move into the new subgraph.
+    ///   - name: The name of the new subgraph.
     ///   - promoting: Inner node properties to expose on the instance. Each keeps its current value
     ///     as the default, so behaviour is unchanged.
     ///   - scope: The subgraph being edited, or nil for the root graph.
@@ -180,7 +182,9 @@ extension GraphEditor {
     /// One difference: an unlinked instance input used its interface default, but unpacked, the
     /// inner port uses its own default.
     ///
-    /// - Parameter scope: The subgraph being edited, or nil for the root graph.
+    /// - Parameters:
+    ///   - id: The subgraph instance node to unpack.
+    ///   - scope: The subgraph being edited, or nil for the root graph.
     public func unpackCommand(instance id: NodeID, in scope: SubgraphID? = nil) throws -> SubgraphUnpacking {
         let source = try graph(in: scope)
         guard let instance = source.nodes[id] else { throw GraphEditError.nodeNotFound(id) }

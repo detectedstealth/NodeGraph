@@ -74,7 +74,7 @@ public struct TickResult: Hashable, Sendable {
 /// link); triggers carry events, never values. A node whose upstream
 /// failed is skipped, and a failing node does not stop the rest of the graph.
 ///
-/// The runner works on its own copy of the graph; call ``update(graph:registry:)`` to change it.
+/// The runner works on its own copy of the graph; call ``update(graph:registry:subgraphs:)`` to change it.
 public actor GraphRunner {
     private var snapshot: Snapshot
     private let services: ServiceContainer
@@ -99,8 +99,15 @@ public actor GraphRunner {
     private let requestContinuation: AsyncStream<Void>.Continuation
 
     /// - Parameters:
+    ///   - graph: The graph to run. The runner keeps its own copy.
+    ///   - registry: Node definitions and executors for every node type the graph uses.
     ///   - subgraphs: Definitions of the subgraphs the graph (or another definition) has instances
     ///     of. Their instance node types are registered for you.
+    ///   - services: Shared services nodes can look up while they run.
+    ///   - overrides: Values for graph variables that replace their declared values for this runner.
+    ///   - logger: Where nodes' log output goes.
+    ///   - caching: Whether to skip nodes whose inputs have not changed since the last pass.
+    ///   - onProgress: Called with progress reports from nodes that run long.
     /// - Throws: ``ExecutionPlanError`` if the graph has a cycle no feedback node breaks.
     public init(
         graph: Graph,

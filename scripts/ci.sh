@@ -8,8 +8,11 @@ for pkg in Packages/*/; do
     swift test --package-path "$pkg"
 done
 
+echo "==> docs"
+scripts/docs.sh build
+
 if [[ "${1:-}" == "--ios" ]]; then
-    for scheme in NodeGraphCore NodeGraphNodes NodeGraphUI NodeGraphSync NodeGraphRobotics NodeGraphVideo NodeGraphAssistant NodeGraphAI; do
+    for scheme in NodeGraphCore NodeGraphNodes NodeGraphUI NodeGraphSync NodeGraphRobotics NodeGraphVideo NodeGraphAssistant NodeGraphAI NodeGraphTutorials; do
         echo "==> xcodebuild iOS $scheme"
         (cd "Packages/$scheme" && xcodebuild -scheme "$scheme" \
             -destination 'generic/platform=iOS Simulator' build -quiet)

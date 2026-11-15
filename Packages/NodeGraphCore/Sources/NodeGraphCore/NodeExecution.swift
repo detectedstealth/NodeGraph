@@ -158,8 +158,16 @@ public struct NodeContext: Sendable {
     /// Builds the context for running `node`.
     ///
     /// - Parameters:
+    ///   - node: The node being run.
+    ///   - definition: Its node type's definition, which supplies port and property defaults.
     ///   - linkedInputs: Values already delivered over links, keyed by input port.
     ///   - triggered: Trigger input ports that received an event.
+    ///   - time: Where this pass is in time.
+    ///   - services: Shared services the node can look up.
+    ///   - state: What the node returned from its previous pass, if it keeps state.
+    ///   - variables: The graph's variables as this run sees them.
+    ///   - logger: Where the node's log output goes.
+    ///   - onProgress: Called to report progress while the node runs.
     public init(
         node: Node,
         definition: NodeDefinition,
