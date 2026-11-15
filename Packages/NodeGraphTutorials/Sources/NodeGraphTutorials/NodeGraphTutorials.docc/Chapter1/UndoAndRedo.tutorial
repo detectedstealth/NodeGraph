@@ -1,0 +1,53 @@
+@Tutorial(time: 10) {
+    @Intro(title: "Undo and redo") {
+        Because every change is a command, undo is a matter of keeping the command and its inverse. `GraphHistory` does that for you.
+    }
+
+    @Section(title: "Record edits") {
+        @ContentAndMedia {
+            A history wraps an editor. Edits made through the history can be undone; edits made on the editor directly cannot.
+        }
+
+        @Steps {
+            @Step {
+                Wrap the addition graph in a history. The edits that built the graph happened before it existed, so they are not on its undo stack.
+
+                @Code(name: "UndoAndRedo.swift", file: "UndoAndRedo-step-1.swift")
+            }
+
+            @Step {
+                Make an edit with `perform`. The name is what a menu would show, as in "Undo Change Number".
+
+                @Code(name: "UndoAndRedo.swift", file: "UndoAndRedo-step-2.swift")
+            }
+        }
+    }
+
+    @Section(title: "Undo and redo") {
+        @ContentAndMedia {
+            Both walk the history one step at a time, and a new edit clears what could have been redone.
+        }
+
+        @Steps {
+            @Step {
+                Change the number, undo, and redo, noting the value each time. It reads 4, 10, 4, 10.
+
+                @Code(name: "UndoAndRedo.swift", file: "UndoAndRedo-step-3.swift")
+            }
+        }
+    }
+
+    @Section(title: "Group edits") {
+        @ContentAndMedia {
+            One action from the user can be several commands.
+        }
+
+        @Steps {
+            @Step {
+                Wrap several edits in `group` and they become a single undo step. If one of them throws, the ones already made are rolled back.
+
+                @Code(name: "UndoAndRedo.swift", file: "UndoAndRedo-step-4.swift")
+            }
+        }
+    }
+}

@@ -1,7 +1,7 @@
 import Testing
 @testable import NodeGraphTutorials
 
-// Each tutorial step gets a test here as chapters are written (docs/TUTORIALS.md).
+// Chapter tests live next to this file, one per tutorial (docs/TUTORIALS.md).
 @Test func packageBuilds() {
     _ = NodeGraphTutorials.self
 }

@@ -9,6 +9,7 @@ for pkg in Packages/*/; do
 done
 
 echo "==> docs"
+scripts/sync-tutorial-code.sh --check
 scripts/docs.sh build
 
 if [[ "${1:-}" == "--ios" ]]; then

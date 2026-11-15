@@ -1,0 +1,55 @@
+@Tutorial(time: 15) {
+    @Intro(title: "Run a graph") {
+        Evaluate the addition graph and read the result. A `GraphRunner` runs a graph once, over and over, or on request, and reports what every node did.
+    }
+
+    @Section(title: "Run it once") {
+        @ContentAndMedia {
+            The runner works on its own copy of the graph, so edits you make afterwards do not change a run in progress.
+        }
+
+        @Steps {
+            @Step {
+                Create a runner from the editor's graph and registry. It throws if the graph has a cycle that no feedback node breaks.
+
+                This tutorial uses `makeEditor()` and `makeAdditionGraph()` from the previous one.
+
+                @Code(name: "RunAGraph.swift", file: "RunAGraph-step-1.swift")
+            }
+
+            @Step {
+                Ask for a single evaluation with `run(.once)`. It returns an `AsyncStream` of `TickResult` values, one per pass. For `.once` there is exactly one.
+
+                @Code(name: "RunAGraph.swift", file: "RunAGraph-step-2.swift")
+            }
+        }
+    }
+
+    @Section(title: "Read the result") {
+        @ContentAndMedia {
+            A `TickResult` has a result for every node, in the order they ran.
+        }
+
+        @Steps {
+            @Step {
+                Ask for the add node's outputs and read its `result` port. Values are `GraphValue`s: `numberValue` gives a `Double` for either an integer or a floating-point value.
+
+                @Code(name: "RunAGraph.swift", file: "RunAGraph-step-3.swift")
+            }
+        }
+    }
+
+    @Section(title: "Handle a failing node") {
+        @ContentAndMedia {
+            A node that throws does not stop the rest of the graph. Nodes that depend on it are skipped, and the failure is in the result.
+        }
+
+        @Steps {
+            @Step {
+                Divide 1 by a number you choose. With 0, the divide node fails with a message and `succeeded` is false. Collect the messages of every node whose outcome is a failure.
+
+                @Code(name: "RunAGraph.swift", file: "RunAGraph-step-4.swift")
+            }
+        }
+    }
+}

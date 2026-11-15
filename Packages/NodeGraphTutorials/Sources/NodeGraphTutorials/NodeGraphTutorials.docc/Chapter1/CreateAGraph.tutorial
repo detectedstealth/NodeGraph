@@ -1,0 +1,63 @@
+@Tutorial(time: 15) {
+    @Intro(title: "Create a graph") {
+        Build a graph that adds two numbers, using only the Core package and the built-in nodes. No user interface is needed: a graph is a plain value you can create, change and inspect in code.
+    }
+
+    @Section(title: "Make an editor") {
+        @ContentAndMedia {
+            Every change to a graph goes through a `GraphEditor`. It owns the graph and knows which node types and port types exist.
+        }
+
+        @Steps {
+            @Step {
+                Register the built-in packs. A `NodeRegistry` holds node types, a `TypeRegistry` holds port types, and a pack fills both. `StandardPack` adds math, logic, string, flow, utility and data nodes.
+
+                @Code(name: "CreateAGraph.swift", file: "CreateAGraph-step-1.swift")
+            }
+        }
+    }
+
+    @Section(title: "Add nodes") {
+        @ContentAndMedia {
+            A `Node` is an instance of a node type, with a position and property values.
+        }
+
+        @Steps {
+            @Step {
+                Create two `util.number` nodes and a `math.add` node, and add them with the `addNode` command. Properties not set on a node use the type's defaults.
+
+                Nothing edits a graph directly. The editor applies a `GraphCommand`, which keeps undo, redo and a future server change log correct.
+
+                @Code(name: "CreateAGraph.swift", file: "CreateAGraph-step-2.swift")
+            }
+        }
+    }
+
+    @Section(title: "Connect them") {
+        @ContentAndMedia {
+            A `Link` joins an output port to an input port.
+        }
+
+        @Steps {
+            @Step {
+                Link each number's `value` output to one of the add node's inputs, `a` and `b`. The editor checks the connection rules and throws if a link is not allowed.
+
+                @Code(name: "CreateAGraph.swift", file: "CreateAGraph-step-3.swift")
+            }
+        }
+    }
+
+    @Section(title: "Change a value") {
+        @ContentAndMedia {
+            Properties are edited with commands too.
+        }
+
+        @Steps {
+            @Step {
+                Change the second number from 3 to 4 with `setNodeProperty`. The graph now adds 2 and 4. The next tutorial runs it.
+
+                @Code(name: "CreateAGraph.swift", file: "CreateAGraph-step-4.swift")
+            }
+        }
+    }
+}

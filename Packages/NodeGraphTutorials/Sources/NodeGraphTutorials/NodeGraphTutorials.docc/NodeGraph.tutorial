@@ -1,0 +1,16 @@
+@Tutorials(name: "NodeGraph") {
+    @Intro(title: "Build, run and extend node graphs") {
+        Learn the NodeGraph packages by building with them, from an empty graph to your own node pack.
+    }
+
+    @Chapter(name: "Build a graph") {
+        @Image(source: "chapter-build.svg", alt: "Two blue nodes linked to a green node.")
+
+        Create, run, edit and save a graph with the Core package. No user interface is needed.
+
+        @TutorialReference(tutorial: "doc:CreateAGraph")
+        @TutorialReference(tutorial: "doc:RunAGraph")
+        @TutorialReference(tutorial: "doc:UndoAndRedo")
+        @TutorialReference(tutorial: "doc:SaveAndLoad")
+    }
+}

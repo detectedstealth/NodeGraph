@@ -11,6 +11,7 @@ let package = Package(
     dependencies: [
         .package(path: "../NodeGraphCore"),
         .package(path: "../NodeGraphNodes"),
+        .package(path: "../NodeGraphSync"),
         .package(url: "https://github.com/swiftlang/swift-docc-plugin", from: "1.4.0"),
     ],
     targets: [
@@ -19,6 +20,7 @@ let package = Package(
             dependencies: [
                 .product(name: "NodeGraphCore", package: "NodeGraphCore"),
                 .product(name: "NodeGraphNodes", package: "NodeGraphNodes"),
+                .product(name: "NodeGraphSync", package: "NodeGraphSync"),
             ]
         ),
         .testTarget(name: "NodeGraphTutorialsTests", dependencies: ["NodeGraphTutorials"]),

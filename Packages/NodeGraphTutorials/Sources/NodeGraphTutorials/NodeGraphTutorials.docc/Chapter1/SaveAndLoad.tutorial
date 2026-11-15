@@ -1,0 +1,53 @@
+@Tutorial(time: 15) {
+    @Intro(title: "Save and load") {
+        Turn a graph into JSON and back, then keep it in a `GraphStore` that numbers each save and refuses to overwrite work it has not seen.
+    }
+
+    @Section(title: "Write a document") {
+        @ContentAndMedia {
+            A `GraphDocument` is everything needed to reopen a graph: the graph, its subgraphs and some metadata. It records a schema version, so older files can be migrated.
+        }
+
+        @Steps {
+            @Step {
+                Make a document from the editor and encode it. You get `Data` that you can write to a file or send over a network.
+
+                @Code(name: "SaveAndLoad.swift", file: "SaveAndLoad-step-1.swift")
+            }
+        }
+    }
+
+    @Section(title: "Read it back") {
+        @ContentAndMedia {
+            Registries are not part of the file. Whoever opens a graph says what node types exist.
+        }
+
+        @Steps {
+            @Step {
+                Decode the document and open it in an editor with the registries you want. `decode` migrates older versions and throws for a file from a newer version.
+
+                @Code(name: "SaveAndLoad.swift", file: "SaveAndLoad-step-2.swift")
+            }
+        }
+    }
+
+    @Section(title: "Keep it in a store") {
+        @ContentAndMedia {
+            A store keeps whole documents. This one is in memory; a folder of files has the same interface, and a server will too.
+        }
+
+        @Steps {
+            @Step {
+                Save into a store under a `GraphID`. Every save returns a new revision: the first is 1.
+
+                @Code(name: "SaveAndLoad.swift", file: "SaveAndLoad-step-3.swift")
+            }
+
+            @Step {
+                Pass the revision you started from as the expectation. If anyone saved in between, the store throws a conflict instead of overwriting, and nothing is written.
+
+                @Code(name: "SaveAndLoad.swift", file: "SaveAndLoad-step-4.swift")
+            }
+        }
+    }
+}

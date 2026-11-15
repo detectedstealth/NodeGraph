@@ -20,7 +20,9 @@ DocC tutorials in the style of Apple's [Develop in Swift](https://developer.appl
 
 Rules:
 
-- Tutorial code is real code. Each step's file is compiled and covered by a test; a step that stops working fails CI. `@Code` needs one standalone file per step, so `scripts/sync-tutorial-code.sh` (to write in Phase 2) copies the compiled sources into `Resources/`, and CI checks that it produces no diff.
+- Tutorial code is real code. Each tutorial has one compiled file with its finished code in `Sources/NodeGraphTutorials/ChapterN/`, covered by tests in `Tests/`. A line `//# step N` marks where lines first appear; `scripts/sync-tutorial-code.sh` writes `Resources/<File>-step-<K>.swift` (every line of step K or earlier) for `@Code`, and `--check` in CI fails if the files are stale. Edit the compiled file, never the generated step files.
+- Tutorial text names symbols in code voice (`GraphEditor`), not DocC symbol links: links across packages do not resolve (see Findings). Each package's own catalog links its own symbols.
+- A chapter in the table of contents needs an image; use a simple SVG in `Resources/`.
 - DocC warnings are errors (`--warnings-as-errors`). Zero warnings is a quality gate.
 - Package catalogs link only within their own package. Cross-package links live in the tutorials package, which depends on all of them.
 - Screenshots (UI chapter) are committed as light and dark pairs. They are the only manual assets.
@@ -49,12 +51,12 @@ Rules:
 
 ### Phase 2: Chapter 1, Build a graph (and the snippet harness)
 
-- [ ] `@Tutorials` table of contents (`.tutorial` file) with the chapter list
-- [ ] Step-code layout, per-step tests, and `scripts/sync-tutorial-code.sh` with a CI no-diff check
-- [ ] Tutorial: create a graph
-- [ ] Tutorial: run it
-- [ ] Tutorial: undo and redo
-- [ ] Tutorial: save and load
+- [x] `@Tutorials` table of contents (`NodeGraph.tutorial`) with the chapter list
+- [x] Step-code layout, per-step tests, and `scripts/sync-tutorial-code.sh` with a CI no-diff check (8 tests)
+- [x] Tutorial: create a graph
+- [x] Tutorial: run it
+- [x] Tutorial: undo and redo
+- [x] Tutorial: save and load (adds a NodeGraphSync dependency to the tutorials package)
 
 ### Phase 3: Chapter 3, Write a node pack
 
@@ -80,3 +82,6 @@ Rules:
 ## Findings
 
 - 2026-11-15: the tutorials package depends on Core and Nodes only, to keep resolve time down; UI, Robotics and Video are added when their chapters start. The Xcode workspace asks to trust the package changes the first time a package is added.
+- 2026-11-15: DocC symbol links do not resolve across packages. Tried `--enable-experimental-combined-documentation` (only combines targets of the root package) and `--dependency` with an archive built with `--enable-experimental-external-link-support` (docc 6.4.2 still says "No external resolver registered"). Tutorials use code voice instead. Revisit when docc's external linking matures; the hosted site can link each package's pages by URL.
+- 2026-11-15: no Core or Nodes gaps found by Chapter 1; everything compiled and passed first time. One thing a reader hits: there is no way to set an input's value on a node without a `util.number` node linked in, which is by design.
+
