@@ -17,6 +17,17 @@ scripts/ci.sh       Build and test all packages (--ios adds simulator builds)
 NodeGraph.xcworkspace
 ```
 
+## Learn
+
+DocC tutorials teach the packages from an empty graph to your own node pack: building, running, saving and showing a graph, writing a node pack, the robotics and video packs, and headless runs. Preview them locally:
+
+```bash
+./scripts/docs.sh preview          # opens the tutorials
+./scripts/docs.sh site             # static site for GitHub Pages in .docs-site/
+```
+
+Plan and status: `docs/TUTORIALS.md`. A finished example pack is in `examples/TemperaturePack`.
+
 ## Build and test
 
 ```bash

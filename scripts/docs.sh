@@ -21,13 +21,31 @@ build)
     done
     ;;
 site)
+    # GitHub Pages serves a project at https://<user>.github.io/<repository>/, so the repository
+    # name is the base path. Set DOCS_BASE_PATH if the repository is not called NodeGraph.
+    base="${DOCS_BASE_PATH:-NodeGraph}"
+    out="$PWD/.docs-site"
+    rm -rf "$out"
+    mkdir -p "$out"
     for pkg in "${PACKAGES[@]}"; do
         echo "==> docc site $pkg"
-        swift package --package-path "Packages/$pkg" --allow-writing-to-directory ".docs-site/$pkg" \
+        swift package --package-path "Packages/$pkg" --allow-writing-to-directory "$out/$pkg" \
             generate-documentation --target "$pkg" --disable-indexing \
-            --transform-for-static-hosting --hosting-base-path "NodeGraph/$pkg" \
-            --output-path ".docs-site/$pkg"
+            --transform-for-static-hosting --hosting-base-path "$base/$pkg" \
+            --output-path "$out/$pkg"
     done
+    # A front page that points at the tutorials first.
+    cat > "$out/index.html" <<HTML
+<!doctype html>
+<meta charset="utf-8">
+<title>NodeGraph</title>
+<h1>NodeGraph</h1>
+<ul>
+  <li><a href="NodeGraphTutorials/tutorials/nodegraph/">Tutorials</a></li>
+  <li><a href="NodeGraphCore/documentation/nodegraphcore/">NodeGraphCore reference</a></li>
+</ul>
+HTML
+    echo "Site written to $out"
     ;;
 *)
     echo "usage: $0 preview [Package] | build | site" >&2

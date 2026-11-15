@@ -80,8 +80,8 @@ Rules:
 
 ### Phase 6: Publishing
 
-- [ ] GitHub Pages: `scripts/docs.sh site` output, a workflow that publishes it, and a link from the README
-- [ ] Revisit Swift Package Index (`.spi.yml`) if there is demand
+- [x] GitHub Pages: `scripts/docs.sh site` writes `.docs-site/` (both catalogs and a front page; `DOCS_BASE_PATH` sets the repository name, default `NodeGraph`), `.github/workflows/docs.yml` publishes it, and the README links to the tutorials. **Not exercised:** the repository has no remote yet, so the workflow has never run. It needs Pages enabled with the source set to GitHub Actions, and a runner with Swift 6.4 and the macOS 27 SDK
+- [ ] Revisit Swift Package Index (`.spi.yml`) if there is demand (deferred by the owner)
 
 ## Findings
 

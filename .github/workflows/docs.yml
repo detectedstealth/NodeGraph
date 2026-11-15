@@ -1,0 +1,46 @@
+# Builds the DocC site (tutorials and API reference) and publishes it to GitHub Pages.
+# Needs: Settings > Pages > Source set to "GitHub Actions". The runner must have the Swift and
+# Xcode versions the packages require (swift-tools-version 6.4, macOS 27 SDK), so pin the image
+# and Xcode here when a runner that has them exists. Not exercised yet: see docs/TUTORIALS.md.
+name: Docs
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check generated tutorial files and steps
+        run: |
+          scripts/sync-tutorial-code.sh --check
+          scripts/check-tutorial-steps.sh
+      - name: Build the site
+        env:
+          DOCS_BASE_PATH: ${{ github.event.repository.name }}
+        run: scripts/docs.sh site
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .docs-site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
