@@ -29,6 +29,9 @@
       location = "group:Packages/NodeGraphTutorials">
    </FileRef>
    <FileRef
+      location = "group:examples/TemperaturePack">
+   </FileRef>
+   <FileRef
       location = "group:docs">
    </FileRef>
    <FileRef

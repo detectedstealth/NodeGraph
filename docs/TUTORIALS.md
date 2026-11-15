@@ -16,6 +16,7 @@ DocC tutorials in the style of Apple's [Develop in Swift](https://developer.appl
 | Compiled step code | `Packages/NodeGraphTutorials/Sources/NodeGraphTutorials/` (`ChapterN/`) |
 | Tests for every step | `Packages/NodeGraphTutorials/Tests/NodeGraphTutorialsTests/` |
 | Per-package API reference and concept articles | `<Package>.docc/` inside each package that has one |
+| Example packs the tutorials build | `examples/<Pack>/` (generated source and tests; the manifest is hand-written) |
 | Build and preview | `scripts/docs.sh` (`preview`, `build`, `site`); `build` runs in `scripts/ci.sh` |
 
 Rules:
@@ -60,8 +61,8 @@ Rules:
 
 ### Phase 3: Chapter 3, Write a node pack
 
-- [ ] Tutorials: port type, node definition, executor and test, `NodePack`, appearance and help, shipping as a package
-- [ ] A sample external pack package built by the tutorial (`Examples/` or a repo of its own), proving a pack can live outside this repo
+- [x] Tutorials: define a port type, write the nodes (source, choice, stateful), make it usable (help, shapes, default producer), ship it as a package. A temperature pack: `temperature.sensor`, `.convert`, `.peak`; 6 tests in the tutorials package plus the pack's own 4
+- [x] A sample external pack package built by the tutorial: `examples/TemperaturePack` depends on NodeGraphCore only, and its source and tests are generated from the tutorial files by `scripts/sync-tutorial-code.sh` (checked in CI), so the tutorial cannot drift from a package that builds and passes on its own. Its tests run in `scripts/ci.sh`
 
 ### Phase 4: Chapter 2, Show it (SwiftUI)
 
@@ -84,4 +85,6 @@ Rules:
 - 2026-11-15: the tutorials package depends on Core and Nodes only, to keep resolve time down; UI, Robotics and Video are added when their chapters start. The Xcode workspace asks to trust the package changes the first time a package is added.
 - 2026-11-15: DocC symbol links do not resolve across packages. Tried `--enable-experimental-combined-documentation` (only combines targets of the root package) and `--dependency` with an archive built with `--enable-experimental-external-link-support` (docc 6.4.2 still says "No external resolver registered"). Tutorials use code voice instead. Revisit when docc's external linking matures; the hosted site can link each package's pages by URL.
 - 2026-11-15: no Core or Nodes gaps found by Chapter 1; everything compiled and passed first time. One thing a reader hits: there is no way to set an input's value on a node without a `util.number` node linked in, which is by design.
+- 2026-11-15: Chapter 3 found no Core gaps. Things a pack author should know, now in the tutorial text: a node with state must not be `isPure`; `registerConversion` only allows the connection (values are the same `GraphValue`, so a Celsius number just works); the editor's "add default node" is a canvas command (`CanvasCommand.addDefaultNode`), not a drag. A pack can depend on NodeGraphCore alone.
+- 2026-11-15: a case-insensitive file system merged `Examples/` into the existing `examples/` folder, so example packs live in `examples/` (lower case) to stay correct on Linux.
 

@@ -8,6 +8,9 @@ for pkg in Packages/*/; do
     swift test --package-path "$pkg"
 done
 
+echo "==> swift test examples/TemperaturePack"
+swift test --package-path examples/TemperaturePack
+
 echo "==> docs"
 scripts/sync-tutorial-code.sh --check
 scripts/docs.sh build

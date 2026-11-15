@@ -1,0 +1,41 @@
+@Tutorial(time: 15) {
+    @Intro(title: "Define a port type") {
+        A node pack adds port types and node types without changing Core. You will start a temperature pack: first the type, then, in the next tutorials, the nodes. The finished pack is a real package in the repository, `examples/TemperaturePack`, that needs only NodeGraphCore.
+    }
+
+    @Section(title: "Name the type") {
+        @ContentAndMedia {
+            A `PortType` is a string. Core knows only `any`, which connects to everything; every other type comes from a pack.
+        }
+
+        @Steps {
+            @Step {
+                Declare the type as a static constant, so nodes can say `.temperature`. Values on the port are plain numbers, in degrees Celsius.
+
+                @Code(name: "TemperaturePack.swift", file: "TemperaturePack-step-1.swift")
+            }
+        }
+    }
+
+    @Section(title: "Say how it connects") {
+        @ContentAndMedia {
+            Types decide which ports can be linked. A mismatch is refused when you try to connect, with a message, not when the graph runs.
+        }
+
+        @Steps {
+            @Step {
+                Register the type with a name and a colour for the editor. `acceptsFrom` lists types whose outputs can feed this type's inputs as they are, here any number. `registerConversion` allows the other direction: a temperature can feed a number input.
+
+                Then start the pack itself. A pack is a type with a static `register` function that adds its types and nodes. It comes first so you can add to it as you go.
+
+                @Code(name: "TemperaturePack.swift", file: "TemperaturePack-step-2.swift")
+            }
+
+            @Step {
+                Test it. Ask the registry whether a connection is allowed: a number to a temperature is accepted, a temperature to a number is converted, and a temperature to a string is refused.
+
+                @Code(name: "TemperaturePackTests.swift", file: "TemperaturePackTests-step-1.swift")
+            }
+        }
+    }
+}

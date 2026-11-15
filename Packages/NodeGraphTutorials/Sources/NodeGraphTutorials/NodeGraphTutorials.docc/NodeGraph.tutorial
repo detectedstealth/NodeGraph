@@ -13,4 +13,15 @@
         @TutorialReference(tutorial: "doc:UndoAndRedo")
         @TutorialReference(tutorial: "doc:SaveAndLoad")
     }
+
+    @Chapter(name: "Write a node pack") {
+        @Image(source: "chapter-pack.svg", alt: "Three orange nodes inside a dashed box, which stands for a package.")
+
+        Add your own port types and nodes in a separate Swift package, and use it beside the built-in nodes.
+
+        @TutorialReference(tutorial: "doc:DefineAPortType")
+        @TutorialReference(tutorial: "doc:WriteTheNodes")
+        @TutorialReference(tutorial: "doc:MakeItUsable")
+        @TutorialReference(tutorial: "doc:ShipAPack")
+    }
 }

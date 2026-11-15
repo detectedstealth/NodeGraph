@@ -1,0 +1,63 @@
+@Tutorial(time: 25) {
+    @Intro(title: "Write the nodes") {
+        A node type is two things: a definition that says what the node looks like and what it takes, and an executor that says what it does. Write three: a source, a converter and a node that remembers.
+    }
+
+    @Section(title: "A source node") {
+        @ContentAndMedia {
+            A source has no inputs. Its value comes from a property, which the inspector and the node itself let the user edit.
+        }
+
+        @Steps {
+            @Step {
+                Define `temperature.sensor`: one output of the new type and one property, with a minimum of absolute zero. The executor returns the property's value on the `value` port.
+
+                `isPure` tells the runner the output depends only on inputs and properties, so it may reuse the last result when nothing changed. Registering it in the pack makes it appear in the editor's palette.
+
+                @Code(name: "TemperaturePack.swift", file: "TemperaturePack-step-3.swift")
+            }
+        }
+    }
+
+    @Section(title: "A node with a choice") {
+        @ContentAndMedia {
+            Properties can be numbers, text, switches or a fixed list of choices.
+        }
+
+        @Steps {
+            @Step {
+                Define `temperature.convert`. Its input has a default, used when nothing is linked, so the node works on its own. The `unit` property is a choice of three; the editor shows it as a menu and refuses any other value.
+
+                The executor reads the input with `ctx.number`, which throws a clear error if the value is not a number, and the unit with `ctx.property`.
+
+                @Code(name: "TemperaturePack.swift", file: "TemperaturePack-step-4.swift")
+            }
+
+            @Step {
+                Test the nodes together. Build a graph with the pack's registries, link the sensor to the converter, run it once, and check that 100 degrees Celsius reads 212 in Fahrenheit.
+
+                @Code(name: "TemperaturePackTests.swift", file: "TemperaturePackTests-step-2.swift")
+            }
+        }
+    }
+
+    @Section(title: "A node that remembers") {
+        @ContentAndMedia {
+            A node can keep state from one pass to the next, as long as it is not pure.
+        }
+
+        @Steps {
+            @Step {
+                Define `temperature.peak`. The executor reads the state it returned last time, keeps the larger of that and the new reading, and returns both the output and the new state. A trigger input named `reset` starts again.
+
+                @Code(name: "TemperaturePack.swift", file: "TemperaturePack-step-5.swift")
+            }
+
+            @Step {
+                Test the memory. Run a pass, lower the sensor, run another and check the peak did not drop, then raise it past the peak and check the peak follows.
+
+                @Code(name: "TemperaturePackTests.swift", file: "TemperaturePackTests-step-3.swift")
+            }
+        }
+    }
+}

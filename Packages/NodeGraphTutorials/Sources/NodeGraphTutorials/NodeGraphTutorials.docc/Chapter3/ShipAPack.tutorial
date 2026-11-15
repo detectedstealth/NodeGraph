@@ -1,0 +1,39 @@
+@Tutorial(time: 15) {
+    @Intro(title: "Ship it as a package") {
+        A pack lives in its own Swift package, so an app can add it, and so can anyone else. A pack needs only NodeGraphCore.
+    }
+
+    @Section(title: "The package") {
+        @ContentAndMedia {
+            One library target, one test target, one dependency.
+        }
+
+        @Steps {
+            @Step {
+                Write the manifest. The pack depends on NodeGraphCore only, never on the UI or on the built-in nodes, so it works in a command-line tool or on a server. Here the dependency is a path inside the NodeGraph repository; in your own repository, depend on NodeGraph by URL.
+
+                @Code(name: "Package.swift", file: "TemperaturePack-manifest.swift")
+            }
+        }
+    }
+
+    @Section(title: "Use it in an app") {
+        @ContentAndMedia {
+            An app composes the packs it wants.
+        }
+
+        @Steps {
+            @Step {
+                Register your pack next to the built-in ones. Order does not matter. Registering a type twice is harmless, and the later registration wins.
+
+                @Code(name: "UsingThePack.swift", file: "UsingThePack-step-1.swift")
+            }
+
+            @Step {
+                Mix the two. A temperature feeds a built-in math node because the pack declared the conversion, and a link the pack did not allow, such as a temperature into a string function, is refused.
+
+                @Code(name: "UsingThePack.swift", file: "UsingThePack-step-2.swift")
+            }
+        }
+    }
+}

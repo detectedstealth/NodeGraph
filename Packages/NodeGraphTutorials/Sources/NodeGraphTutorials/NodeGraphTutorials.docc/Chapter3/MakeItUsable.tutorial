@@ -1,0 +1,25 @@
+@Tutorial(time: 10) {
+    @Intro(title: "Make the pack usable") {
+        A pack that works can still be hard to use. Help text, a distinctive shape and a suggested source node make it discoverable in the editor.
+    }
+
+    @Section(title: "Help and appearance") {
+        @ContentAndMedia {
+            Everything here is data on the definitions, so the editor and the assistant can both read it.
+        }
+
+        @Steps {
+            @Step {
+                Add a help sentence to each node: it is shown in the palette and the inspector. Give the sensor a different node shape from the rest, and draw temperature ports as diamonds. Name `temperature.sensor` as the default producer of the type, so the editor can add one to feed an empty temperature input with a single command.
+
+                @Code(name: "TemperaturePack.swift", file: "TemperaturePack-step-6.swift")
+            }
+
+            @Step {
+                Add a test that every definition in the pack is well formed, with no problems reported, and has help. When you add a node, this test tells you what you forgot.
+
+                @Code(name: "TemperaturePackTests.swift", file: "TemperaturePackTests-step-4.swift")
+            }
+        }
+    }
+}
