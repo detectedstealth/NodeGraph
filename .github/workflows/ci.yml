@@ -1,0 +1,47 @@
+# Builds and tests on every push to main and every pull request.
+#
+# Linux is the required check: it builds the modules that run anywhere (Core, Nodes, Sync,
+# Robotics, Video, Assistant, RunKit and ng-run). The manifest leaves the Apple-only modules out on
+# Linux (decision 244).
+#
+# macOS also builds the Apple-only modules (UI, AI, Tutorials). It is allowed to fail until a hosted
+# runner has the toolchain the package needs (swift-tools-version 6.4, macOS 26 SDK); a failure
+# there shows as a warning, not a red build. Remove `continue-on-error` once it passes.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    name: Linux (Swift 6.4)
+    runs-on: ubuntu-latest
+    container: swift:6.4
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: swift build
+      - name: Test
+        run: swift test
+
+  macos:
+    name: macOS
+    runs-on: macos-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain
+        run: swift --version
+      - name: Build
+        run: swift build
+      - name: Test
+        run: swift test
