@@ -53,5 +53,8 @@ jobs:
         run: swift --version
       - name: Build
         run: swift build
+      # Same serial run and timing scale as Linux, for the same reason.
       - name: Test
-        run: swift test
+        run: swift test --no-parallel
+        env:
+          NODEGRAPH_TIMING_SCALE: "4"
