@@ -2,6 +2,8 @@
 
 A general-purpose node graph system in Swift for macOS and iPadOS, intended for many domains (robotics scenarios, video editing, and more). litegraph.js is used as a feature reference only.
 
+![The NodeGraph editor on macOS: a robotics temperature pipeline in three groups, the console, and the assistant panel](docs/images/editor-macos.png)
+
 **Status:** pre-1.0. The core, the built-in nodes, the SwiftUI editor, local graph storage, the robotics and video packs, a headless runner and the graph assistant all exist and are tested. The server is not started. See `docs/PLAN.md`.
 
 ## Layout
@@ -35,6 +37,10 @@ Use it from your own package by depending on the repository and naming the produ
 ```
 
 Copyright 2026 Bruce Wade. Licensed under Apache-2.0 (see `LICENSE`).
+
+## Built with AI
+
+This project is developed with an AI coding assistant (Claude Code, working inside Xcode) under a human owner who sets direction and reviews the results. The process is written down so you can judge it: `CLAUDE.md` holds the rules the assistant follows, `docs/DECISIONS.md` records every design decision with its reason, `docs/PLAN.md` tracks the work phase by phase, and every Core change comes with tests. The graph assistant inside the editor (`NodeGraphAssistant`, `NodeGraphAI`) follows the same approach: deterministic code does the analysis, the model only proposes, and you review before anything changes.
 
 ## Learn
 
