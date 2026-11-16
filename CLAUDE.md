@@ -18,14 +18,22 @@ Packages/
   NodeGraphSync/      GraphStore protocol + local implementations. Server comes later.
   NodeGraphTutorials/ Docs-only: DocC tutorials and their tested step code. See docs/TUTORIALS.md.
   NodeGraphAssistant/ Model-independent assistant logic (graph digest, lints, tools). Core only, no AI imports. See docs/ASSISTANT.md.
+  NodeGraphRobotics/  Domain node pack: robotics scenario generation. Core and Nodes.
+  NodeGraphVideo/     Domain node pack: video editing. Core and Nodes.
+  NodeGraphAI/        Model providers (Claude, OpenAI-compatible, on-device), Keychain secrets, eval harness. Core and Assistant.
+  NodeGraphCLI/       NodeGraphRunKit (headless run of a document) and the ng-run executable.
 App/                  Xcode app target (macOS + iPadOS), thin shell.
 docs/                 PLAN.md, ARCHITECTURE.md, DECISIONS.md
 scripts/docs.sh       DocC: `preview`, `build` (warnings are errors), `site`.
 scripts/ci.sh         Tests all packages, builds docs; `--ios` also builds for iOS simulator.
+Package.swift         The one SwiftPM manifest for every module above (sources stay in Packages/<Name>/). Consumers depend on the repo by URL.
+LICENSE               Apache-2.0.
 NodeGraph.xcworkspace Open this in Xcode.
 ```
 
 The app project is `App/NodeGraphApp/NodeGraphApp.xcodeproj` (folder-reference based: new files in `App/NodeGraphApp/NodeGraphApp/` join the target automatically).
+
+There are no per-folder `Package.swift` files. Each folder under `Packages/` is a set of targets in the root manifest; add a module by adding its target (and product) there. `NodeGraphCLI` holds the `NodeGraphRunKit` library and the `ng-run` executable; `NodeGraphTutorials` is a target with no product.
 
 Dependency direction is one way: `UI -> Core`, `Nodes -> Core`, `Sync -> Core`. Core never imports SwiftUI, AppKit or UIKit, and must build on Linux.
 
@@ -49,11 +57,11 @@ Later (server): Hummingbird or Vapor, decided in Phase 6. Ask before adding anyt
 
 ## Build and test
 
-Prefer the Xcode MCP tools (`BuildProject`, `RunAllTests`, `RunSomeTests`, `XcodeRefreshCodeIssuesInFile`) over shell commands. From a shell, per package:
+Prefer the Xcode MCP tools (`BuildProject`, `RunAllTests`, `RunSomeTests`, `XcodeRefreshCodeIssuesInFile`) over shell commands. From a shell, at the repo root:
 
 ```bash
-swift build --package-path Packages/NodeGraphCore
-swift test  --package-path Packages/NodeGraphCore
+swift build
+swift test --filter NodeGraphCoreTests    # one module; omit --filter for everything
 ```
 
 Tests use Swift Testing (`import Testing`, `@Test`, `#expect`). UI flows use XCUIAutomation. Every Core change needs a test. Run Core tests before declaring work done.

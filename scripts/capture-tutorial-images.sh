@@ -3,4 +3,4 @@
 # change to how the editor draws, then commit the PNGs. See docs/TUTORIALS.md.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-NODEGRAPH_WRITE_TUTORIAL_IMAGES=1 swift test --package-path Packages/NodeGraphTutorials --filter captureTheTutorialImages
+NODEGRAPH_WRITE_TUTORIAL_IMAGES=1 swift test --filter captureTheTutorialImages

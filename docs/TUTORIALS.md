@@ -6,7 +6,7 @@ DocC tutorials in the style of Apple's [Develop in Swift](https://developer.appl
 
 - **Hosting:** local preview first; GitHub Pages is the first public target; Swift Package Index later, if there is demand.
 - **Scope:** Robotics and Video are covered, partly to prove they work end to end. Gaps found while writing a tutorial are fixed in the package (or logged here), not papered over in the tutorial.
-- **Separate docs-only package** (`Packages/NodeGraphTutorials`): more packs will come, and tutorials will be extended to cover them. It can depend on any package; no package depends on it.
+- **Separate docs-only target** (`Packages/NodeGraphTutorials`, no product): more packs will come, and tutorials will be extended to cover them. It can depend on any module; no module depends on it.
 
 ## How it fits together
 

@@ -2,31 +2,7 @@
 <Workspace
    version = "1.0">
    <FileRef
-      location = "group:Packages/NodeGraphCore">
-   </FileRef>
-   <FileRef
-      location = "group:Packages/NodeGraphNodes">
-   </FileRef>
-   <FileRef
-      location = "group:Packages/NodeGraphUI">
-   </FileRef>
-   <FileRef
-      location = "group:Packages/NodeGraphSync">
-   </FileRef>
-   <FileRef
-      location = "group:Packages/NodeGraphRobotics">
-   </FileRef>
-   <FileRef
-      location = "group:Packages/NodeGraphVideo">
-   </FileRef>
-   <FileRef
-      location = "group:Packages/NodeGraphAssistant">
-   </FileRef>
-   <FileRef
-      location = "group:Packages/NodeGraphAI">
-   </FileRef>
-   <FileRef
-      location = "group:Packages/NodeGraphTutorials">
+      location = "group:Package.swift">
    </FileRef>
    <FileRef
       location = "group:examples/TemperaturePack">

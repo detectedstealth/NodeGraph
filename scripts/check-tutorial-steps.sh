@@ -9,8 +9,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 pkg=Packages/NodeGraphTutorials
-bin="$(swift build --package-path "$pkg" --show-bin-path)"
-swift build --package-path "$pkg" > /dev/null
+bin="$(swift build --show-bin-path)"
+swift build > /dev/null
 catalog="$pkg/Sources/NodeGraphTutorials/NodeGraphTutorials.docc/Resources"
 fail=0
 for step in "$catalog"/*-step-*.swift; do

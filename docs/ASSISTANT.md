@@ -102,7 +102,7 @@ A set of golden tasks (prompt or graph in, expected properties of the result out
 The harness is in `Packages/NodeGraphAI/Tests/NodeGraphAITests` (`EvalHarness.swift`, `EvalTests.swift`; decision 238). A task is a request, an optional starting graph and checks on the graph that results from applying the proposal and running it (no errors, node types used or avoided, a node cap, no stray nodes, a number or string some node publishes, a link between types, starting nodes kept), so it judges any provider alike. `RealProviderEval` runs the tasks against the providers named in `NODEGRAPH_EVAL` and prints a markdown report to paste below:
 
     NODEGRAPH_EVAL="apple;claude;compat:http://localhost:1234/v1@qwen3" NODEGRAPH_EVAL_RUNS=3 \
-      NODEGRAPH_EVAL_PROMPT="decisions 233-237" swift test --package-path Packages/NodeGraphAI --filter RealProviderEval
+      NODEGRAPH_EVAL_PROMPT="decisions 233-237" swift test --filter RealProviderEval
 
 (`NODEGRAPH_EVAL_KEY`, `_ONLY`, `_OUT` are described on the suite.) Explain and find-the-bug tasks are not built yet.
 

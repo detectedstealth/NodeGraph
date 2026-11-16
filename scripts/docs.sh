@@ -1,23 +1,23 @@
 #!/usr/bin/env bash
-# DocC for packages that have a catalog (see docs/TUTORIALS.md).
-#   scripts/docs.sh preview [Package]   Live preview (default: NodeGraphTutorials)
+# DocC for targets that have a catalog (see docs/TUTORIALS.md).
+#   scripts/docs.sh preview [Target]    Live preview (default: NodeGraphTutorials)
 #   scripts/docs.sh build               Build every catalog, warnings are errors
 #   scripts/docs.sh site                Static-hosting output for GitHub Pages in .docs-site/
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-# Packages with a .docc catalog, and the targets inside them.
+# Targets with a .docc catalog.
 PACKAGES=(NodeGraphCore NodeGraphTutorials)
 
 case "${1:-build}" in
 preview)
     pkg="${2:-NodeGraphTutorials}"
-    swift package --package-path "Packages/$pkg" --disable-sandbox preview-documentation --target "$pkg"
+    swift package --disable-sandbox preview-documentation --target "$pkg"
     ;;
 build)
     for pkg in "${PACKAGES[@]}"; do
         echo "==> docc $pkg"
-        swift package --package-path "Packages/$pkg" generate-documentation --target "$pkg" --warnings-as-errors
+        swift package generate-documentation --target "$pkg" --warnings-as-errors
     done
     ;;
 site)
@@ -29,7 +29,7 @@ site)
     mkdir -p "$out"
     for pkg in "${PACKAGES[@]}"; do
         echo "==> docc site $pkg"
-        swift package --package-path "Packages/$pkg" --allow-writing-to-directory "$out/$pkg" \
+        swift package --allow-writing-to-directory "$out/$pkg" \
             generate-documentation --target "$pkg" --disable-indexing \
             --transform-for-static-hosting --hosting-base-path "$base/$pkg" \
             --output-path "$out/$pkg"
@@ -48,7 +48,7 @@ HTML
     echo "Site written to $out"
     ;;
 *)
-    echo "usage: $0 preview [Package] | build | site" >&2
+    echo "usage: $0 preview [Target] | build | site" >&2
     exit 2
     ;;
 esac

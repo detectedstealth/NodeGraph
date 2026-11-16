@@ -7,3 +7,6 @@ xcuserdata/
 DerivedData/
 *.xcuserstate
 .docs-site/
+
+# Libraries do not commit a root resolution; the workspace and app pin their own.
+/Package.resolved

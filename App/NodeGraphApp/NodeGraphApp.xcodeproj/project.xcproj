@@ -13,28 +13,7 @@
   "packages": [
     {
       "kind": "local",
-      "path": "../../Packages/NodeGraphCore",
-    }, {
-      "kind": "local",
-      "path": "../../Packages/NodeGraphUI",
-    }, {
-      "kind": "local",
-      "path": "../../Packages/NodeGraphSync",
-    }, {
-      "kind": "local",
-      "path": "../../Packages/NodeGraphNodes",
-    }, {
-      "kind": "local",
-      "path": "../../Packages/NodeGraphRobotics",
-    }, {
-      "kind": "local",
-      "path": "../../Packages/NodeGraphVideo",
-    }, {
-      "kind": "local",
-      "path": "../../Packages/NodeGraphAssistant",
-    }, {
-      "kind": "local",
-      "path": "../../Packages/NodeGraphAI",
+      "path": "../..",
     },
   ],
   "files": [
