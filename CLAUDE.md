@@ -33,7 +33,7 @@ NodeGraph.xcworkspace Open this in Xcode.
 
 The app project is `App/NodeGraphApp/NodeGraphApp.xcodeproj` (folder-reference based: new files in `App/NodeGraphApp/NodeGraphApp/` join the target automatically).
 
-There are no per-folder `Package.swift` files. Each folder under `Packages/` is a set of targets in the root manifest; add a module by adding its target (and product) there. `NodeGraphCLI` holds the `NodeGraphRunKit` library and the `ng-run` executable; `NodeGraphTutorials` is a target with no product.
+On Linux the manifest leaves out the Apple-only modules (`NodeGraphUI`, `NodeGraphAI`, `NodeGraphTutorials`) so `swift build` and `swift test` work there; keep new Apple-framework code inside those modules. There are no per-folder `Package.swift` files. Each folder under `Packages/` is a set of targets in the root manifest; add a module by adding its target (and product) there. `NodeGraphCLI` holds the `NodeGraphRunKit` library and the `ng-run` executable; `NodeGraphTutorials` is a target with no product.
 
 Dependency direction is one way: `UI -> Core`, `Nodes -> Core`, `Sync -> Core`. Core never imports SwiftUI, AppKit or UIKit, and must build on Linux.
 
