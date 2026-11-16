@@ -21,7 +21,7 @@ Packages/
   NodeGraphTutorials/ DocC tutorials and their tested step code (no product)
 examples/           Example graphs and TemperaturePack, a finished node pack
 App/                The macOS and iPadOS app
-docs/               PLAN.md, ARCHITECTURE.md, DECISIONS.md
+docs/               ARCHITECTURE.md, DECISIONS.md, PLAN.md, FEATURE_AUDIT.md, ASSISTANT.md, TUTORIALS.md
 scripts/ci.sh       Build and test everything (--ios adds simulator builds)
 NodeGraph.xcworkspace
 ```
@@ -29,7 +29,7 @@ NodeGraph.xcworkspace
 Use it from your own package by depending on the repository and naming the products you need:
 
 ```swift
-.package(url: "https://github.com/<owner>/NodeGraph", from: "0.1.0"),
+.package(url: "https://github.com/detectedstealth/NodeGraph", from: "0.1.0"),
 // in a target:
 .product(name: "NodeGraphCore", package: "NodeGraph"),
 ```

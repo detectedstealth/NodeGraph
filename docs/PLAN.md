@@ -4,9 +4,9 @@ Status legend: `[ ]` todo, `[x]` done. Work phases in order. Update this file as
 
 Reference: litegraph.js is the feature benchmark. Compatibility is not a goal. See DECISIONS.md.
 
-## Known defects in the legacy prototype (`Sources/NodeGraph/`)
+## Known defects in the legacy prototype (deleted)
 
-Not to be fixed in place. Phases 0 and 1 replace the code. Kept here so the new design covers each.
+The prototype (`Sources/NodeGraph/`) was replaced by Phases 0 to 3 and deleted. Kept here as design rationale: the new design covers each defect.
 
 1. AppKit-only colors (`nsColor`) in the renderer; `Package.swift` is macOS-only. Blocks iPadOS.
 2. Core and UI in one executable target; not reusable.

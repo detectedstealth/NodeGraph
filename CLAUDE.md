@@ -8,7 +8,7 @@ A general-purpose node graph system in Swift for macOS and iPadOS. It must be fe
 
 Non-goals: litegraph.js or ComfyUI JSON compatibility, any web/JS runtime.
 
-## Layout (target; see docs/PLAN.md for migration status)
+## Layout
 
 ```
 Packages/
@@ -72,10 +72,10 @@ Tests use Swift Testing (`import Testing`, `@Test`, `#expect`). UI flows use XCU
 2. Check `docs/DECISIONS.md` before changing anything architectural. Add an entry when you make a new decision.
 3. Do the work, add tests, build, run tests.
 4. Tick the item in `docs/PLAN.md` and note anything discovered. Keep this file current if conventions change.
-5. Don't commit unless asked. The repo is initialized on `main` with no commits yet.
+5. Don't commit unless asked.
 
 ## Gotchas
 
-- The legacy prototype has known bugs (see PLAN.md "Known defects"). Don't copy its slot addressing, UUID slot IDs, or `ObservableObject` patterns into new code.
+- The deleted legacy prototype had known bugs (see PLAN.md "Known defects"). Don't copy its slot addressing, UUID slot IDs, or `ObservableObject` patterns into new code.
 - `GraphValue` is `ExpressibleByNilLiteral`, so in `cond ? nil : value` the `nil` becomes `.null`, not an absent optional. Write `Optional<GraphValue>.none` or give the result a `GraphValue?` type first (this cost a bug in `proposeEdit`).
 - `Canvas` redraws everything on any observed change. Keep render state in a small `@Observable` object and cull to the viewport.
