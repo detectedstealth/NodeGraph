@@ -1,6 +1,6 @@
 # Builds the DocC site (tutorials and API reference) and publishes it to GitHub Pages.
 # Needs: Settings > Pages > Source set to "GitHub Actions". The runner must have the Swift and
-# Xcode versions the packages require (swift-tools-version 6.4, macOS 27 SDK), so pin the image
+# Xcode versions the packages require (swift-tools-version 6.3, macOS 26 SDK), so pin the image
 # and Xcode here when a runner that has them exists. Not exercised yet: see docs/TUTORIALS.md.
 name: Docs
 

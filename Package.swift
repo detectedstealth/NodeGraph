@@ -1,4 +1,4 @@
-// swift-tools-version: 6.4
+// swift-tools-version: 6.3
 import PackageDescription
 
 // One package, many libraries: depend on the repository by URL and pick the products you need.

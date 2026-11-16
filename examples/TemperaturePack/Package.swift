@@ -1,4 +1,4 @@
-// swift-tools-version: 6.4
+// swift-tools-version: 6.3
 import PackageDescription
 
 // A node pack in its own package. It needs only NodeGraphCore. Here the dependency is the local

@@ -5,7 +5,7 @@
 # Linux (decision 244).
 #
 # macOS also builds the Apple-only modules (UI, AI, Tutorials). It runs only when started by hand,
-# because a hosted runner may not have the toolchain the package needs (swift-tools-version 6.4,
+# because a hosted runner may not have the toolchain the package needs (swift-tools-version 6.3,
 # macOS 26 SDK). Once a manual run passes, delete the `if:` and `continue-on-error` lines on that job
 # so it runs on every push.
 name: CI
