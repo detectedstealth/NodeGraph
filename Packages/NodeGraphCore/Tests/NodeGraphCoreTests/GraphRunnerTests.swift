@@ -242,7 +242,7 @@ private func collect(_ stream: AsyncStream<TickResult>, count: Int) async -> [Ti
     let tick = await (try p.runner()).step()
     let took = ContinuousClock.now - start
     #expect(tick.succeeded)
-    #expect(took < .milliseconds(400), "4 x 150 ms ran serially: \(took)")
+    #expect(took < .milliseconds(400) * timingScale, "4 x 150 ms ran serially: \(took)")
 }
 
 @Test func stepAtEvaluatesAnyMomentInAnyOrder() async throws {

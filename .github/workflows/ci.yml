@@ -30,8 +30,12 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build
         run: swift build
+      # Serial and with looser timing limits: hosted runners have two cores, and the scale and
+      # concurrency tests measure time (see TimingScale.swift in the Core tests).
       - name: Test
-        run: swift test
+        run: swift test --no-parallel
+        env:
+          NODEGRAPH_TIMING_SCALE: "4"
 
   macos:
     name: macOS

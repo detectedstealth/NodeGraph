@@ -49,7 +49,7 @@ private func measure<T>(_ limit: Duration, _ label: String, _ body: () async thr
     let start = clock.now
     let value = try await body()
     let took = clock.now - start
-    #expect(took < limit, "\(label) took \(took); limit \(limit)")
+    #expect(took < limit * timingScale, "\(label) took \(took); limit \(limit * timingScale)")
     return value
 }
 
