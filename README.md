@@ -34,7 +34,7 @@ Use it from your own package by depending on the repository and naming the produ
 .product(name: "NodeGraphCore", package: "NodeGraph"),
 ```
 
-Licensed under Apache-2.0 (see `LICENSE`).
+Copyright 2026 Bruce Wade. Licensed under Apache-2.0 (see `LICENSE`).
 
 ## Learn
 
