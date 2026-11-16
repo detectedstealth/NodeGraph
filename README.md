@@ -1,6 +1,6 @@
 # NodeGraph
 
-A general-purpose node graph system in Swift for macOS and iPadOS, intended for many domains (robotics scenarios, video editing, and more). litegraph.js is used as a feature reference only.
+A general-purpose node graph system in Swift, intended for many domains (robotics scenarios, video editing, and more). The editor runs on macOS and iPadOS; the core, the built-in nodes, graph storage and the headless runner also run on Linux. litegraph.js is used as a feature reference only.
 
 ![The NodeGraph editor on macOS: a robotics temperature pipeline in three groups, the console, and the assistant panel](docs/images/editor-macos.png)
 
@@ -40,6 +40,19 @@ Use it from your own package by depending on the repository and naming the produ
 
 Copyright 2026 Bruce Wade. Licensed under Apache-2.0 (see `LICENSE`).
 
+## Platforms
+
+Swift 6.3 or later. The editor and the Apple-only modules need macOS 26 or iOS 26; the rest runs anywhere Swift does, including Linux (tested on Ubuntu 24.04 with Swift 6.4.2 and in CI).
+
+| Module | macOS and iOS | Linux |
+| --- | --- | --- |
+| `NodeGraphCore`, `NodeGraphNodes`, `NodeGraphSync` | Yes | Yes |
+| `NodeGraphRobotics`, `NodeGraphVideo` | Yes | Yes |
+| `NodeGraphAssistant` (logic, no model calls) | Yes | Yes |
+| `NodeGraphRunKit` and the `ng-run` runner | Yes | Yes |
+| `NodeGraphUI` (SwiftUI editor) | Yes | No |
+| `NodeGraphAI` (model providers, uses FoundationModels and the Keychain) | Yes | No |
+
 ## Built with AI
 
 This project is developed with an AI coding assistant (Claude Code, working inside Xcode) under a human owner who sets direction and reviews the results. The process is written down so you can judge it: `CLAUDE.md` holds the rules the assistant follows, `docs/DECISIONS.md` records every design decision with its reason, `docs/PLAN.md` tracks the work phase by phase, and every Core change comes with tests. The graph assistant inside the editor (`NodeGraphAssistant`, `NodeGraphAI`) follows the same approach: deterministic code does the analysis, the model only proposes, and you review before anything changes.
@@ -58,8 +71,10 @@ Plan and status: `docs/TUTORIALS.md`. A finished example pack is in `examples/Te
 ## Build and test
 
 ```bash
-./scripts/ci.sh          # tests every package on macOS
-./scripts/ci.sh --ios    # also builds each package for the iOS simulator
+./scripts/ci.sh          # tests everything on macOS, builds the docs
+./scripts/ci.sh --ios    # also builds each module for the iOS simulator
 ```
+
+On Linux, `swift build` and `swift test` build and test the modules that run there. A few tests measure time; on a slow or busy machine, run `NODEGRAPH_TIMING_SCALE=4 swift test --no-parallel` to loosen their limits.
 
 Open `NodeGraph.xcworkspace` in Xcode. Roadmap: `docs/PLAN.md`. Design: `docs/ARCHITECTURE.md`. Contributor and agent rules: `CLAUDE.md`.
