@@ -4,15 +4,17 @@
 # Robotics, Video, Assistant, RunKit and ng-run). The manifest leaves the Apple-only modules out on
 # Linux (decision 244).
 #
-# macOS also builds the Apple-only modules (UI, AI, Tutorials). It is allowed to fail until a hosted
-# runner has the toolchain the package needs (swift-tools-version 6.4, macOS 26 SDK); a failure
-# there shows as a warning, not a red build. Remove `continue-on-error` once it passes.
+# macOS also builds the Apple-only modules (UI, AI, Tutorials). It runs only when started by hand,
+# because a hosted runner may not have the toolchain the package needs (swift-tools-version 6.4,
+# macOS 26 SDK). Once a manual run passes, delete the `if:` and `continue-on-error` lines on that job
+# so it runs on every push.
 name: CI
 
 on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -41,6 +43,8 @@ jobs:
 
   macos:
     name: macOS
+    # Manual only (Actions tab > CI > Run workflow) until a hosted runner has the toolchain.
+    if: github.event_name == 'workflow_dispatch'
     runs-on: macos-latest
     continue-on-error: true
     steps:
