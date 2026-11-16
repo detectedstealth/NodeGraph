@@ -1,12 +1,11 @@
 # Builds the DocC site (tutorials and API reference) and publishes it to GitHub Pages.
-# Needs: Settings > Pages > Source set to "GitHub Actions". The runner must have the Swift and
-# Xcode versions the packages require (swift-tools-version 6.3, macOS 26 SDK), which macos-latest has (CI runs on it), so pin the image
-# and Xcode here when a runner that has them exists. Not exercised yet: see docs/TUTORIALS.md.
+# Needs: Settings > Pages > Source set to "GitHub Actions" (a public repo, or a paid plan). The
+# macos-latest runner has the toolchain the package needs (CI builds and tests on it). Not yet run
+# on GitHub: see docs/TUTORIALS.md.
 name: Docs
 
-# Manual for now (Actions tab > Docs > Run workflow): the hosted macOS runners may not have the
-# toolchain yet, so a push trigger would fail on every commit. Restore `push: branches: [main]`
-# once the first manual run succeeds.
+# Manual for now (Actions tab > Docs > Run workflow). Restore `push: branches: [main]` here once
+# the first manual run succeeds.
 on:
   workflow_dispatch:
 
