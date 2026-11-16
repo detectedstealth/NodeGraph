@@ -4,6 +4,8 @@ A general-purpose node graph system in Swift for macOS and iPadOS, intended for 
 
 ![The NodeGraph editor on macOS: a robotics temperature pipeline in three groups, the console, and the assistant panel](docs/images/editor-macos.png)
 
+![The same editor on iPad: an array example with the minimap, the console, and the assistant panel](docs/images/editor-ipad.png)
+
 **Status:** pre-1.0. The core, the built-in nodes, the SwiftUI editor, local graph storage, the robotics and video packs, a headless runner and the graph assistant all exist and are tested. The server is not started. See `docs/PLAN.md`.
 
 ## Layout
