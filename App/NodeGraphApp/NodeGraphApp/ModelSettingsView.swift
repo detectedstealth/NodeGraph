@@ -65,10 +65,17 @@ struct EndpointEditor: View {
                 if !isClaude {
                     TextField("Server address", text: $address, prompt: Text("http://localhost:11434/v1"))
                         .autocorrectionDisabled()
+                        #if os(iOS)
+                        .textInputAutocapitalization(.never)
+                        .keyboardType(.URL)
+                        #endif
                     if let addressProblem { Text(addressProblem).font(.caption).foregroundStyle(.orange) }
                 }
                 TextField("Model", text: $modelName, prompt: Text(isClaude ? "claude-opus-5-5" : "llama3.1"))
                     .autocorrectionDisabled()
+                    #if os(iOS)
+                    .textInputAutocapitalization(.never)
+                    #endif
                 TextField("Context window (tokens)", value: $contextTokens, format: .number)
                 SecureField("API key", text: $key, prompt: Text(assistant.hasKey(edited) ? "Saved in the Keychain" : "Stored in the Keychain"))
                 if !isClaude, !edited.sendsDataOffDevice {

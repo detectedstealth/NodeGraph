@@ -397,10 +397,12 @@ struct AssistantPanel: View {
             HStack {
                 Picker("Model", selection: $assistant.endpointID) {
                     ForEach(assistant.endpoints) { endpoint in
-                        Text(endpoint.name).tag(endpoint.id)
+                        Text(endpoint.name).lineLimit(1).tag(endpoint.id)
                     }
                 }
                 .labelsHidden()
+                // Take the row's spare width, so a long name is not squeezed onto several lines.
+                .frame(maxWidth: .infinity, alignment: .leading)
                 if assistant.endpoint.kind != .appleOnDevice && assistant.endpoint.kind != .applePrivateCloud {
                     Button("Edit", systemImage: "gearshape") {
                         editing = EndpointDraft(endpoint: assistant.endpoint, isNew: false)
@@ -443,6 +445,8 @@ struct AssistantPanel: View {
         }
         .sheet(item: $editing) { draft in
             EndpointEditor(assistant: assistant, draft: draft) { editing = nil }
+                // Fit the form, so iPad does not show a tall page with empty space above and below.
+                .presentationSizing(.fitted)
         }
         .alert("Send to \(assistant.endpoint.name)?", isPresented: $assistant.needsConsent) {
             Button("Send") { assistant.confirmConsent() }

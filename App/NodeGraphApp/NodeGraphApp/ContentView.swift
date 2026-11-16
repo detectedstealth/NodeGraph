@@ -129,6 +129,12 @@ struct ContentView: View {
                 .labelStyle(.iconOnly)
                 .buttonStyle(.borderedProminent)
                 .padding()
+                #if os(iOS)
+                // On iPad the overlay is also inset by the top safe area, which left a gap above
+                // the buttons. Sit them close to the top edge, as on the Mac.
+                .padding(.top, -8)
+                .ignoresSafeArea(.container, edges: .top)
+                #endif
             }
             .overlay(alignment: .topLeading) {
                 GraphBreadcrumbView(controller: controller).padding()
