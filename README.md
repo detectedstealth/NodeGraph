@@ -131,4 +131,4 @@ Plan and status: `docs/TUTORIALS.md`. A finished example pack is in `examples/Te
 
 On Linux, `swift build` and `swift test` build and test the modules that run there. A few tests measure time; on a slow or busy machine, run `NODEGRAPH_TIMING_SCALE=4 swift test --no-parallel` to loosen their limits.
 
-Open `NodeGraph.xcworkspace` in Xcode. Roadmap: `docs/PLAN.md`. Design: `docs/ARCHITECTURE.md`. Contributor and agent rules: `CLAUDE.md`.
+Open `NodeGraph.xcworkspace` in Xcode. Contributions are welcome: see `CONTRIBUTING.md`. Roadmap: `docs/PLAN.md`. Design: `docs/ARCHITECTURE.md`. Contributor and agent rules: `CLAUDE.md`.
