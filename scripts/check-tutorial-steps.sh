@@ -21,7 +21,7 @@ for step in "$catalog"/*-step-*.swift; do
     [[ "$name" == CreateAGraph-* ]] && context=()
     # Using the pack: the reader has the finished pack package.
     [[ "$name" == UsingThePack-* ]] && context+=(examples/TemperaturePack/Sources/TemperaturePack/TemperaturePack.swift)
-    if ! swiftc -typecheck -parse-as-library -swift-version 6 -I "$bin" ${context[@]+"${context[@]}"} "$step" 2> /tmp/step-check.err; then
+    if ! swiftc -typecheck -parse-as-library -swift-version 6 -I "$bin" -I "$bin/Modules" ${context[@]+"${context[@]}"} "$step" 2> /tmp/step-check.err; then
         echo "does not compile: $name" >&2
         grep "error:" /tmp/step-check.err | head -3 >&2
         fail=1
