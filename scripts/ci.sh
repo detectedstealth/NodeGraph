@@ -9,6 +9,9 @@ swift test
 echo "==> swift test examples/TemperaturePack"
 swift test --package-path examples/TemperaturePack
 
+echo "==> command-line tutorials"
+scripts/check-cli-tutorial.sh
+
 echo "==> docs"
 scripts/sync-tutorial-code.sh --check
 scripts/check-tutorial-steps.sh

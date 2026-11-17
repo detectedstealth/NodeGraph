@@ -5,7 +5,7 @@
 
     @Section(title: "From the command line") {
         @ContentAndMedia {
-            `ng-run` is a command-line tool in the NodeGraphCLI package. It runs a document and prints what every node produced as JSON. Time is simulated, `--delta-ms` per pass, so the output repeats. Override a graph variable with `--var name=value`, and write the report to a file with `--output`. The exit status is 1 if any node failed, so a script can check it.
+            `ng-run` is a command-line tool in the NodeGraphCLI package. It runs a document and prints what every node produced as JSON. Time is simulated, `--delta-ms` per pass, so the output repeats. Override a graph variable with `--var name=value`, and write the report to a file with `--output`. The exit status is 1 if any node failed, so a script can check it. The next chapter covers the tool's other commands and how to use it in a build.
 
             The tool knows the built-in nodes and the robotics and video packs. Writing this tutorial found a gap: it had registered only the built-in nodes, so a document with a robotics node failed with "notExecutable". It is fixed, and a test covers it.
         }

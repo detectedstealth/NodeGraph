@@ -11,6 +11,7 @@
 #   <catalog>/Resources/<File>-step-<K>.swift            the step files DocC shows with @Code
 #   <catalog>/Resources/TemperaturePack-manifest.swift   examples/TemperaturePack/Package.swift
 #   examples/TemperaturePack/{Sources,Tests}/...         the finished pack and its tests
+#   <catalog>/Resources/workflow-<name>.sh              examples/workflow/<name>.sh
 #
 #   scripts/sync-tutorial-code.sh          Write the files
 #   scripts/sync-tutorial-code.sh --check  Fail if any file would change (used by CI)
@@ -47,13 +48,17 @@ for src in "$pkg"/Sources/NodeGraphTutorials/Chapter*/*.swift "$pkg"/Tests/NodeG
     esac
 done
 cp "$example/Package.swift" "$work/steps/TemperaturePack-manifest.swift"
+# The shell scripts of the command-line tutorials, shown as they are in examples/workflow/.
+for script in examples/workflow/*.sh; do
+    cp "$script" "$work/steps/workflow-$(basename "$script")"
+done
 
 if $check; then
     stale=false
-    for f in "$work"/steps/*.swift; do
+    for f in "$work"/steps/*; do
         cmp -s "$f" "$catalog/$(basename "$f")" || stale=true
     done
-    for f in "$catalog"/*-step-*.swift; do
+    for f in "$catalog"/*-step-*.swift "$catalog"/workflow-*.sh; do
         [[ -e "$work/steps/$(basename "$f")" ]] || stale=true
     done
     cmp -s "$work/example/Sources/TemperaturePack/TemperaturePack.swift" "$example/Sources/TemperaturePack/TemperaturePack.swift" || stale=true
@@ -63,8 +68,8 @@ if $check; then
         exit 1
     fi
 else
-    rm -f "$catalog"/*-step-*.swift "$catalog"/TemperaturePack-manifest.swift
-    cp "$work"/steps/*.swift "$catalog/"
+    rm -f "$catalog"/*-step-*.swift "$catalog"/TemperaturePack-manifest.swift "$catalog"/workflow-*.sh
+    cp "$work"/steps/* "$catalog/"
     mkdir -p "$example/Sources/TemperaturePack" "$example/Tests/TemperaturePackTests"
     cp "$work/example/Sources/TemperaturePack/TemperaturePack.swift" "$example/Sources/TemperaturePack/"
     cp "$work/example/Tests/TemperaturePackTests/TemperaturePackTests.swift" "$example/Tests/TemperaturePackTests/"

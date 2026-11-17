@@ -113,11 +113,17 @@ This project is developed using an AI-assisted engineering workflow using Claude
 
 ## Learn
 
-The tutorials and API reference are online at **[brucewade.dev/NodeGraph](https://brucewade.dev/NodeGraph/)**. DocC tutorials teach the packages from an empty graph to your own node pack: building, running, saving and showing a graph, writing a node pack, the robotics and video packs, and headless runs. Preview them locally:
+The tutorials and API reference are online at **[brucewade.dev/NodeGraph](https://brucewade.dev/NodeGraph/)**. DocC tutorials teach the packages from an empty graph to your own node pack: building, running, saving and showing a graph, writing a node pack, the robotics and video packs, and headless runs. A command-line chapter works on macOS and Linux: check, run, sweep and regression-test graphs from a shell or a build step with `ng-run`. Preview them locally:
 
 ```bash
 ./scripts/docs.sh preview          # opens the tutorials
 ./scripts/docs.sh site             # static site for GitHub Pages in .docs-site/
+```
+
+```bash
+swift run ng-run validate examples/workflow/budget.nodegraph   # is it valid?
+swift run ng-run lint examples/workflow/budget.nodegraph       # is it tidy?
+swift run ng-run examples/workflow/budget.nodegraph --var hours=10   # run it
 ```
 
 Plan and status: `docs/TUTORIALS.md`. A finished example pack is in `examples/TemperaturePack`.

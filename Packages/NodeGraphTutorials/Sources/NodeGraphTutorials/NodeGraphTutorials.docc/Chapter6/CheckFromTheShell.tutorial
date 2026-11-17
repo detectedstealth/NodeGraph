@@ -1,0 +1,91 @@
+@Tutorial(time: 15) {
+    @Intro(title: "Check a graph from the shell") {
+        A graph is a document, so a script can check it before anything runs it: is it valid, is it tidy, what is in it. The tool is `ng-run`. It uses no window and no model, and it behaves the same on macOS and Linux, so it fits a build step.
+    }
+
+    @Section(title: "Get the tool") {
+        @ContentAndMedia {
+            Build it from the repository, on a Mac or on Linux. `swift run ng-run` builds it the first time and runs it. On Linux you need Swift 6.3 or later, or you can use the Swift container, which is what the project's own Linux tests use: `docker run --rm -v "$PWD":/work -w /work swift:6.4.2-noble swift run ng-run --help`.
+
+            Every command ends with an exit status a script can rely on: 0 when all is well, 1 when it found a problem, and 2 when the file could not be read. The examples here use `examples/workflow/budget.nodegraph`, a small graph that multiplies an hourly rate by hours and adds a fee.
+        }
+
+        @Steps {
+            @Step {
+                Ask the tool what it can do. There are four commands: `run`, `validate`, `lint` and `digest`. Leaving the command out means `run`, so `ng-run file.nodegraph` works as it always has.
+
+                The rest of this tutorial uses `swift run ng-run`; with the tool already built, `ng-run` alone is the same.
+            }
+        }
+    }
+
+    @Section(title: "Is it valid?") {
+        @ContentAndMedia {
+            Validation says what is wrong: a node type nobody registered, a property out of range, a link between types that do not fit, a cycle. It looks at the root graph and every subgraph, and it never runs anything.
+        }
+
+        @Steps {
+            @Step {
+                Validate the budget graph with `swift run ng-run validate examples/workflow/budget.nodegraph`. It prints `No findings.` and exits with 0.
+            }
+
+            @Step {
+                Break a copy on purpose by misspelling a node type, then validate it. The finding names the code `node.unknownType` and the type, and the exit status is 1.
+
+                `sed 's/math.multiply/math.multipli/' examples/workflow/budget.nodegraph > broken.nodegraph`
+            }
+
+            @Step {
+                Point it at a file that is not there. That is not a finding about the graph, so the status is 2, and a script can tell the two apart.
+            }
+        }
+    }
+
+    @Section(title: "Is it tidy?") {
+        @ContentAndMedia {
+            Lints say what is valid but probably not what you meant: an isolated node, an output nothing reads, a constant expression. A lint is either a problem or a hint. Only problems fail the check, unless you pass `--strict`.
+        }
+
+        @Steps {
+            @Step {
+                Lint the budget graph with `swift run ng-run lint examples/workflow/budget.nodegraph`. It has one hint, because nothing reads the output of the Total node. The status is 0.
+            }
+
+            @Step {
+                Add `--strict` and the same hint fails the check with status 1. Use this on graphs you want kept spotless.
+            }
+
+            @Step {
+                Ask for `--json` and read the findings with `jq`. Each has a kind, an id, a severity, the message, and the node's id and type, so a script can act on one without reading text.
+
+                `swift run ng-run lint --json examples/workflow/budget.nodegraph | jq '.findings[] | {id, nodeType}'`
+            }
+        }
+    }
+
+    @Section(title: "What is in it?") {
+        @ContentAndMedia {
+            A digest is the graph as short text: a name for each node, then the links. It is a good thing to paste into a pull request, a bug report or a conversation with a model.
+        }
+
+        @Steps {
+            @Step {
+                Print one with `swift run ng-run digest examples/workflow/budget.nodegraph --detail outline`. Details are `outline`, `compact` (the default) and `full`, from names only up to every property.
+            }
+        }
+    }
+
+    @Section(title: "One script for all of it") {
+        @ContentAndMedia {
+            Put the checks in a script that a person and a build step both run.
+        }
+
+        @Steps {
+            @Step {
+                `check.sh` validates and lints every document you give it and stops at the first failure. The tool's location comes from `NG_RUN`, so a build that already has the tool built can say where it is.
+
+                @Code(name: "check.sh", file: "workflow-check.sh")
+            }
+        }
+    }
+}

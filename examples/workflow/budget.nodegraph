@@ -1,0 +1,163 @@
+{
+  "graph": {
+    "groups": [],
+    "links": [
+      {
+        "id": "00000000-0000-0000-0000-000000000101",
+        "source": {
+          "direction": "output",
+          "node": "00000000-0000-0000-0000-000000000001",
+          "port": "value"
+        },
+        "target": {
+          "direction": "input",
+          "node": "00000000-0000-0000-0000-000000000003",
+          "port": "a"
+        }
+      },
+      {
+        "id": "00000000-0000-0000-0000-000000000102",
+        "source": {
+          "direction": "output",
+          "node": "00000000-0000-0000-0000-000000000002",
+          "port": "value"
+        },
+        "target": {
+          "direction": "input",
+          "node": "00000000-0000-0000-0000-000000000003",
+          "port": "b"
+        }
+      },
+      {
+        "id": "00000000-0000-0000-0000-000000000103",
+        "source": {
+          "direction": "output",
+          "node": "00000000-0000-0000-0000-000000000003",
+          "port": "result"
+        },
+        "target": {
+          "direction": "input",
+          "node": "00000000-0000-0000-0000-000000000005",
+          "port": "a"
+        }
+      },
+      {
+        "id": "00000000-0000-0000-0000-000000000104",
+        "source": {
+          "direction": "output",
+          "node": "00000000-0000-0000-0000-000000000004",
+          "port": "value"
+        },
+        "target": {
+          "direction": "input",
+          "node": "00000000-0000-0000-0000-000000000005",
+          "port": "b"
+        }
+      }
+    ],
+    "nodes": [
+      {
+        "id": "00000000-0000-0000-0000-000000000001",
+        "isCollapsed": false,
+        "isPinned": false,
+        "mode": "always",
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "properties": {
+          "name": {
+            "type": "string",
+            "value": "rate"
+          }
+        },
+        "title": "Rate",
+        "typeID": "util.variable"
+      },
+      {
+        "id": "00000000-0000-0000-0000-000000000002",
+        "isCollapsed": false,
+        "isPinned": false,
+        "mode": "always",
+        "position": {
+          "x": 0,
+          "y": 120
+        },
+        "properties": {
+          "name": {
+            "type": "string",
+            "value": "hours"
+          }
+        },
+        "title": "Hours",
+        "typeID": "util.variable"
+      },
+      {
+        "id": "00000000-0000-0000-0000-000000000003",
+        "isCollapsed": false,
+        "isPinned": false,
+        "mode": "always",
+        "position": {
+          "x": 240,
+          "y": 60
+        },
+        "properties": {},
+        "title": "Labour",
+        "typeID": "math.multiply"
+      },
+      {
+        "id": "00000000-0000-0000-0000-000000000004",
+        "isCollapsed": false,
+        "isPinned": false,
+        "mode": "always",
+        "position": {
+          "x": 240,
+          "y": 220
+        },
+        "properties": {
+          "value": {
+            "type": "double",
+            "value": 100
+          }
+        },
+        "title": "Fee",
+        "typeID": "util.number"
+      },
+      {
+        "id": "00000000-0000-0000-0000-000000000005",
+        "isCollapsed": false,
+        "isPinned": false,
+        "mode": "always",
+        "position": {
+          "x": 480,
+          "y": 120
+        },
+        "properties": {},
+        "title": "Total",
+        "typeID": "math.add"
+      }
+    ],
+    "variables": [
+      {
+        "name": "rate",
+        "summary": "Price of one hour.",
+        "type": "number",
+        "value": {
+          "type": "double",
+          "value": 12.5
+        }
+      },
+      {
+        "name": "hours",
+        "summary": "Hours worked.",
+        "type": "number",
+        "value": {
+          "type": "double",
+          "value": 8
+        }
+      }
+    ]
+  },
+  "metadata": {},
+  "schemaVersion": 1
+}

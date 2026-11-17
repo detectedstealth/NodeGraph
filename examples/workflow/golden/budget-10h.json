@@ -1,0 +1,247 @@
+{
+  "ticks" : [
+    {
+      "nodes" : [
+        {
+          "id" : "00000000-0000-0000-0000-000000000001",
+          "outputs" : {
+            "value" : {
+              "type" : "double",
+              "value" : 12.5
+            }
+          },
+          "status" : "success",
+          "title" : "Rate",
+          "triggers" : [
+
+          ],
+          "type" : "util.variable"
+        },
+        {
+          "id" : "00000000-0000-0000-0000-000000000002",
+          "outputs" : {
+            "value" : {
+              "type" : "double",
+              "value" : 10
+            }
+          },
+          "status" : "success",
+          "title" : "Hours",
+          "triggers" : [
+
+          ],
+          "type" : "util.variable"
+        },
+        {
+          "id" : "00000000-0000-0000-0000-000000000004",
+          "outputs" : {
+            "value" : {
+              "type" : "double",
+              "value" : 100
+            }
+          },
+          "status" : "success",
+          "title" : "Fee",
+          "triggers" : [
+
+          ],
+          "type" : "util.number"
+        },
+        {
+          "id" : "00000000-0000-0000-0000-000000000003",
+          "outputs" : {
+            "result" : {
+              "type" : "double",
+              "value" : 125
+            }
+          },
+          "status" : "success",
+          "title" : "Labour",
+          "triggers" : [
+
+          ],
+          "type" : "math.multiply"
+        },
+        {
+          "id" : "00000000-0000-0000-0000-000000000005",
+          "outputs" : {
+            "result" : {
+              "type" : "double",
+              "value" : 225
+            }
+          },
+          "status" : "success",
+          "title" : "Total",
+          "triggers" : [
+
+          ],
+          "type" : "math.add"
+        }
+      ],
+      "succeeded" : true,
+      "tick" : 0
+    },
+    {
+      "nodes" : [
+        {
+          "id" : "00000000-0000-0000-0000-000000000001",
+          "outputs" : {
+            "value" : {
+              "type" : "double",
+              "value" : 12.5
+            }
+          },
+          "status" : "success",
+          "title" : "Rate",
+          "triggers" : [
+
+          ],
+          "type" : "util.variable"
+        },
+        {
+          "id" : "00000000-0000-0000-0000-000000000002",
+          "outputs" : {
+            "value" : {
+              "type" : "double",
+              "value" : 10
+            }
+          },
+          "status" : "success",
+          "title" : "Hours",
+          "triggers" : [
+
+          ],
+          "type" : "util.variable"
+        },
+        {
+          "id" : "00000000-0000-0000-0000-000000000004",
+          "outputs" : {
+            "value" : {
+              "type" : "double",
+              "value" : 100
+            }
+          },
+          "status" : "cached",
+          "title" : "Fee",
+          "triggers" : [
+
+          ],
+          "type" : "util.number"
+        },
+        {
+          "id" : "00000000-0000-0000-0000-000000000003",
+          "outputs" : {
+            "result" : {
+              "type" : "double",
+              "value" : 125
+            }
+          },
+          "status" : "cached",
+          "title" : "Labour",
+          "triggers" : [
+
+          ],
+          "type" : "math.multiply"
+        },
+        {
+          "id" : "00000000-0000-0000-0000-000000000005",
+          "outputs" : {
+            "result" : {
+              "type" : "double",
+              "value" : 225
+            }
+          },
+          "status" : "cached",
+          "title" : "Total",
+          "triggers" : [
+
+          ],
+          "type" : "math.add"
+        }
+      ],
+      "succeeded" : true,
+      "tick" : 1
+    },
+    {
+      "nodes" : [
+        {
+          "id" : "00000000-0000-0000-0000-000000000001",
+          "outputs" : {
+            "value" : {
+              "type" : "double",
+              "value" : 12.5
+            }
+          },
+          "status" : "success",
+          "title" : "Rate",
+          "triggers" : [
+
+          ],
+          "type" : "util.variable"
+        },
+        {
+          "id" : "00000000-0000-0000-0000-000000000002",
+          "outputs" : {
+            "value" : {
+              "type" : "double",
+              "value" : 10
+            }
+          },
+          "status" : "success",
+          "title" : "Hours",
+          "triggers" : [
+
+          ],
+          "type" : "util.variable"
+        },
+        {
+          "id" : "00000000-0000-0000-0000-000000000004",
+          "outputs" : {
+            "value" : {
+              "type" : "double",
+              "value" : 100
+            }
+          },
+          "status" : "cached",
+          "title" : "Fee",
+          "triggers" : [
+
+          ],
+          "type" : "util.number"
+        },
+        {
+          "id" : "00000000-0000-0000-0000-000000000003",
+          "outputs" : {
+            "result" : {
+              "type" : "double",
+              "value" : 125
+            }
+          },
+          "status" : "cached",
+          "title" : "Labour",
+          "triggers" : [
+
+          ],
+          "type" : "math.multiply"
+        },
+        {
+          "id" : "00000000-0000-0000-0000-000000000005",
+          "outputs" : {
+            "result" : {
+              "type" : "double",
+              "value" : 225
+            }
+          },
+          "status" : "cached",
+          "title" : "Total",
+          "triggers" : [
+
+          ],
+          "type" : "math.add"
+        }
+      ],
+      "succeeded" : true,
+      "tick" : 2
+    }
+  ]
+}

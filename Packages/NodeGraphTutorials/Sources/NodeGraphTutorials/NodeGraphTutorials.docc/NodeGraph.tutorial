@@ -53,4 +53,14 @@
         @TutorialReference(tutorial: "doc:RunWithoutAWindow")
         @TutorialReference(tutorial: "doc:CheckAGraph")
     }
+
+    @Chapter(name: "Command-line workflows") {
+        @Image(source: "chapter-command-line.svg", alt: "A terminal window with a prompt and a green check mark.")
+
+        Check, run, sweep and regression-test graphs from a shell or a build step, on macOS and Linux.
+
+        @TutorialReference(tutorial: "doc:CheckFromTheShell")
+        @TutorialReference(tutorial: "doc:RunAndSweep")
+        @TutorialReference(tutorial: "doc:KeepResultsFromChanging")
+    }
 }

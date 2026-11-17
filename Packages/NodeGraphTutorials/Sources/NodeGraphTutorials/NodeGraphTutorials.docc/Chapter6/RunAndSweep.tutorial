@@ -1,0 +1,55 @@
+@Tutorial(time: 15) {
+    @Intro(title: "Run and sweep a graph") {
+        Run a graph from a script, read what every node produced, change a variable from the command line, and try a range of values to see which ones break it.
+    }
+
+    @Section(title: "Run it") {
+        @ContentAndMedia {
+            Running prints a report as JSON: for each pass, every node's status and outputs. Time is simulated, `--delta-ms` milliseconds per pass, so the report depends only on the document and the options.
+        }
+
+        @Steps {
+            @Step {
+                Run the budget graph and save the report with `swift run ng-run run examples/workflow/budget.nodegraph --output report.json`. Without `--output` the report goes to standard output.
+            }
+
+            @Step {
+                Pull a number out of the report with `jq`: `jq '.ticks[0].nodes[] | select(.type == "math.add") | .outputs.result.value' report.json`. The Total node shows 200, which is 8 hours at 12.5 plus the fee of 100.
+            }
+
+            @Step {
+                Run more than one pass with `--ticks`. Nodes that remember, like counters and filters, change from pass to pass, and the report has an entry for each.
+            }
+        }
+    }
+
+    @Section(title: "Change a variable") {
+        @ContentAndMedia {
+            A graph can declare variables, named values its nodes read. A run can replace one without changing the file. This is the way to try a graph with other inputs from a script.
+        }
+
+        @Steps {
+            @Step {
+                Replace one with `--var`: `swift run ng-run run examples/workflow/budget.nodegraph --var hours=10`. The Total is now 225.
+            }
+
+            @Step {
+                The value is read as JSON, or as plain text when it is not JSON. A whole number is accepted for a variable declared as a decimal, as above. A name the graph does not declare is refused, with status 1, so a typo cannot go unnoticed.
+            }
+        }
+    }
+
+    @Section(title: "Which values break it?") {
+        @ContentAndMedia {
+            A run that has a node fail ends with status 1, and its report says which node and why. `examples/console.nodegraph` has a Divide node that fails while its `margin` variable is 0. That is a graph worth sweeping.
+        }
+
+        @Steps {
+            @Step {
+                `sweep.sh` runs a document once for each value of a variable, keeps each report as `report-<variable>-<value>.json`, and prints the reason for each failure from its report. Try `sweep.sh examples/console.nodegraph margin 0 1 2`: 0 fails with "Division by zero", 1 and 2 are fine.
+
+                @Code(name: "sweep.sh", file: "workflow-sweep.sh")
+            }
+        }
+    }
+}

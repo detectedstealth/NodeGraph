@@ -21,10 +21,11 @@ Packages/
   NodeGraphRobotics/  Domain node pack: robotics scenario generation. Core and Nodes.
   NodeGraphVideo/     Domain node pack: video editing. Core and Nodes.
   NodeGraphAI/        Model providers (Claude, OpenAI-compatible, on-device), Keychain secrets, eval harness. Core and Assistant.
-  NodeGraphCLI/       NodeGraphRunKit (headless run of a document) and the ng-run executable.
+  NodeGraphCLI/       NodeGraphRunKit (headless run, validate, lint and digest of a document) and the ng-run executable (run, validate, lint, digest).
 App/                  Xcode app target (macOS + iPadOS), thin shell.
 docs/                 PLAN.md, ARCHITECTURE.md, DECISIONS.md
 scripts/docs.sh       DocC: `preview`, `build` (warnings are errors), `site`.
+scripts/check-cli-tutorial.sh  Runs every command the command-line tutorials show and checks its output and exit status (needs jq; also runs in Linux CI).
 scripts/ci.sh         Tests all packages, builds docs; `--ios` also builds for iOS simulator.
 Package.swift         The one SwiftPM manifest for every module above (sources stay in Packages/<Name>/). Consumers depend on the repo by URL.
 LICENSE               Apache-2.0.

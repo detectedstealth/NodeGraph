@@ -38,6 +38,11 @@ jobs:
         run: swift test --no-parallel
         env:
           NODEGRAPH_TIMING_SCALE: "4"
+      # Runs every command the command-line tutorials show and checks what each prints and returns.
+      - name: Install jq
+        run: apt-get update && apt-get install -y jq
+      - name: Command-line tutorials
+        run: scripts/check-cli-tutorial.sh
 
   macos:
     name: macOS
@@ -53,3 +58,5 @@ jobs:
         run: swift test --no-parallel
         env:
           NODEGRAPH_TIMING_SCALE: "4"
+      - name: Command-line tutorials
+        run: scripts/check-cli-tutorial.sh

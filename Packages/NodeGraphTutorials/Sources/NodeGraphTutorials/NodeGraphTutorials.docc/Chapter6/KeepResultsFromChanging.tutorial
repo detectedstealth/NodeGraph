@@ -1,0 +1,52 @@
+@Tutorial(time: 15) {
+    @Intro(title: "Keep results from changing") {
+        Save what a graph produces once, and have a build step tell you when it changes. Because time is simulated, the same graph and options always give the same report, which is what makes this work.
+    }
+
+    @Section(title: "A saved report") {
+        @ContentAndMedia {
+            A saved report, called a golden file, is a record of what the graph did when you were happy with it. The next run is compared to it, and any difference is shown as a diff.
+        }
+
+        @Steps {
+            @Step {
+                `regression.sh` runs a document and compares its report with the saved one. A failing node does not stop it: the report of that run is what is compared, so a new failure shows up as a change too.
+
+                @Code(name: "regression.sh", file: "workflow-regression.sh")
+            }
+
+            @Step {
+                Save the first one with `--update`: `regression.sh --update examples/workflow/budget.nodegraph examples/workflow/golden/budget-10h.json --ticks 3 --var hours=10`. Commit the file with the graph.
+            }
+
+            @Step {
+                Run it without `--update` to check. It prints `same as` the golden file and exits with 0. Change an input, such as `--var hours=9`, and it prints a diff of the report and exits with 1.
+            }
+        }
+    }
+
+    @Section(title: "In a build step") {
+        @ContentAndMedia {
+            The commands that behave in a terminal behave the same in continuous integration, because they use only exit statuses and files. This is how this repository runs the command-line tutorials on Linux, in a Swift container, with `jq` installed:
+
+            ```
+            - name: Install jq
+              run: apt-get update && apt-get install -y jq
+            - name: Command-line tutorials
+              run: scripts/check-cli-tutorial.sh
+            ```
+
+            That script runs every command in these tutorials and checks the output and the status of each, so the tutorials stay true.
+        }
+
+        @Steps {
+            @Step {
+                For your own graphs, run the same three things on every change: `check.sh --strict` on the documents, and `regression.sh` for each golden file. A change that alters a graph's behaviour then fails the build and shows a diff. When the change is intended, run with `--update` and commit the new report.
+            }
+
+            @Step {
+                One caution. Numbers from functions like sine can differ in the last digits between macOS and Linux, because each platform has its own maths library. Keep golden files for graphs of exact arithmetic, as `budget.nodegraph` is, or compare on one platform only.
+            }
+        }
+    }
+}

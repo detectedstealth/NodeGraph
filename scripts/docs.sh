@@ -73,7 +73,7 @@ site)
   <div class="cards">
     <a class="card" href="NodeGraphTutorials/tutorials/nodegraph/">
       <strong>Tutorials</strong>
-      <span>From an empty graph to your own node pack: build, run, save and show a graph, then the robotics and video packs, headless runs and the assistant.</span>
+      <span>From an empty graph to your own node pack: build, run, save and show a graph, then the robotics and video packs, headless runs, the assistant, and command-line workflows for macOS and Linux.</span>
     </a>
     <a class="card" href="NodeGraphCore/documentation/nodegraphcore/">
       <strong>NodeGraphCore reference</strong>

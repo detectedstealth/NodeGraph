@@ -4,7 +4,7 @@ DocC tutorials in the style of Apple's [Develop in Swift](https://developer.appl
 
 ## Decisions made with the owner
 
-- **Hosting:** local preview first; GitHub Pages is the first public target; Swift Package Index later, if there is demand.
+- **Hosting:** local preview first, then GitHub Pages (live at https://brucewade.dev/NodeGraph/), and Swift Package Index (live; `.spi.yml` builds the NodeGraphCore reference).
 - **Scope:** Robotics and Video are covered, partly to prove they work end to end. Gaps found while writing a tutorial are fixed in the package (or logged here), not papered over in the tutorial.
 - **Separate docs-only target** (`Packages/NodeGraphTutorials`, no product): more packs will come, and tutorials will be extended to cover them. It can depend on any module; no module depends on it.
 
@@ -18,6 +18,8 @@ DocC tutorials in the style of Apple's [Develop in Swift](https://developer.appl
 | Tests for every step | `Packages/NodeGraphTutorials/Tests/NodeGraphTutorialsTests/` |
 | Per-package API reference and concept articles | `<Package>.docc/` inside each package that has one |
 | Example packs the tutorials build | `examples/<Pack>/` (generated source and tests; the manifest is hand-written) |
+| Shell scripts of the command-line tutorials | `examples/workflow/*.sh`, the example graph `budget.nodegraph` and the saved report in `golden/`; copied into the catalog by `scripts/sync-tutorial-code.sh` |
+| Command-line tutorial check | `scripts/check-cli-tutorial.sh` runs every command the tutorials show and checks its output and exit status; runs on Linux and macOS in CI |
 | Build and preview | `scripts/docs.sh` (`preview`, `build`, `site`); `build` runs in `scripts/ci.sh` |
 
 Rules:
@@ -38,6 +40,7 @@ Rules:
 3. **Write a node pack:** port types and connection rules; a `NodeDefinition`; the executor and its Swift Testing test; a `NodePack` and registering it; appearance and help text; shipping it as its own Swift package.
 4. **Domain walkthroughs:** Robotics (a PID loop with `FixedStepScenario`); Video (a timeline with a crossfade, `frame(at:)`).
 5. **Assistant and automation:** run headless with `ng-run`; the assistant digest and lints.
+6. **Command-line workflows** (macOS and Linux): check a graph from the shell (`validate`, `lint`, `digest`, exit statuses, `--json` with `jq`); run and sweep a variable; keep results from changing with a saved report, in a build step.
 
 ## Tasks
 
@@ -81,7 +84,19 @@ Rules:
 ### Phase 6: Publishing
 
 - [x] GitHub Pages: `scripts/docs.sh site` writes `.docs-site/` (both catalogs and a front page; `DOCS_BASE_PATH` sets the repository name, default `NodeGraph`), `.github/workflows/docs.yml` publishes it, and the README links to the tutorials. **Live** (2026-11-17) at https://brucewade.dev/NodeGraph/. Pages source is GitHub Actions; the workflow runs on every push to `main`, and the step check looks for modules in both SwiftPM build layouts (the runner uses the native one).
-- [ ] Revisit Swift Package Index (`.spi.yml`) if there is demand (deferred by the owner)
+- [x] Swift Package Index: live at https://swiftpackageindex.com/detectedstealth/NodeGraph (`.spi.yml` documents NodeGraphCore). The tutorials are Apple-only, so the index cannot build them; the GitHub Pages site is where they live
+
+### Phase 7: Chapter 6, Command-line workflows (added 2026-11-17)
+
+Why: Linux is now tested (Swift 6.4.2 locally and in CI), so a shell workflow has to be taught and kept working there. The DocC catalog builds on macOS only, since the tutorials target is Apple-only, so the commands are verified by a script that also runs on Linux.
+
+- [x] CLI gap, decided with the owner: `ng-run` could only run a document. It now has `run` (the default, so `ng-run file.nodegraph` works as before), `validate`, `lint` and `digest`; `validate` and `lint` print text or `--json`, `--strict` also fails on warnings and hints; exit status 0 ok, 1 findings or a failed node, 2 unreadable file (`run` too, which used to print the raw error and exit 1). Logic is in `NodeGraphRunKit` (`GraphCheck`, `CheckReport`) so it is testable and reusable; RunKit now depends on NodeGraphAssistant. 6 new tests
+- [x] CLI gap found by sweeping: `--var margin=2` was refused for a variable declared as a decimal (`kindMismatch: expected double, found int`), because `2` reads as an integer. `GraphRun.widened` widens a whole number to match a declared decimal; a real mismatch is still refused. Test added
+- [x] Example graph `examples/workflow/budget.nodegraph` (exact arithmetic, so its saved report is the same on every platform), three scripts (`check.sh`, `sweep.sh`, `regression.sh`) and a saved report
+- [x] Three tutorials: check a graph from the shell, run and sweep a graph, keep results from changing
+- [x] `scripts/check-cli-tutorial.sh` (needs `jq`), run by `scripts/ci.sh` and by both CI jobs, with `jq` installed in the Linux container
+- [ ] **Not verified on Linux yet:** the commands pass on macOS here. There is no Linux or Docker locally in this session, so the first proof is the Linux CI job. The Docker line in the tutorial (`swift:6.4.2-noble`) is the CI container's image but was not run by hand
+- [ ] Not built: `ng-run` cannot create or edit a document (it reads, checks and runs them), and `lint` looks at the root graph only
 
 ## Findings
 
