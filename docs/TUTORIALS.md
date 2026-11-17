@@ -80,7 +80,7 @@ Rules:
 
 ### Phase 6: Publishing
 
-- [x] GitHub Pages: `scripts/docs.sh site` writes `.docs-site/` (both catalogs and a front page; `DOCS_BASE_PATH` sets the repository name, default `NodeGraph`), `.github/workflows/docs.yml` publishes it, and the README links to the tutorials. **Not exercised:** the repository has no remote yet, so the workflow has never run. It needs Pages enabled with the source set to GitHub Actions, and a runner with Swift 6.4 and the macOS 27 SDK
+- [x] GitHub Pages: `scripts/docs.sh site` writes `.docs-site/` (both catalogs and a front page; `DOCS_BASE_PATH` sets the repository name, default `NodeGraph`), `.github/workflows/docs.yml` publishes it, and the README links to the tutorials. **Live** (2026-11-17) at https://brucewade.dev/NodeGraph/. Pages source is GitHub Actions; the workflow runs on every push to `main`, and the step check looks for modules in both SwiftPM build layouts (the runner uses the native one).
 - [ ] Revisit Swift Package Index (`.spi.yml`) if there is demand (deferred by the owner)
 
 ## Findings

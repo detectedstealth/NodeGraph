@@ -1,12 +1,13 @@
 # Builds the DocC site (tutorials and API reference) and publishes it to GitHub Pages.
 # Needs: Settings > Pages > Source set to "GitHub Actions" (a public repo, or a paid plan). The
-# macos-latest runner has the toolchain the package needs (CI builds and tests on it). Not yet run
-# on GitHub: see docs/TUTORIALS.md.
+# macos-latest runner has the toolchain the package needs (CI builds and tests on it). Live at
+# https://brucewade.dev/NodeGraph/ (see docs/TUTORIALS.md).
 name: Docs
 
-# Manual for now (Actions tab > Docs > Run workflow). Restore `push: branches: [main]` here once
-# the first manual run succeeds.
+# Runs on every push to main, and by hand from the Actions tab.
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:

@@ -1,5 +1,8 @@
 # NodeGraph
 
+[![CI](https://github.com/detectedstealth/NodeGraph/actions/workflows/ci.yml/badge.svg)](https://github.com/detectedstealth/NodeGraph/actions/workflows/ci.yml)
+[![Docs](https://github.com/detectedstealth/NodeGraph/actions/workflows/docs.yml/badge.svg)](https://brucewade.dev/NodeGraph/)
+
 A general-purpose node graph system in Swift, intended for many domains (robotics scenarios, video editing, and more). The editor runs on macOS and iPadOS; the core, the built-in nodes, graph storage and the headless runner also run on Linux. litegraph.js is used as a feature reference only.
 
 ![The NodeGraph editor on macOS: a robotics temperature pipeline in three groups, the console, and the assistant panel](docs/images/editor-macos.png)
@@ -110,7 +113,7 @@ This project is developed using an AI-assisted engineering workflow using Claude
 
 ## Learn
 
-DocC tutorials teach the packages from an empty graph to your own node pack: building, running, saving and showing a graph, writing a node pack, the robotics and video packs, and headless runs. Preview them locally:
+The tutorials and API reference are online at **[brucewade.dev/NodeGraph](https://brucewade.dev/NodeGraph/)**. DocC tutorials teach the packages from an empty graph to your own node pack: building, running, saving and showing a graph, writing a node pack, the robotics and video packs, and headless runs. Preview them locally:
 
 ```bash
 ./scripts/docs.sh preview          # opens the tutorials
