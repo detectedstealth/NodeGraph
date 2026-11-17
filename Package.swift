@@ -60,8 +60,8 @@ var targets: [Target] = [
     // The example graphs use every pack.
     tests("NodeGraphAssistant", ["NodeGraphNodes", "NodeGraphRobotics", "NodeGraphVideo"]),
 
-    // The logic of `ng-run`, apart from argument parsing so tests can call it.
-    module("NodeGraphRunKit", folder: "NodeGraphCLI", ["NodeGraphCore", "NodeGraphNodes", "NodeGraphRobotics", "NodeGraphVideo"]),
+    // The logic of `ng-run` (run, validate, lint, digest), apart from argument parsing so tests can call it.
+    module("NodeGraphRunKit", folder: "NodeGraphCLI", ["NodeGraphCore", "NodeGraphNodes", "NodeGraphRobotics", "NodeGraphVideo", "NodeGraphAssistant"]),
     .testTarget(
         name: "NodeGraphRunKitTests",
         dependencies: ["NodeGraphRunKit"],

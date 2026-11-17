@@ -54,15 +54,21 @@ public struct RunReport: Codable, Hashable, Sendable {
 
 /// Runs a document headless with the built-in node packs and the robotics and video packs.
 public enum GraphRun {
-    /// The registry the runner uses: every node in ``StandardPack``, ``RoboticsPack`` and ``VideoPack``.
-    public static func standardRegistry() -> NodeRegistry {
+    /// The registries the tools use: every node in ``StandardPack``, ``RoboticsPack`` and ``VideoPack``,
+    /// with their port types.
+    public static func standardRegistries() -> (nodes: NodeRegistry, types: TypeRegistry) {
         var nodes = NodeRegistry()
         var types = TypeRegistry()
         StandardTypes.register(in: &types)
         StandardPack.register(nodes: &nodes, types: &types)
         RoboticsPack.register(nodes: &nodes, types: &types)
         VideoPack.register(nodes: &nodes, types: &types)
-        return nodes
+        return (nodes, types)
+    }
+
+    /// The node registry the runner uses. See ``standardRegistries()``.
+    public static func standardRegistry() -> NodeRegistry {
+        standardRegistries().nodes
     }
 
     /// Parses `name=value` arguments, where a value is plain JSON (not the tagged form documents use). A value that is not valid JSON is taken as a string, so
@@ -106,12 +112,25 @@ public enum GraphRun {
         variables: [String: GraphValue] = [:],
         registry: NodeRegistry = standardRegistry()
     ) async throws -> RunReport {
-        let runner = try GraphRunner(document: document, registry: registry, variables: variables)
+        let runner = try GraphRunner(
+            document: document, registry: registry, variables: widened(variables, toMatch: document.graph))
         var reports: [RunReport.TickReport] = []
         for await tick in runner.run(.deterministic(fixedDelta: delta, ticks: max(1, ticks))) {
             reports.append(report(of: tick, in: document.graph))
         }
         return RunReport(ticks: reports)
+    }
+
+    /// `--var margin=2` reads as an integer, but a variable declared as a decimal number only takes
+    /// decimals. A whole number given for one is widened to match, which loses nothing.
+    static func widened(_ overrides: [String: GraphValue], toMatch graph: Graph) -> [String: GraphValue] {
+        var result = overrides
+        for (name, value) in overrides {
+            if case .int(let whole) = value, case .double? = graph.variables[name]?.value {
+                result[name] = .double(Double(whole))
+            }
+        }
+        return result
     }
 
     private static func report(of tick: TickResult, in graph: Graph) -> RunReport.TickReport {

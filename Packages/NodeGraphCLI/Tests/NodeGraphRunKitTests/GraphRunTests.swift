@@ -70,3 +70,14 @@ private func document(secondType: String = "math.add") throws -> GraphDocument {
     // The trim node has no clip linked, so it may fail, but it must be known: not "notExecutable".
     #expect(!signal.ticks.flatMap(\.nodes).contains { $0.error?.contains("notExecutable") == true })
 }
+
+@Test func aWholeNumberOverridesADecimalVariable() throws {
+    let (nodes, types) = GraphRun.standardRegistries()
+    let editor = GraphEditor(nodes: nodes, types: types)
+    try editor.apply(.addVariable(variable: GraphVariable(name: "margin", type: "number", value: .double(0))))
+    try editor.apply(.addVariable(variable: GraphVariable(name: "other", type: "number", value: .string("x"))))
+    let widened = GraphRun.widened(["margin": .int(2), "other": .int(1)], toMatch: editor.graph)
+    #expect(widened["margin"] == .double(2))
+    // Not declared as a decimal: left alone, so a real mismatch is still reported.
+    #expect(widened["other"] == .int(1))
+}
