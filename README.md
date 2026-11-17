@@ -30,13 +30,7 @@ scripts/ci.sh       Build and test everything (--ios adds simulator builds)
 NodeGraph.xcworkspace
 ```
 
-Use it from your own package by depending on the repository and naming the products you need:
-
-```swift
-.package(url: "https://github.com/detectedstealth/NodeGraph", from: "0.1.0"),
-// in a target:
-.product(name: "NodeGraphCore", package: "NodeGraph"),
-```
+To use it in your own app or package, see "Use it in your own app" below.
 
 Copyright 2026 Bruce Wade. Licensed under Apache-2.0 (see `LICENSE`).
 
@@ -53,9 +47,66 @@ Swift 6.3 or later. The editor and the Apple-only modules need macOS 26 or iOS 2
 | `NodeGraphUI` (SwiftUI editor) | Yes | No |
 | `NodeGraphAI` (model providers, uses FoundationModels and the Keychain) | Yes | No |
 
+## Use it in your own app
+
+The repository is one Swift package that vends every module as a library product, so you take only the ones you need. The package is named `NodeGraph`; use that name in every `package:` argument.
+
+**In an Xcode app project.** A new SwiftUI app has no `Package.swift`; add the package from Xcode instead:
+
+1. Choose File > Add Package Dependencies and enter `https://github.com/detectedstealth/NodeGraph`. For a local checkout, choose Add Local and pick the `NodeGraph` folder.
+2. Pick a dependency rule. The latest release is `0.1.0`. While the package is pre-1.0, minor versions may break things, so choose Up to Next Minor from `0.1.0` (or Branch: `main` to follow development).
+3. Tick the products your app target needs (table below). For an editor, that is `NodeGraphCore`, `NodeGraphNodes` and `NodeGraphUI`.
+4. Set the app's deployment target to macOS 26 and iOS 26 or later, and build with a Swift 6.3 or newer toolchain.
+
+**In your own package** (a node pack, or a library that holds your app's code):
+
+```swift
+// swift-tools-version: 6.3
+import PackageDescription
+
+let package = Package(
+    name: "MyDomain",
+    platforms: [.macOS(.v26), .iOS(.v26)],
+    products: [.library(name: "MyDomain", targets: ["MyDomain"])],
+    dependencies: [
+        // Pre-1.0, a minor version can break things, so stay within one minor version:
+        .package(url: "https://github.com/detectedstealth/NodeGraph", .upToNextMinor(from: "0.1.0")),
+        // To follow development: .package(url: "https://github.com/detectedstealth/NodeGraph", branch: "main"),
+        // A local checkout (its folder must be named NodeGraph):
+        // .package(path: "../NodeGraph"),
+    ],
+    targets: [
+        .target(
+            name: "MyDomain",
+            dependencies: [
+                .product(name: "NodeGraphCore", package: "NodeGraph"),
+                .product(name: "NodeGraphNodes", package: "NodeGraph"),
+                .product(name: "NodeGraphUI", package: "NodeGraph"),
+            ]
+        ),
+        .testTarget(name: "MyDomainTests", dependencies: ["MyDomain"]),
+    ]
+)
+```
+
+A node pack that has no UI needs only `NodeGraphCore`; `examples/TemperaturePack` is a finished one. Do not add `swift-collections`, `swift-log` or `swift-argument-parser` yourself unless your code uses them directly; they come in with the package.
+
+| You want | Products |
+| --- | --- |
+| A node pack with no UI | `NodeGraphCore` |
+| The standard nodes (math, logic, string, flow, data, utility) | add `NodeGraphNodes` |
+| The editor (canvas, inspector, palette) | add `NodeGraphUI` (Apple platforms only) |
+| Saving, loading and stores | add `NodeGraphSync` |
+| Robotics or video nodes | `NodeGraphRobotics`, `NodeGraphVideo` |
+| Assistant logic, no model calls | `NodeGraphAssistant` |
+| Model providers and generation | `NodeGraphAI` (Apple platforms only) |
+| Run a document headless | `NodeGraphRunKit` |
+
+The demo app in `App/NodeGraphApp` shows the wiring: `GraphApp.swift` sets up the document group and `ContentView.swift` builds the model and the canvas.
+
 ## Built with AI
 
-This project is developed with an AI coding assistant (Claude Code, working inside Xcode) under a human owner who sets direction and reviews the results. The process is written down so you can judge it: `CLAUDE.md` holds the rules the assistant follows, `docs/DECISIONS.md` records every design decision with its reason, `docs/PLAN.md` tracks the work phase by phase, and every Core change comes with tests. The graph assistant inside the editor (`NodeGraphAssistant`, `NodeGraphAI`) follows the same approach: deterministic code does the analysis, the model only proposes, and you review before anything changes.
+This project is developed using an AI-assisted engineering workflow using Claude Code, working inside Xcode. Human-directed architecture, planning, and review govern all changes. Development practices are fully documented: CLAUDE.md defines assistant operating rules, docs/DECISIONS.md records architectural decisions and tradeoffs, docs/PLAN.md tracks implementation phases, and all Core changes require accompanying tests. AI-generated proposals are reviewed before acceptance, both during framework development and within the graph assistant itself.
 
 ## Learn
 

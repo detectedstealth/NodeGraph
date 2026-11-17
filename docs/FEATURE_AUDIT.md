@@ -8,6 +8,8 @@ Status: **Done** (implemented), **Partial**, **Gap** (in scope, not built), **De
 
 "Done" and "Gap" were judged from the plan, the decisions log and a code search, not by running the app. Items marked `?` need a check before work starts.
 
+Reconciled with PLAN.md and DECISIONS.md on 2026-11-16: rows that Phase 5 and later work finished are now marked Done, with the decision number. Rows still marked `?` were not re-checked. A name search of the code is not reliable for this (it missed auto-arrange), so read the plan and the decisions first. Section 7 compares the editor with ComfyUI-frontend.
+
 ## 1. Node features
 
 | litegraph feature | Status | Notes |
@@ -31,7 +33,7 @@ Status: **Done** (implemented), **Partial**, **Gap** (in scope, not built), **De
 | Widget bound to a property, options (min, max, step, precision, values) | Done | |
 | Widgets before slots (`widgets_up`), `widgets_start_y` | Out | Layout is ours; one order is enough |
 | Widget value serialization (`serialize_widgets`) | Done | widgets edit properties, which serialize |
-| Widget converted to an input slot | Gap | ComfyUI-style, not litegraph core, but useful: a property that can also be wired. Check whether property-to-port exists in Core |
+| Widget converted to an input slot | Gap | Confirmed: properties are widgets and ports are separate, and an unlinked input can only be set by wiring a constant node (decisions 128, 209). ComfyUI-style, not litegraph core, but the most useful gap. See section 7 |
 | Custom drawing (`onDrawBackground`, `onDrawForeground`) | Done | `NodeContentDrawing` |
 | Node mouse hooks (`onMouseDown` etc.) | Partial | Custom widgets cover most; no raw pointer hook into the content area |
 | `onDblClick`, `onSelected`, `onDeselected` hooks | Out | Observe model selection instead |
@@ -43,7 +45,7 @@ Status: **Done** (implemented), **Partial**, **Gap** (in scope, not built), **De
 | `onAdded`, `onRemoved`, `onStart`, `onStop` | Partial | Execution events exist; definition lifecycle hooks Gap, low priority |
 | Node clone | Done | duplicate, copy/paste |
 | `flags.allow_interaction` per node | Gap | Per-node lock. Pin covers moving only |
-| Mode colouring of the title box, trigger-lit boxes | Partial | Execution overlay tints; mode colouring `?` |
+| Mode colouring of the title box, trigger-lit boxes | Done | A mark per mode, dashed links out of off and muted nodes (`NodeModeDisplay`, decision 221); execution overlay tints (decision 162) |
 | Node help text / tooltips | Partial | `NodeDefinition.help` in the palette and inspector (decision 198); no hover tooltip on the canvas |
 
 ## 2. Link and graph features
@@ -51,7 +53,7 @@ Status: **Done** (implemented), **Partial**, **Gap** (in scope, not built), **De
 | litegraph feature | Status | Notes |
 |---|---|---|
 | Spline, linear, straight links | Done | `LinkStyle` |
-| Link arrows, link shadows | Gap | Cosmetic. Arrow at the midpoint is cheap |
+| Link arrows, link shadows | Partial | Arrow at the midpoint is done (`showsLinkArrows`, decision 200). Shadows Gap, cosmetic |
 | Link centre marker with menu (Add Node, Delete) | Partial | Waypoints and link menu done; "Add Node into link" `?` |
 | Link tooltip showing the value passing | Done | label at the link midpoint on hover or selection (decision 179) |
 | Link colour by type | Done `?` | |
@@ -60,7 +62,7 @@ Status: **Done** (implemented), **Partial**, **Gap** (in scope, not built), **De
 | Subgraphs, graph inputs and outputs, edit interface | Done | Phase 3 and 4 |
 | Global graph variables (`vars`, `Globals`) | Done | read-only parameters with run overrides (decisions 189-192); writing from the graph (`data_store`) is not built; state exists now (decision 193) but variables stay read-only; variables can be renamed and readers pick them from a list (decision 201) |
 | Graph `config` and `extra` bag | Done | `GraphDocument.metadata`, a free-form `[String: GraphValue]` bag, already existed |
-| Execution order display (`render_execution_order`) | Gap | Cheap debug overlay from `ExecutionPlan` |
+| Execution order display (`render_execution_order`) | Done | `showsExecutionOrder`, number badge per node (decision 200) |
 | Start, stop, step, fixed time step, elapsed time | Done | `GraphRunner` modes |
 | Error catching per node | Done | |
 | Placeholder for unknown node types | Done | |
@@ -68,7 +70,7 @@ Status: **Done** (implemented), **Partial**, **Gap** (in scope, not built), **De
 | `MAX_NUMBER_OF_NODES` | Out | Tested at 10k |
 | Graph hooks (`onNodeAdded`, `onConnectionChange`, before/after change) | Done | change stream |
 | `beforeChange`/`afterChange` undo grouping | Done | command batches |
-| Arrange (auto layout, horizontal/vertical) | Gap | Align and distribute done; automatic layered layout is not. Worth building (layered, by `ExecutionPlan` depth) |
+| Arrange (auto layout, horizontal/vertical) | Done | Align, distribute and `Arrangement.layered` auto-arrange (decisions 149, 199). Left-to-right only; no key binding |
 | Trigger and event propagation | Done | |
 | Save and load | Done | native JSON (not litegraph's format) |
 | Load from URL or file | Deferred | Phase 6 stores and document app |
@@ -102,8 +104,8 @@ Status: **Done** (implemented), **Partial**, **Gap** (in scope, not built), **De
 | Low quality rendering below zoom 0.6 | Done | level of detail |
 | Viewport culling | Done | |
 | Theme: colours, background image, shadows | Partial | `GraphTheme`; background image and shadows Gap, cosmetic |
-| `show_info` stats overlay | Gap | Debug overlay (nodes, visible, FPS). Cheap |
-| Canvas render to image | Gap | Export the graph as PNG/PDF. `ImageRenderer` already used in benchmarks |
+| `show_info` stats overlay | Done | `showsStats`: nodes, links, visible, zoom. No FPS (decision 200) |
+| Canvas render to image | Done | PNG through `onExportImage`, capped at 8192 px (decision 200). PDF Gap |
 | Mini-map | Done | litegraph has none |
 | Undo/redo | Done | litegraph has no stack on its own |
 | Accessibility | Done | beyond litegraph |
@@ -150,7 +152,7 @@ Our packs hold 76 node types (decision list in PLAN). Comparison with litegraph'
 
 ## 6. Gaps worth building, ranked
 
-Ranking is by value to the editor and to the Phase 7 domains, then by cost.
+Ranking is by value to the editor and to the Phase 7 domains, then by cost. Status as of 2026-11-16: items 1 to 7 and 10 are built (PLAN.md Phase 5); 8 and 9 are deferred until a domain needs them.
 
 1. **Read-only canvas mode** (`isEditable`): small; needed by any viewer, the server preview and dashboards.
 2. **Watch, time and log nodes**, plus **last run values on links** (link tooltip): the core debugging loop. Needs run values exposed from `GraphRunner` events.
@@ -164,3 +166,28 @@ Ranking is by value to the editor and to the Phase 7 domains, then by cost.
 10. Display extras: execution order overlay, stats overlay, export to image, link arrows.
 
 Items marked `?` above are to be confirmed by reading the code when the item is picked up.
+
+## 7. Comparison with ComfyUI-frontend
+
+ComfyUI-frontend (Comfy-Org, GPL-3.0) is the maintained descendant of litegraph, now a TypeScript fork inside its own repo with Vue-rendered nodes ("Nodes 2.0"), subgraphs (which replaced group nodes), a minimap, a node library sidebar and an extension API. It is a second feature reference, not a compatibility target. Sources: its README, the Comfy blog and docs pages on subgraphs and Nodes 2.0, and the DeepWiki page on its subgraph system. The ComfyUI side was not checked against its source.
+
+Where this editor already matches or exceeds it: subgraph create, unpack, breadcrumbs and interface editing; subgraph libraries with versions and update status (ComfyUI lists publishing and syncing as roadmap); minimap; node search and palette with fuzzy ranking and help text; bypass, mute and disable; read-only mode; command-based undo with a replayable log; accessibility; an in-process runner with caching; the assistant.
+
+Gaps, with the evidence for each (ranked; the first four are in PLAN.md Phase 9):
+
+| Gap | Evidence | Notes |
+|---|---|---|
+| Widget-to-input conversion (a property that can also be wired, and drop a link on a widget to convert it) | Decisions 128, 209 | The largest ergonomic gap. Removes the constant-node workaround |
+| User-rebindable keys and a command palette | Decision 114 | `CanvasKeyMap` is pure data, so rebinding is cheap |
+| Run state and values for nodes inside subgraphs | Decisions 75, 162, 176, 222, 224 | The runner reports the instance only; the assistant panel is off inside a subgraph and the preview is not drawn there |
+| Localization | Not in any plan or decision | Cheaper to start before more strings exist |
+| Runtime port-type conversion | Decision 61 | Declared, never performed; explicit convert nodes only |
+| Selection toolbox (floating actions over the selection) | Not in any plan or decision | Actions already exist in menus and the inspector |
+| Template gallery | `examples/` has three files | No in-app browser |
+| Pack-contributed menu items and inspector panels | Decisions 91, 128, 165 | Packs add widgets and drawings only |
+| Subgraph library polish | Decision 205 | Update from a selected instance, diff before update, remove an entry, edit an exposed property's default |
+| Decoded-media handle store | PLAN Phase 7 | Video frames are descriptions only |
+| Vector types, vertical slot layout | Section 6, items 8 and 9 | Deferred until a domain needs them |
+| Server, change feed, collaboration | PLAN Phase 6 | Server decision deferred (2026-11-08); no `changes(since:)` |
+
+Deliberately not adopted: Vue-style DOM node rendering (benchmarks show Canvas is enough, decision 170, and rich widgets are overlays); snapshot-based undo; slot-index addressing; a separate backend queue; monkey-patch style extension hooks (decision 91).

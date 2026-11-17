@@ -182,6 +182,21 @@ Design, tool list, providers and backlog are in `docs/ASSISTANT.md`. Rules: the 
   - [x] Two join tasks (2026-11-14): the two phrasings a hosted model answered correctly in use are golden tasks that accept any right wiring (concat chain or one join node); the on-device model passes neither (0/6). 78 tests in `NodeGraphAI`
 - [ ] Later: iCloud Keychain sync of the API key (after the server decision), App Intents, domain assistant extensions in packs
 
+## Phase 9: Gaps found by comparison with ComfyUI-frontend
+
+Found 2026-11-16 by reading this plan, DECISIONS.md and the ComfyUI-frontend README and blog (see `docs/FEATURE_AUDIT.md` section 7 for evidence). Not started; the owner picks the order. Each needs a decision entry before work starts.
+
+- [ ] Widget-to-input conversion: let a property also be wired as an input, and convert a widget by dropping a link on it. Touches the definition model (a property that can be exposed as a port), `NodeLayout`, the runner's input binding and subgraph promotion. Removes the constant-node workaround of decision 209
+- [ ] Rebindable keyboard shortcuts and a command palette over `CanvasCommand` and `CanvasKeyMap` (settings stored by the host app)
+- [ ] Run state and values for nodes inside subgraph instances: path-qualified `ExecutionEvent`s and `RunValues` (decisions 75 and 176), so the drill-down view, the assistant panel and the pending-change preview work inside a subgraph
+- [ ] Localization: String Catalogs for UI strings in `NodeGraphUI` and the app; node and pack names stay as data
+- [ ] Runtime port-type conversion applied by the runner (decision 61), when a domain pack needs implicit conversion
+- [ ] Selection toolbox: a floating bar over the selection (color, mode, pin, delete, create subgraph)
+- [ ] Template gallery over `examples/` in the document-based app
+- [ ] Pack-contributed node menu entries and inspector sections (registered per node type like `registerContentDrawing`)
+- [ ] Subgraph library polish (decision 205 "not built"): update from a selected instance, a diff before updating, remove an entry or a library, edit an exposed property's default
+- [ ] Reconcile the remaining `?` rows of `docs/FEATURE_AUDIT.md` by running the app (space-drag pan, alt-drag clone, dim incompatible slots while dragging, collapse by title click, add node into a link, per-type versioning)
+
 ## Quality gates (every phase)
 
 - Swift 6 strict concurrency clean; zero warnings.
