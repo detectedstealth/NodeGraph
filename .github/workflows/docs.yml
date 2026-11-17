@@ -4,10 +4,20 @@
 # https://brucewade.dev/NodeGraph/ (see docs/TUTORIALS.md).
 name: Docs
 
-# Runs on every push to main, and by hand from the Actions tab.
+# Runs when something that feeds the site changes on main, and by hand from the Actions tab.
+# The front page is written by scripts/docs.sh, so that script is in the list.
 on:
   push:
     branches: [main]
+    paths:
+      - "Packages/**"
+      - "docs/**"
+      - "examples/**"
+      - "Package.swift"
+      - "scripts/docs.sh"
+      - "scripts/sync-tutorial-code.sh"
+      - "scripts/check-tutorial-steps.sh"
+      - ".github/workflows/docs.yml"
   workflow_dispatch:
 
 permissions:
