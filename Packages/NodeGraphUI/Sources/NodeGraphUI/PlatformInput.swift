@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 #if canImport(AppKit)
 import AppKit
 #endif
@@ -39,3 +40,4 @@ enum PlatformInput {
     }
     #endif
 }
+#endif

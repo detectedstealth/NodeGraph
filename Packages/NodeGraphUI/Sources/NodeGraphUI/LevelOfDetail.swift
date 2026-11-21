@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 /// How much to draw at a zoom level. Zoomed far out, text is unreadable and ports are specks,
 /// so the canvas skips them: that is what keeps thousands of nodes fast.
 public struct LevelOfDetail: Hashable, Sendable {
@@ -31,3 +32,4 @@ public struct LevelOfDetail: Hashable, Sendable {
     /// Whether links are curves; otherwise a single straight line each.
     public var drawsLinkCurves: Bool { tier >= .reduced }
 }
+#endif

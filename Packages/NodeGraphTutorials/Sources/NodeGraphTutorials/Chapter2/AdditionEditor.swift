@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)  //# guard
 //# step 1
 import NodeGraphCore
 import NodeGraphUI
@@ -95,3 +96,4 @@ func run(_ model: GraphEditorModel, console: ConsoleModel) async {
     }
     events.cancel()
 }
+#endif  //# guard

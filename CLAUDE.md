@@ -29,7 +29,7 @@ scripts/check-cli-tutorial.sh  Runs every command the command-line tutorials sho
 scripts/ci.sh         Tests all packages, builds docs; `--ios` also builds for iOS simulator.
 Package.swift         The one SwiftPM manifest for every module above (sources stay in Packages/<Name>/). Consumers depend on the repo by URL.
 LICENSE               Apache-2.0.
-NodeGraph.xcworkspace Open this in Xcode.
+App/NodeGraph.xcworkspace   Open this in Xcode. It lives in App/ on purpose: a workspace at the repo root hides Package.swift from xcodebuild (and so from the Swift Package Index builders); see decision 246.
 ```
 
 The app project is `App/NodeGraphApp/NodeGraphApp.xcodeproj` (folder-reference based: new files in `App/NodeGraphApp/NodeGraphApp/` join the target automatically).

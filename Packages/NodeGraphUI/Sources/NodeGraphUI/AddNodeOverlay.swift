@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import NodeGraphCore
 import SwiftUI
 
@@ -169,3 +170,4 @@ private struct AddNodePanel: View {
         controller.addNode(found[highlighted])
     }
 }
+#endif

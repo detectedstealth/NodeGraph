@@ -78,7 +78,7 @@ public actor FileGraphStore: GraphStore {
         encoder.outputFormatting = [.sortedKeys, .prettyPrinted, .withoutEscapingSlashes]
         encoder.dateEncodingStrategy = .iso8601
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        try encoder.encode(file).write(to: url, options: .atomic)
+        try encoder.encode(file).writeAtomically(to: url)
         return summary
     }
 

@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import NodeGraphCore
 
 /// Which edge or center nodes line up on.
@@ -213,3 +214,4 @@ public enum Arrangement {
         return NodePlacement(node: item.node, position: origin)
     }
 }
+#endif

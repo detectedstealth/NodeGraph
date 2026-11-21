@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import CoreGraphics
 import Foundation
 import NodeGraphCore
@@ -575,3 +576,4 @@ extension GraphCommand {
         }
     }
 }
+#endif

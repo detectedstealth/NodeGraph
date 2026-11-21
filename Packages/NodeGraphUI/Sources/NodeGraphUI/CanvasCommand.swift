@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import CoreGraphics
 import NodeGraphCore
 
@@ -198,3 +199,4 @@ public struct CanvasMenuItem: Hashable, Sendable {
         isChecked = false
     }
 }
+#endif

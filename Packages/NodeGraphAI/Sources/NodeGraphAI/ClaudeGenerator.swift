@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import Foundation
 import FoundationModels
 import NodeGraphCore
@@ -87,3 +88,4 @@ public struct ClaudeGenerator: StructuredGenerator, TextGenerator {
         return text
     }
 }
+#endif

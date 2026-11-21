@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import NodeGraphCore
 import SwiftUI
 
@@ -204,3 +205,4 @@ enum ColorPresets {
         RGBAColor(red: 0.3, green: 0.3, blue: 0.3), RGBAColor(red: 0, green: 0, blue: 0),
     ]
 }
+#endif

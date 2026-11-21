@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import NodeGraphCore
 
 /// How the editor looks. Plain data with platform-neutral colors, so it can be stored, edited
@@ -154,3 +155,4 @@ extension RGBAColor {
         RGBAColor(red: level, green: level, blue: level, alpha: alpha)
     }
 }
+#endif

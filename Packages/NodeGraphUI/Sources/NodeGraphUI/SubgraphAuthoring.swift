@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import Foundation
 import NodeGraphCore
 
@@ -112,3 +113,4 @@ extension GraphEditorModel {
         return "\(base) \(number)"
     }
 }
+#endif

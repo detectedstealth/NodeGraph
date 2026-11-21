@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import Foundation
 import NodeGraphCore
 
@@ -130,3 +131,4 @@ public struct LinkPath: Hashable, Sendable {
         return p.distance(to: GraphPoint(x: a.x + t * dx, y: a.y + t * dy))
     }
 }
+#endif

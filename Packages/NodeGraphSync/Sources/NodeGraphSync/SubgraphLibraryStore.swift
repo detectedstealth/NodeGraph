@@ -50,7 +50,7 @@ public actor FileSubgraphLibraryStore: SubgraphLibraryStore {
 
     public func save(_ library: SubgraphLibrary) throws {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        try library.encoded().write(to: fileURL(for: library.id), options: .atomic)
+        try library.encoded().writeAtomically(to: fileURL(for: library.id))
     }
 
     public func delete(_ id: LibraryID) throws {

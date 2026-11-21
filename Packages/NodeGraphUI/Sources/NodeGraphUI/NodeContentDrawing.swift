@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import CoreGraphics
 import NodeGraphCore
 import SwiftUI
@@ -50,3 +51,4 @@ extension NodeContentDrawing {
         }
     }
 }
+#endif

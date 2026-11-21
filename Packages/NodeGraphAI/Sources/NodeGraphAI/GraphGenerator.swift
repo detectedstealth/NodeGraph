@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import Foundation
 import FoundationModels
 import NodeGraphAssistant
@@ -371,3 +372,4 @@ public struct GraphGenerator: Sendable {
         return cleaned.isEmpty ? "node" : cleaned
     }
 }
+#endif

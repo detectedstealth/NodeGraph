@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)  //# guard
 //# step 1
 import NodeGraphCore
 import NodeGraphUI
@@ -26,3 +27,4 @@ func lookInsideTheSubgraph(in model: GraphEditorModel) -> Bool {
           model.enterSubgraph(of: instance.id) else { return false }
     return model.leaveSubgraph()
 }
+#endif  //# guard

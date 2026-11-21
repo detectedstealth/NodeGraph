@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import NodeGraphCore
 import SwiftUI
 
@@ -822,3 +823,4 @@ private struct LastRunSection: View {
         }
     }
 }
+#endif

@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import NodeGraphAssistant
 
 /// An answer to "why is this value what it is", in two parts the UI shows apart.
@@ -53,3 +54,4 @@ public struct ValueExplainer: Sendable {
         return head + String(trace.prefix(room)) + "\n(the rest of the trace is left out)"
     }
 }
+#endif

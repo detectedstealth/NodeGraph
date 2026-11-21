@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import Foundation
 import NodeGraphCore
 
@@ -81,3 +82,4 @@ public enum ProviderError: Error, Hashable, Sendable, LocalizedError {
         }
     }
 }
+#endif

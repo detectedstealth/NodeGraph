@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import CoreGraphics
 import NodeGraphCore
 
@@ -346,3 +347,4 @@ extension NodeTitleMode {
         }
     }
 }
+#endif

@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import SwiftUI
 
 /// Undo and redo buttons, for people with no keyboard to press Command-Z on. They go through
@@ -23,3 +24,4 @@ public struct GraphUndoControls: View {
         }
     }
 }
+#endif

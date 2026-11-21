@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import CoreGraphics
 import NodeGraphCore
 import SwiftUI
@@ -333,3 +334,4 @@ struct AccessibilityElementsView: View {
         controller.perform(operation, on: element.subject)
     }
 }
+#endif

@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import Foundation
 
 /// A model the assistant can run on, with the settings that make one usable (decision 227).
@@ -149,3 +150,4 @@ public enum ModelAvailability: Hashable, Sendable {
         }
     }
 }
+#endif

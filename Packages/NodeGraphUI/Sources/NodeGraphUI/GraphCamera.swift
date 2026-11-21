@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import CoreGraphics
 import NodeGraphCore
 
@@ -75,3 +76,4 @@ extension Double {
         min(max(self, range.lowerBound), range.upperBound)
     }
 }
+#endif

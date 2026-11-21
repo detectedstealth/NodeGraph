@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import FoundationModels
 
 extension ModelEndpoint {
@@ -20,3 +21,4 @@ extension ModelEndpoint {
         }
     }
 }
+#endif

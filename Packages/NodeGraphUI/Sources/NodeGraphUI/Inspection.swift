@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import NodeGraphCore
 
 /// One property of the inspected node: its definition, current value, and whether that is the
@@ -263,3 +264,4 @@ extension GraphEditorModel {
             memberCount: graph.members(of: group, frame: editor.nodes.frame(of:)).count)
     }
 }
+#endif

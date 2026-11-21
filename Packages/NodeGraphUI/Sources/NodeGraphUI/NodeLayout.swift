@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import NodeGraphCore
 
 /// Sizes that decide how a node is laid out, in graph units. Not part of the theme: the theme
@@ -188,3 +189,4 @@ extension GraphRect {
     var midX: Double { origin.x + size.width / 2 }
     var midY: Double { origin.y + size.height / 2 }
 }
+#endif

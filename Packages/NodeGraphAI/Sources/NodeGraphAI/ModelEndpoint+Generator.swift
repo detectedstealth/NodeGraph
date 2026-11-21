@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 /// What every provider offers the generation and explain features.
 public typealias ModelGenerator = StructuredGenerator & TextGenerator
 
@@ -40,3 +41,4 @@ extension ModelEndpoint {
         }
     }
 }
+#endif

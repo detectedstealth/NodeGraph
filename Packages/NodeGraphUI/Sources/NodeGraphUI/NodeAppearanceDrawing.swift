@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import CoreGraphics
 import NodeGraphCore
 import SwiftUI
@@ -93,3 +94,4 @@ extension GraphEditorModel {
         port.shape ?? (port.kind == .trigger ? .diamond : editor.types.info(for: port.type)?.shape ?? .circle)
     }
 }
+#endif

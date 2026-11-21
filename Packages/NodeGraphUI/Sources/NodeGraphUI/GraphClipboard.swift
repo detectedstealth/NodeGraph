@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import Foundation
 import NodeGraphCore
 #if canImport(AppKit)
@@ -79,3 +80,4 @@ public final class SystemClipboard: GraphClipboard {
         #endif
     }
 }
+#endif

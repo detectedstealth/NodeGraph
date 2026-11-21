@@ -23,7 +23,7 @@ swift test --filter NodeGraphCoreTests    # one module; omit --filter for everyt
 
 On Linux the Apple-only modules (`NodeGraphUI`, `NodeGraphAI`, `NodeGraphTutorials`) are left out of the package, so the same commands work there. A few tests measure time; on a slow or busy machine, run `NODEGRAPH_TIMING_SCALE=4 swift test --no-parallel`.
 
-On macOS, open `NodeGraph.xcworkspace` in Xcode, or run `./scripts/ci.sh` to test everything and build the docs (`--ios` also builds each module for the iOS simulator). `./scripts/docs.sh preview` serves the tutorials locally.
+On macOS, open `App/NodeGraph.xcworkspace` in Xcode, or run `./scripts/ci.sh` to test everything and build the docs (`--ios` also builds each module for the iOS simulator). `./scripts/docs.sh preview` serves the tutorials locally.
 
 ## Rules of the codebase
 

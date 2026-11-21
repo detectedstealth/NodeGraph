@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import Foundation
 import Logging
 import NodeGraphCore
@@ -191,3 +192,4 @@ extension GraphEditorModel {
         camera.center(on: GraphPoint(x: (frame.minX + frame.maxX) / 2, y: (frame.minY + frame.maxY) / 2), in: viewSize)
     }
 }
+#endif

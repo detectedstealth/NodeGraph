@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import NodeGraphCore
 
 /// What the add-node search needs to know about the port a link is being dragged from, so it
@@ -155,3 +156,4 @@ public struct NodeCatalog: Sendable {
         return remaining.isEmpty
     }
 }
+#endif

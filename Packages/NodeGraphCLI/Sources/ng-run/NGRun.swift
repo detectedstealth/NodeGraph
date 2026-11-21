@@ -31,7 +31,11 @@ private func load(_ file: URL) throws -> GraphDocument {
 
 private func write(_ data: Data, to output: URL?) throws {
     if let output {
+        #if os(WASI)
+        try data.write(to: output)  // WASI has no temporary files, so no atomic write
+        #else
         try data.write(to: output, options: .atomic)
+        #endif
     } else {
         FileHandle.standardOutput.write(data + Data("\n".utf8))
     }

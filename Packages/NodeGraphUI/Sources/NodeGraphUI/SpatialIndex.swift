@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import NodeGraphCore
 
 /// A uniform-grid index of rectangles in graph space, for finding what is under a point or
@@ -106,3 +107,4 @@ public struct SpatialIndex<ID: Hashable & Sendable>: Sendable {
             minY: Int((rect.minY / cellSize).rounded(.down)), maxY: Int((rect.maxY / cellSize).rounded(.down)))
     }
 }
+#endif

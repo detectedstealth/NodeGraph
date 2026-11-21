@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import Foundation
 import NodeGraphAssistant
 import NodeGraphCore
@@ -19,3 +20,4 @@ extension ProposeEditTool.Operation {
         return .string(trimmed)
     }
 }
+#endif
