@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import FoundationModels
 import NodeGraphAssistant
 
@@ -111,3 +112,4 @@ enum StageSchemas {
         }
     }
 }
+#endif

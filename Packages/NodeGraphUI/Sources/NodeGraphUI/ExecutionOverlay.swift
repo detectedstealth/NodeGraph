@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import NodeGraphCore
 
 /// What the canvas adds to a node to show how its last run went: a badge on the corner, a
@@ -105,3 +106,4 @@ extension GraphEditorModel {
         NodeRunDecoration(executionState[node])
     }
 }
+#endif

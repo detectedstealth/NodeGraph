@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import FoundationModels
 
 /// The steps of staged generation, named so a generator can log, route or script by step.
@@ -51,3 +52,4 @@ public struct SessionGenerator: StructuredGenerator, TextGenerator {
         try await makeSession().respond(to: prompt).content
     }
 }
+#endif

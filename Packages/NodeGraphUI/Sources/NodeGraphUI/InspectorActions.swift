@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import NodeGraphCore
 
 /// The edits the inspector makes. Each is an ordinary undoable command; editing several nodes is
@@ -204,3 +205,4 @@ extension GraphEditorModel {
         return attempt(.updateGroup(group: group), name: name)
     }
 }
+#endif

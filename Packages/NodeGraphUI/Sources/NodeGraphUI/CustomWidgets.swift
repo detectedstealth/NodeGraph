@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import CoreGraphics
 import NodeGraphCore
 import SwiftUI
@@ -6,3 +7,4 @@ import SwiftUI
 /// property's current value if it has one. Runs for every visible node each frame, so keep it
 /// cheap.
 public typealias WidgetRenderer = @MainActor (inout GraphicsContext, CGRect, GraphValue?, GraphTheme) -> Void
+#endif

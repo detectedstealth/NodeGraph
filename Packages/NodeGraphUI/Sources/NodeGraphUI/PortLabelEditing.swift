@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import Foundation
 import NodeGraphCore
 
@@ -24,3 +25,4 @@ extension GraphEditorModel {
         return (try? perform(command, name: "Rename Port", coalescing: coalescing)) != nil
     }
 }
+#endif

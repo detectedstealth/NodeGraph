@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import CoreGraphics
 import NodeGraphCore
 import SwiftUI
@@ -146,3 +147,4 @@ public struct GraphMiniMapView: View {
         context.stroke(Path(view), with: .color(Color(theme.selection)), lineWidth: 1.5)
     }
 }
+#endif

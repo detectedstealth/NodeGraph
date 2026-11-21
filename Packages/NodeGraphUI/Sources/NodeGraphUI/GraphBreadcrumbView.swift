@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import NodeGraphCore
 import SwiftUI
 
@@ -37,3 +38,4 @@ public struct GraphBreadcrumbView: View {
         }
     }
 }
+#endif

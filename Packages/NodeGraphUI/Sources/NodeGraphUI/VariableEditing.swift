@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import Foundation
 import NodeGraphCore
 
@@ -103,3 +104,4 @@ extension GraphEditorModel {
         return (try? perform(.removeVariable(name: name), name: "Remove Variable", isScoped: true)) != nil
     }
 }
+#endif

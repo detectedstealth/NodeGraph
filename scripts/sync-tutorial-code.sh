@@ -4,7 +4,9 @@
 # Each compiled file in Packages/NodeGraphTutorials/Sources/NodeGraphTutorials/Chapter*/ and
 # Tests/NodeGraphTutorialsTests/Chapter*/ holds the finished code of one tutorial. A line
 # `//# step N` says that the lines after it first appear in step N; step K of the tutorial shows
-# every line whose step is K or less, in file order. Marker lines are not shown, and the tutorial
+# every line whose step is K or less, in file order. A line ending in `//# guard` is a platform
+# guard (`#if !os(tvOS) && !os(watchOS)`) that keeps the file out of platforms the UI and AI
+# modules do not support; it is never shown. Marker lines are not shown, and the tutorial
 # package's module name is shown as the example package's (`TemperaturePack`).
 #
 # Output:
@@ -32,6 +34,7 @@ mkdir -p "$work/steps" "$work/example/Sources/TemperaturePack" "$work/example/Te
 emit() { # emit <file> <step>: the file as it reads at that step
     awk -v k="$2" '
         /^\/\/# step [0-9]+$/ { step = $3; next }
+        /\/\/# guard$/ { next }
         step <= k { print }
     ' "$1" | sed 's/@testable import NodeGraphTutorials/@testable import TemperaturePack/'
 }

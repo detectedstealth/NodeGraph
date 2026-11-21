@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import Foundation
 import FoundationModels
 import NodeGraphAssistant
@@ -235,3 +236,4 @@ extension GraphGenerator {
         return counts
     }
 }
+#endif

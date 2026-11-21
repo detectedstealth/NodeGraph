@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import Foundation
 import Security
 import Synchronization
@@ -54,3 +55,4 @@ public final class InMemorySecretStore: SecretStore {
         values.withLock { $0[account] = (secret?.isEmpty ?? true) ? nil : secret }
     }
 }
+#endif

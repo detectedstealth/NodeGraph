@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import NodeGraphAssistant
 import Synchronization
 
@@ -19,3 +20,4 @@ public final class ProposalInbox: Sendable {
     /// The most recent proposal, left in place.
     public var current: PendingChange? { latest.withLock { $0 } }
 }
+#endif

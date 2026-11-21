@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import Foundation
 import NodeGraphCore
 
@@ -198,3 +199,4 @@ extension Double {
         return result
     }
 }
+#endif

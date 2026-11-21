@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import CoreGraphics
 import Foundation
 import NodeGraphCore
@@ -1129,3 +1130,4 @@ public final class GraphInteractionController {
         appliedEdit = false
     }
 }
+#endif

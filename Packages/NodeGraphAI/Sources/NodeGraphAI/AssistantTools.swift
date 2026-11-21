@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import FoundationModels
 import NodeGraphAssistant
 
@@ -194,3 +195,4 @@ public enum AssistantTools {
          ProposeEditTool(workspace: workspace, inbox: inbox), ProposeGraphTool(workspace: workspace, inbox: inbox)]
     }
 }
+#endif

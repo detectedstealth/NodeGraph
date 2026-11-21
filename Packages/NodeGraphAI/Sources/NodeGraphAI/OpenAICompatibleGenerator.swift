@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import Foundation
 import FoundationModels
 import NodeGraphCore
@@ -82,3 +83,4 @@ public struct OpenAICompatibleGenerator: StructuredGenerator, TextGenerator {
         return content
     }
 }
+#endif

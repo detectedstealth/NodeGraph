@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import NodeGraphCore
 
 /// How the canvas shows a node's ``NodeMode``: a mark on the title, the text for hover and the
@@ -65,3 +66,4 @@ extension GraphEditorModel {
         return display.dimsOutgoingLinks
     }
 }
+#endif

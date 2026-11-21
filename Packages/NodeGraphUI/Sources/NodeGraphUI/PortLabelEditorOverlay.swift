@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import NodeGraphCore
 import SwiftUI
 
@@ -62,3 +63,4 @@ private struct PortLabelEntry: View {
             }
     }
 }
+#endif

@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import NodeGraphCore
 import SwiftUI
 
@@ -115,3 +116,4 @@ private struct CreateSubgraphForm: View {
         model.createSubgraph(name: name, promoting: targets, open: opensAfterwards)
     }
 }
+#endif

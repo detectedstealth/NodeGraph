@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import NodeGraphCore
 import SwiftUI
 
@@ -606,3 +607,4 @@ extension RGBAColor {
         RGBAColor(red: red, green: green, blue: blue, alpha: alpha)
     }
 }
+#endif

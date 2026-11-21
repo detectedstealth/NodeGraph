@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 #if canImport(UIKit)
 import NodeGraphCore
 import OSLog
@@ -78,7 +79,9 @@ final class TouchInputView: UIView, UIGestureRecognizerDelegate, UIContextMenuIn
     /// whenever a context menu opened and then covered half the canvas.
     private let noKeyboard = UIView(frame: .zero)
     override var inputView: UIView? { noKeyboard }
+    #if !os(visionOS)  // visionOS marks inputAccessoryView unavailable
     override var inputAccessoryView: UIView? { nil }
+    #endif
 
     override func didMoveToWindow() {
         super.didMoveToWindow()
@@ -417,4 +420,5 @@ final class TouchRecognizer: UIGestureRecognizer {
         hypot(a.x - b.x, a.y - b.y)
     }
 }
+#endif
 #endif

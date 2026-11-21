@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import CoreGraphics
 import NodeGraphCore
 
@@ -45,3 +46,4 @@ public struct ConnectionDraft: Hashable, Sendable {
     /// The port under the pointer if dropping there would be refused.
     public var rejected: PortAddress?
 }
+#endif

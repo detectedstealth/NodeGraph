@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 #if canImport(AppKit)
 import AppKit
 import SwiftUI
@@ -140,4 +141,5 @@ struct MacInputMonitor: NSViewRepresentable {
         @objc private func run() { handler() }
     }
 }
+#endif
 #endif

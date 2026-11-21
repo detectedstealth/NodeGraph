@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import NodeGraphCore
 
 /// Something drawn on the canvas that can be hit or selected.
@@ -103,3 +104,4 @@ extension GraphEditorModel {
 
 /// Core's `Link`, under a name that SwiftUI's `Link` view cannot shadow in files that import both.
 typealias GraphLink = Link
+#endif

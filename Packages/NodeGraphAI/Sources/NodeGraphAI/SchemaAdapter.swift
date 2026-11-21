@@ -1,3 +1,4 @@
+#if !os(tvOS) && !os(watchOS)
 import Foundation
 import FoundationModels
 import NodeGraphCore
@@ -80,3 +81,4 @@ enum SchemaAdapter {
         return trimmed
     }
 }
+#endif
