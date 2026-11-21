@@ -27,10 +27,9 @@ Packages/
   NodeGraphCLI/     NodeGraphRunKit library and the ng-run headless runner
   NodeGraphTutorials/ DocC tutorials and their tested step code (no product)
 examples/           Example graphs and TemperaturePack, a finished node pack
-App/                The macOS and iPadOS app
+App/                The macOS and iPadOS app, and App/NodeGraph.xcworkspace
 docs/               ARCHITECTURE.md, DECISIONS.md, PLAN.md, FEATURE_AUDIT.md, ASSISTANT.md, TUTORIALS.md
 scripts/ci.sh       Build and test everything (--ios adds simulator builds)
-NodeGraph.xcworkspace
 ```
 
 To use it in your own app or package, see "Use it in your own app" below.
@@ -137,4 +136,4 @@ Plan and status: `docs/TUTORIALS.md`. A finished example pack is in `examples/Te
 
 On Linux, `swift build` and `swift test` build and test the modules that run there. A few tests measure time; on a slow or busy machine, run `NODEGRAPH_TIMING_SCALE=4 swift test --no-parallel` to loosen their limits.
 
-Open `NodeGraph.xcworkspace` in Xcode. Contributions are welcome: see `CONTRIBUTING.md`. Roadmap: `docs/PLAN.md`. Design: `docs/ARCHITECTURE.md`. Contributor and agent rules: `CLAUDE.md`.
+Open `App/NodeGraph.xcworkspace` in Xcode. Contributions are welcome: see `CONTRIBUTING.md`. Roadmap: `docs/PLAN.md`. Design: `docs/ARCHITECTURE.md`. Contributor and agent rules: `CLAUDE.md`.
